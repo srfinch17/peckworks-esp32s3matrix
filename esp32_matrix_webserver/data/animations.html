@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Animations</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; padding: 20px; }
+    .back { color: #555; text-decoration: none; font-size: 0.85rem; display: inline-block; margin-bottom: 16px; }
+    .back:hover { color: #999; }
+    h1 { font-size: 1.3rem; color: #cc88ff; margin-bottom: 24px; }
+    .anim-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .anim-card { background: #161616; border: 2px solid #2a2a2a; border-radius: 12px; padding: 16px; cursor: pointer; transition: border-color 0.15s; }
+    .anim-card:hover { border-color: #3a3a3a; }
+    .anim-card.selected { border-color: #cc88ff; background: #180e28; }
+    .anim-card .icon { font-size: 2rem; display: block; margin-bottom: 8px; }
+    .anim-card .name { font-weight: 600; font-size: 0.9rem; margin-bottom: 4px; }
+    .anim-card .desc { font-size: 0.7rem; color: #666; line-height: 1.4; }
+    .panel { background: #161616; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px; }
+    .panel-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #666; margin-bottom: 16px; }
+    .group { margin-bottom: 18px; }
+    .group label { display: block; font-size: 0.75rem; color: #777; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; }
+    .slider-row { display: flex; align-items: center; gap: 12px; }
+    input[type=range] { flex: 1; accent-color: #cc88ff; cursor: pointer; }
+    .color-row { display: flex; align-items: center; gap: 12px; }
+    input[type=color] { width: 48px; height: 36px; border: 1px solid #333; border-radius: 6px; background: none; cursor: pointer; padding: 2px; }
+    .color-hex { font-size: 0.85rem; color: #777; font-family: monospace; }
+    .color-group { transition: opacity 0.2s; }
+    .color-group.hidden { opacity: 0.25; pointer-events: none; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+    .btn-primary { background: #270a44; color: #cc88ff; border: 1px solid #4a1a77; border-radius: 7px; padding: 10px 22px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: background 0.12s; }
+    .btn-primary:hover { background: #30105a; }
+    .btn-secondary { background: #1a1a1a; color: #aaa; border: 1px solid #333; border-radius: 7px; padding: 10px 18px; cursor: pointer; font-size: 0.85rem; }
+    .btn-secondary:hover { background: #222; }
+    .status { font-size: 0.78rem; margin-top: 14px; min-height: 1.2em; color: #00cc66; }
+    .status.err { color: #ff5555; }
+  </style>
+</head>
+<body>
+  <a href="/" class="back">← Home</a>
+  <h1>🌈 Animations</h1>
+
+  <div class="anim-grid">
+    <div class="anim-card selected" data-type="rainbow" onclick="selectAnim(this)">
+      <span class="icon">🌈</span>
+      <div class="name">Rainbow</div>
+      <div class="desc">Cycles through all hues across the matrix</div>
+    </div>
+    <div class="anim-card" data-type="breathe" onclick="selectAnim(this)">
+      <span class="icon">💨</span>
+      <div class="name">Breathe</div>
+      <div class="desc">Slow pulsing glow — pick your color</div>
+    </div>
+    <div class="anim-card" data-type="wave" onclick="selectAnim(this)">
+      <span class="icon">🌊</span>
+      <div class="name">Wave</div>
+      <div class="desc">Rising blue water columns</div>
+    </div>
+    <div class="anim-card" data-type="solid" onclick="selectAnim(this)">
+      <span class="icon">⬛</span>
+      <div class="name">Solid</div>
+      <div class="desc">Fill the matrix with one color</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Settings</div>
+
+    <div class="group">
+      <label>Speed — <span id="v-speed">15</span> fps</label>
+      <div class="slider-row">
+        <input type="range" id="speed" min="30" max="200" value="66" oninput="updateSpeed(this.value)">
+      </div>
+    </div>
+
+    <div class="group color-group hidden" id="color-group">
+      <label>Color</label>
+      <div class="color-row">
+        <input type="color" id="color" value="#0064ff" oninput="updateColorHex()">
+        <span class="color-hex" id="color-hex">#0064FF</span>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn-primary"   onclick="applyAnimation()">Apply to Display</button>
+      <button class="btn-secondary" onclick="clearDisplay()">Stop / Clear</button>
+    </div>
+    <div class="status" id="status"></div>
+  </div>
+
+  <script>
+    // Animations that expose a color picker (rainbow and wave have fixed colors)
+    const needsColor = new Set(['breathe', 'solid']);
+    let selectedType = 'rainbow';
+
+    function selectAnim(card) {
+      document.querySelectorAll('.anim-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      selectedType = card.dataset.type;
+      document.getElementById('color-group').classList.toggle('hidden', !needsColor.has(selectedType));
+    }
+
+    function updateSpeed(val) {
+      document.getElementById('v-speed').textContent = Math.round(1000 / val);
+    }
+
+    function updateColorHex() {
+      document.getElementById('color-hex').textContent =
+        document.getElementById('color').value.toUpperCase();
+    }
+
+    function setStatus(msg, isErr) {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = 'status' + (isErr ? ' err' : '');
+    }
+
+    async function applyAnimation() {
+      const speed = +document.getElementById('speed').value;
+      const color = document.getElementById('color').value;
+      const body  = { type: selectedType, speed };
+      if (needsColor.has(selectedType)) body.color = color;
+
+      try {
+        const r = await fetch('/api/display/animation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        setStatus(r.ok ? '✓ Running: ' + selectedType : 'Error: HTTP ' + r.status, !r.ok);
+      } catch {
+        setStatus('Cannot reach board — check WiFi connection.', true);
+      }
+    }
+
+    async function clearDisplay() {
+      try {
+        const r = await fetch('/api/display/clear', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}'
+        });
+        setStatus(r.ok ? 'Display cleared.' : 'Error: HTTP ' + r.status, !r.ok);
+      } catch {
+        setStatus('Cannot reach board — check WiFi connection.', true);
+      }
+    }
+  </script>
+</body>
+</html>

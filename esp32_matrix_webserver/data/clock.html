@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESP32 Matrix — Clock</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; padding: 20px; }
+    header { margin-bottom: 24px; display: flex; align-items: center; gap: 14px; }
+    a.back { color: #555; text-decoration: none; font-size: 0.85rem; }
+    a.back:hover { color: #aaa; }
+    h1 { font-size: 1.5rem; color: #00ff88; }
+    .panel { background: #161616; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+    .panel-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #666; margin-bottom: 16px; }
+    .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+    .row:last-child { margin-bottom: 0; }
+    label { font-size: 0.85rem; color: #aaa; min-width: 110px; }
+    input[type=color] { width: 44px; height: 32px; border: 1px solid #333; border-radius: 6px; background: none; cursor: pointer; padding: 2px; }
+    select { background: #1e1e1e; color: #ccc; border: 1px solid #333; border-radius: 7px; padding: 7px 10px; font-size: 0.85rem; cursor: pointer; }
+    button { background: #1e1e1e; color: #ccc; border: 1px solid #333; border-radius: 7px; padding: 8px 18px; cursor: pointer; font-size: 0.85rem; transition: background 0.12s; }
+    button:hover { background: #272727; }
+    button.primary { border-color: #00aa55; color: #00ff88; }
+    button.primary:hover { background: #002211; }
+    button.danger { border-color: #7a0000; color: #ff5555; }
+    button.danger:hover { background: #250000; }
+    .note { font-size: 0.78rem; color: #555; margin-top: 8px; line-height: 1.5; }
+    .status { font-size: 0.78rem; margin-top: 12px; min-height: 1.2em; color: #00cc66; }
+    .status.err { color: #ff5555; }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="back" href="/">← Back</a>
+    <h1>🕰️ Clock</h1>
+  </header>
+
+  <div class="panel">
+    <div class="panel-title">Clock Settings</div>
+    <div class="row">
+      <label>Background color</label>
+      <input type="color" id="bgColor" value="#003366">
+    </div>
+    <div class="row">
+      <label>Timezone (UTC offset)</label>
+      <select id="timezone">
+        <option value="-12">UTC-12</option>
+        <option value="-11">UTC-11</option>
+        <option value="-10">UTC-10</option>
+        <option value="-9">UTC-9</option>
+        <option value="-8">UTC-8 (Pacific)</option>
+        <option value="-7" selected>UTC-7 (Mountain / Phoenix)</option>
+        <option value="-6">UTC-6 (Central)</option>
+        <option value="-5">UTC-5 (Eastern)</option>
+        <option value="-4">UTC-4</option>
+        <option value="-3">UTC-3</option>
+        <option value="-2">UTC-2</option>
+        <option value="-1">UTC-1</option>
+        <option value="0">UTC+0</option>
+        <option value="1">UTC+1</option>
+        <option value="2">UTC+2</option>
+        <option value="3">UTC+3</option>
+        <option value="4">UTC+4</option>
+        <option value="5">UTC+5</option>
+        <option value="6">UTC+6</option>
+        <option value="7">UTC+7</option>
+        <option value="8">UTC+8</option>
+        <option value="9">UTC+9</option>
+        <option value="10">UTC+10</option>
+        <option value="11">UTC+11</option>
+        <option value="12">UTC+12</option>
+      </select>
+    </div>
+    <div class="row">
+      <button class="primary" onclick="startClock()">Start Clock</button>
+      <button class="danger" onclick="stopClock()">Stop</button>
+    </div>
+    <p class="note">Clock syncs time via NTP (internet) on first start. May take a few seconds to display. Digits are a whitish tint of the background color. 12-hour format.</p>
+    <div class="status" id="status"></div>
+  </div>
+
+  <script>
+    function setStatus(msg, isErr) {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = 'status' + (isErr ? ' err' : '');
+    }
+
+    async function post(url, data) {
+      try {
+        const r = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        return r.ok;
+      } catch { return false; }
+    }
+
+    async function startClock() {
+      const color = document.getElementById('bgColor').value;
+      const tz = parseInt(document.getElementById('timezone').value, 10);
+      const ok = await post('/api/display/animation', {
+        type: 'clock',
+        color: color,
+        timezone: tz
+      });
+      setStatus(ok ? 'Clock started. NTP sync may take a few seconds…' : 'Error — is the board reachable?', !ok);
+    }
+
+    async function stopClock() {
+      const ok = await post('/api/display/clear', {});
+      setStatus(ok ? 'Display cleared.' : 'Error — is the board reachable?', !ok);
+    }
+  </script>
+</body>
+</html>

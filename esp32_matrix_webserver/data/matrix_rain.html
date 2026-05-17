@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Matrix Rain</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; padding: 20px; }
+    .back { color: #555; text-decoration: none; font-size: 0.85rem; display: inline-block; margin-bottom: 16px; }
+    .back:hover { color: #999; }
+    h1 { font-size: 1.3rem; color: #00cc44; margin-bottom: 20px; }
+    .layout { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; }
+    .preview-wrap { flex: 0 0 auto; }
+    .preview-label { font-size: 0.68rem; color: #444; text-align: center; margin-top: 8px; text-transform: uppercase; letter-spacing: 0.07em; }
+    canvas { display: block; border-radius: 8px; border: 1px solid #1e1e1e; image-rendering: pixelated; }
+    .controls { flex: 1; min-width: 240px; max-width: 380px; }
+    .group { margin-bottom: 20px; }
+    .group > label { display: block; font-size: 0.72rem; color: #777; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 9px; }
+    .themes { display: flex; gap: 8px; flex-wrap: wrap; }
+    .theme-btn { background: #161616; color: #888; border: 1px solid #2a2a2a; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-size: 0.8rem; transition: all 0.12s; }
+    .theme-btn:hover { border-color: #3a3a3a; color: #aaa; }
+    .theme-btn[data-theme="classic"].active { border-color: #006622; color: #00cc44; }
+    .theme-btn[data-theme="blue"].active    { border-color: #2266cc; color: #5599ff; }
+    .theme-btn[data-theme="red"].active     { border-color: #aa2200; color: #ff5533; }
+    .theme-btn[data-theme="purple"].active  { border-color: #552288; color: #aa66ff; }
+    .slider-row { display: flex; align-items: center; gap: 10px; }
+    input[type=range] { flex: 1; accent-color: #00cc44; cursor: pointer; }
+    .val { font-size: 0.85rem; color: #666; min-width: 28px; text-align: right; }
+    .hint { font-size: 0.68rem; color: #444; margin-top: 5px; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+    .btn-apply { background: #003311; color: #00cc44; border: 1px solid #006622; border-radius: 7px; padding: 10px 22px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: background 0.12s; }
+    .btn-apply:hover { background: #004418; }
+    .btn-stop { background: #1a1a1a; color: #aaa; border: 1px solid #333; border-radius: 7px; padding: 10px 18px; cursor: pointer; font-size: 0.85rem; }
+    .btn-stop:hover { background: #222; }
+    .status { font-size: 0.78rem; margin-top: 14px; min-height: 1.2em; color: #00cc66; }
+    .status.err { color: #ff5555; }
+  </style>
+</head>
+<body>
+  <a href="/" class="back">← Home</a>
+  <h1>🖥️ Matrix Rain</h1>
+
+  <div class="layout">
+    <div class="preview-wrap">
+      <canvas id="preview" width="288" height="288"></canvas>
+      <div class="preview-label">Browser preview</div>
+    </div>
+
+    <div class="controls">
+      <div class="group">
+        <label>Theme</label>
+        <div class="themes">
+          <button class="theme-btn active" data-theme="classic">Classic</button>
+          <button class="theme-btn"        data-theme="blue">Blue</button>
+          <button class="theme-btn"        data-theme="red">Red</button>
+          <button class="theme-btn"        data-theme="purple">Purple</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <label>Speed — <span id="v-speed">12</span> fps</label>
+        <div class="slider-row">
+          <input type="range" id="speed" min="30" max="200" value="80">
+        </div>
+        <div class="hint">Higher fps = drops fall faster overall. Individual drops also vary randomly.</div>
+      </div>
+
+      <div class="actions">
+        <button class="btn-apply" onclick="applyToDisplay()">Apply to Display</button>
+        <button class="btn-stop"  onclick="stopDisplay()">Stop / Clear</button>
+      </div>
+
+      <div class="status" id="status"></div>
+    </div>
+  </div>
+
+  <script>
+    const W = 8, H = 8, CELL = 36, TRAIL_LEN = 4;
+
+    const THEMES = {
+      classic: { trail: [0, 180, 20],   head: [255, 255, 255] },
+      blue:    { trail: [0, 80, 220],   head: [180, 220, 255] },
+      red:     { trail: [220, 20, 0],   head: [255, 200, 180] },
+      purple:  { trail: [160, 0, 220],  head: [230, 200, 255] }
+    };
+
+    let theme   = 'classic';
+    let speedMs = 80;
+
+    // One drop per column, matching the firmware MatrixDrop struct exactly
+    const drops = Array.from({ length: W }, (_, col) => ({
+      col,
+      headY: -Math.floor(Math.random() * H + 1),
+      tick:  0,
+      speed: Math.floor(Math.random() * 3) + 1   // 1–3 ticks per step
+    }));
+
+    function stepDrops() {
+      for (const d of drops) {
+        d.tick++;
+        if (d.tick >= d.speed) {
+          d.tick = 0;
+          d.headY++;
+        }
+        if (d.headY > H + TRAIL_LEN) {
+          d.headY = -Math.floor(Math.random() * H + 1);
+          d.speed = Math.floor(Math.random() * 3) + 1;
+        }
+      }
+    }
+
+    const canvas = document.getElementById('preview');
+    const ctx    = canvas.getContext('2d');
+
+    function renderDrops() {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W * CELL, H * CELL);
+
+      const t = THEMES[theme];
+
+      for (const d of drops) {
+        // White (or tinted) head
+        if (d.headY >= 0 && d.headY < H) {
+          ctx.fillStyle = `rgb(${t.head[0]},${t.head[1]},${t.head[2]})`;
+          ctx.fillRect(d.col * CELL, d.headY * CELL, CELL, CELL);
+        }
+
+        // Fading trail above the head
+        for (let i = 1; i <= TRAIL_LEN; i++) {
+          const ty = d.headY - i;
+          if (ty < 0 || ty >= H) continue;
+          const fade = 1 - i / (TRAIL_LEN + 1);
+          ctx.fillStyle = `rgb(${(t.trail[0] * fade) | 0},${(t.trail[1] * fade) | 0},${(t.trail[2] * fade) | 0})`;
+          ctx.fillRect(d.col * CELL, ty * CELL, CELL, CELL);
+        }
+      }
+    }
+
+    let lastStep = 0;
+    function animate(ts) {
+      if (ts - lastStep >= speedMs) {
+        lastStep = ts;
+        stepDrops();
+        renderDrops();
+      }
+      requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+
+    // ── UI wiring ─────────────────────────────────────────────
+
+    function setStatus(msg, isErr) {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = 'status' + (isErr ? ' err' : '');
+    }
+
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        theme = btn.dataset.theme;
+      });
+    });
+
+    document.getElementById('speed').addEventListener('input', e => {
+      speedMs = +e.target.value;
+      document.getElementById('v-speed').textContent = Math.round(1000 / speedMs);
+    });
+
+    async function applyToDisplay() {
+      try {
+        const r = await fetch('/api/display/animation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'matrix_rain', theme, speed: speedMs })
+        });
+        setStatus(r.ok ? '✓ Applied to display.' : 'Error: HTTP ' + r.status, !r.ok);
+      } catch {
+        setStatus('Cannot reach board — check WiFi connection.', true);
+      }
+    }
+
+    async function stopDisplay() {
+      try {
+        const r = await fetch('/api/display/clear', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}'
+        });
+        setStatus(r.ok ? 'Display cleared.' : 'Error: HTTP ' + r.status, !r.ok);
+      } catch {
+        setStatus('Cannot reach board — check WiFi connection.', true);
+      }
+    }
+  </script>
+</body>
+</html>
