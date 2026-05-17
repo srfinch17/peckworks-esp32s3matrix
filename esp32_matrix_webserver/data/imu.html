@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IMU Visualizer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; padding: 20px; }
+    .back { color: #555; text-decoration: none; font-size: 0.85rem; display: inline-block; margin-bottom: 16px; }
+    .back:hover { color: #999; }
+    h1 { font-size: 1.3rem; color: #4499ff; margin-bottom: 6px; }
+    .subtitle { font-size: 0.75rem; color: #555; margin-bottom: 24px; }
+    .panel { background: #161616; border: 1px solid #2a2a2a; border-radius: 12px; padding: 24px; max-width: 480px; margin-bottom: 16px; }
+    .readout { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+    .axis { text-align: center; }
+    .axis-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+    .axis-val { font-size: 1.6rem; font-family: monospace; font-weight: 700; }
+    .ax-color { color: #cc2200; }
+    .ay-color { color: #00aa00; }
+    .az-color { color: #2255cc; }
+    .bar-wrap { height: 120px; display: flex; justify-content: center; align-items: center; }
+    .bar-track { width: 28px; height: 100%; background: #222; border-radius: 4px; position: relative; }
+    .bar-fill { position: absolute; left: 0; right: 0; border-radius: 4px; transition: top 0.1s, height 0.1s; }
+    .bar-zero { position: absolute; left: 0; right: 0; top: 50%; height: 2px; background: #444; }
+    .legend { font-size: 0.72rem; color: #555; line-height: 1.8; margin-bottom: 20px; }
+    .legend span { font-family: monospace; font-weight: 700; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn-primary { background: #0d2a55; color: #88bbff; border: 1px solid #1a4080; border-radius: 7px; padding: 10px 22px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: background 0.12s; }
+    .btn-primary:hover { background: #122f60; }
+    .btn-secondary { background: #1a1a1a; color: #aaa; border: 1px solid #333; border-radius: 7px; padding: 10px 18px; cursor: pointer; font-size: 0.85rem; }
+    .btn-secondary:hover { background: #222; }
+    .status { font-size: 0.78rem; margin-top: 14px; min-height: 1.2em; color: #00cc66; }
+    .status.err { color: #ff5555; }
+    .note { font-size: 0.72rem; color: #555; line-height: 1.5; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <a href="/" class="back">← Home</a>
+  <h1>📐 IMU Visualizer</h1>
+  <p class="subtitle">Live accelerometer readings — use this to identify which axis controls left/right tilt</p>
+
+  <div class="panel">
+    <div class="readout">
+      <div class="axis">
+        <div class="axis-label ax-color">ax (red)</div>
+        <div class="axis-val ax-color" id="val-ax">—</div>
+        <div class="bar-wrap">
+          <div class="bar-track">
+            <div class="bar-zero"></div>
+            <div class="bar-fill" id="bar-ax" style="background:#cc2200"></div>
+          </div>
+        </div>
+      </div>
+      <div class="axis">
+        <div class="axis-label ay-color">ay (green)</div>
+        <div class="axis-val ay-color" id="val-ay">—</div>
+        <div class="bar-wrap">
+          <div class="bar-track">
+            <div class="bar-zero"></div>
+            <div class="bar-fill" id="bar-ay" style="background:#00aa00"></div>
+          </div>
+        </div>
+      </div>
+      <div class="axis">
+        <div class="axis-label az-color">az (blue)</div>
+        <div class="axis-val az-color" id="val-az">—</div>
+        <div class="bar-wrap">
+          <div class="bar-track">
+            <div class="bar-zero"></div>
+            <div class="bar-fill" id="bar-az" style="background:#2255cc"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend">
+      Hold the board upright (fire at bottom) and level — watch which value is near ±1g.<br>
+      Tilt left/right slowly — whichever axis changes most is the tilt axis.<br>
+      <span class="ax-color">ax</span> = cols 0–1 &nbsp;·&nbsp;
+      <span class="ay-color">ay</span> = cols 3–4 &nbsp;·&nbsp;
+      <span class="az-color">az</span> = cols 6–7
+    </div>
+
+    <div class="actions">
+      <button class="btn-primary"   onclick="startDisplay()">Show on Matrix</button>
+      <button class="btn-secondary" onclick="clearDisplay()">Clear</button>
+    </div>
+    <div class="status" id="status"></div>
+
+    <p class="note">Values update every 300ms. ±1.0g = full gravity along that axis.</p>
+  </div>
+
+  <script>
+    function setStatus(msg, isErr) {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = 'status' + (isErr ? ' err' : '');
+    }
+
+    function updateBar(id, g) {
+      const fill = document.getElementById(id);
+      const pct = Math.min(Math.abs(g), 1.0) * 50; // 0–50% of track height
+      if (g >= 0) {
+        fill.style.top    = (50 - pct) + '%';
+        fill.style.height = pct + '%';
+        fill.style.bottom = '';
+      } else {
+        fill.style.top    = '50%';
+        fill.style.height = pct + '%';
+        fill.style.bottom = '';
+      }
+    }
+
+    async function poll() {
+      try {
+        const r = await fetch('/api/sensors/accelerometer');
+        const d = await r.json();
+        if (!d.ready) { setStatus('IMU not detected.', true); return; }
+        document.getElementById('val-ax').textContent = d.ax.toFixed(3);
+        document.getElementById('val-ay').textContent = d.ay.toFixed(3);
+        document.getElementById('val-az').textContent = d.az.toFixed(3);
+        updateBar('bar-ax', d.ax);
+        updateBar('bar-ay', d.ay);
+        updateBar('bar-az', d.az);
+        setStatus('');
+      } catch {
+        setStatus('Cannot reach board — check WiFi.', true);
+      }
+    }
+
+    async function startDisplay() {
+      try {
+        const r = await fetch('/api/display/animation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'imu', speed: 80 })
+        });
+        setStatus(r.ok ? '✓ IMU display running' : 'Error: HTTP ' + r.status, !r.ok);
+      } catch {
+        setStatus('Cannot reach board.', true);
+      }
+    }
+
+    async function clearDisplay() {
+      try {
+        const r = await fetch('/api/display/clear', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}'
+        });
+        setStatus(r.ok ? 'Display cleared.' : 'Error: HTTP ' + r.status, !r.ok);
+      } catch {
+        setStatus('Cannot reach board.', true);
+      }
+    }
+
+    poll();
+    setInterval(poll, 300);
+  </script>
+</body>
+</html>

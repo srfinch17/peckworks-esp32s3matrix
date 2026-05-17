@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weather</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; padding: 20px; }
+    .back { color: #555; text-decoration: none; font-size: 0.85rem; display: inline-block; margin-bottom: 16px; }
+    .back:hover { color: #999; }
+    h1 { font-size: 1.3rem; color: #4499ff; margin-bottom: 24px; }
+    .panel { background: #161616; border: 1px solid #2a2a2a; border-radius: 12px; padding: 24px; max-width: 480px; margin-bottom: 16px; }
+    .group { margin-bottom: 20px; }
+    .group label { display: block; font-size: 0.75rem; color: #777; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; }
+    input[type=text] { background: #1a1a1a; border: 1px solid #333; border-radius: 7px; color: #e0e0e0; font-size: 1rem; padding: 8px 12px; width: 160px; outline: none; }
+    input[type=text]:focus { border-color: #4499ff; }
+    .toggle-row { display: flex; gap: 8px; }
+    .tog-btn { border: 2px solid #333; border-radius: 8px; padding: 8px 20px; cursor: pointer; font-size: 0.85rem; font-weight: 700; background: #1a1a1a; color: #888; transition: border-color 0.12s, color 0.12s; }
+    .tog-btn.active { border-color: #4499ff; color: #fff; }
+    .section-label { font-size: 0.75rem; color: #777; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 10px; }
+    .wx-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .wx-btn { background: #0d2a55; color: #88bbff; border: 1px solid #1a4080; border-radius: 8px; padding: 14px 10px; cursor: pointer; font-size: 0.88rem; font-weight: 600; text-align: center; transition: background 0.12s, border-color 0.12s; }
+    .wx-btn:hover { background: #122f60; }
+    .wx-btn.active { background: #1a4a90; border-color: #4499ff; color: #fff; }
+    .wx-btn .icon { font-size: 1.4rem; display: block; margin-bottom: 4px; }
+    .wx-btn .lbl  { font-size: 0.78rem; }
+    .btn-secondary { background: #1a1a1a; color: #aaa; border: 1px solid #333; border-radius: 7px; padding: 10px 18px; cursor: pointer; font-size: 0.85rem; }
+    .btn-secondary:hover { background: #222; }
+    .status { font-size: 0.78rem; margin-top: 14px; min-height: 1.2em; color: #00cc66; }
+    .status.err { color: #ff5555; }
+    .weather-preview { background: #111; border: 1px solid #222; border-radius: 10px; padding: 16px; margin-top: 16px; display: none; }
+    .weather-preview.visible { display: block; }
+    .wx-row { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+    .wx-cat-icon { font-size: 2.4rem; }
+    .wx-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+    .wx-stat { background: #1a1a1a; border-radius: 8px; padding: 10px 14px; }
+    .wx-stat .s-label { font-size: 0.68rem; color: #555; text-transform: uppercase; letter-spacing: 0.06em; }
+    .wx-stat .s-value { font-size: 1.2rem; font-weight: 700; font-family: monospace; margin-top: 2px; }
+    .wx-stat.temp     .s-value { color: #ff9944; }
+    .wx-stat.humidity .s-value { color: #00ccff; }
+    .wx-stat.uv       .s-value { color: #ffcc00; }
+    .wx-stat.pressure .s-value { color: #bb66ff; }
+    .note { font-size: 0.72rem; color: #555; margin-top: 16px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <a href="/" class="back">← Home</a>
+  <h1>🌤 Weather</h1>
+
+  <div class="panel">
+    <div class="group">
+      <label>ZIP Code</label>
+      <input type="text" id="zipcode" value="85013" maxlength="10" placeholder="ZIP or city">
+    </div>
+
+    <div class="group">
+      <label>Temperature Units</label>
+      <div class="toggle-row">
+        <button class="tog-btn active" id="btn-F" onclick="selectUnit('F')">°F</button>
+        <button class="tog-btn"        id="btn-C" onclick="selectUnit('C')">°C</button>
+      </div>
+    </div>
+
+    <div class="section-label">Get Weather Info</div>
+    <div class="wx-buttons">
+      <button class="wx-btn" id="wxbtn-temp"     onclick="sendWeather('temp')">
+        <span class="icon">🌡️</span><span class="lbl">Get Temp</span>
+      </button>
+      <button class="wx-btn" id="wxbtn-humidity" onclick="sendWeather('humidity')">
+        <span class="icon">💧</span><span class="lbl">Get Humidity</span>
+      </button>
+      <button class="wx-btn" id="wxbtn-uv"       onclick="sendWeather('uv')">
+        <span class="icon">☀️</span><span class="lbl">Get UV Index</span>
+      </button>
+      <button class="wx-btn" id="wxbtn-pressure" onclick="sendWeather('pressure')">
+        <span class="icon">🔵</span><span class="lbl">Get Pressure</span>
+      </button>
+    </div>
+
+    <button class="btn-secondary" onclick="clearDisplay()">Clear Display</button>
+
+    <div class="status" id="status"></div>
+
+    <div class="weather-preview" id="preview">
+      <div class="wx-row">
+        <span class="wx-cat-icon" id="wx-icon">—</span>
+        <span style="font-size:0.8rem; color:#555;" id="wx-desc">—</span>
+      </div>
+      <div class="wx-grid">
+        <div class="wx-stat temp">
+          <div class="s-label">Temperature</div>
+          <div class="s-value" id="wx-temp">—</div>
+        </div>
+        <div class="wx-stat humidity">
+          <div class="s-label">Humidity</div>
+          <div class="s-value" id="wx-hum">—</div>
+        </div>
+        <div class="wx-stat uv">
+          <div class="s-label">UV Index</div>
+          <div class="s-value" id="wx-uv">—</div>
+        </div>
+        <div class="wx-stat pressure">
+          <div class="s-label">Pressure</div>
+          <div class="s-value" id="wx-pres">—</div>
+        </div>
+      </div>
+    </div>
+
+    <p class="note">
+      Each button fetches fresh weather data and shows only that reading on the matrix.<br>
+      Icon animates behind the value. Data comes from wttr.in — no API key needed.
+    </p>
+  </div>
+
+  <script>
+    let unit = 'F';
+    let activeMode = null;
+
+    const CATEGORY_ICONS = ['☀️','⛅','☁️','🌫️','🌧️','❄️','⛈️'];
+    const CATEGORY_NAMES = ['Sunny','Partly Cloudy','Cloudy','Foggy','Rainy','Snowy','Thunderstorm'];
+    const MODE_LABELS = { temp: 'Temperature', humidity: 'Humidity', uv: 'UV Index', pressure: 'Pressure' };
+
+    function selectUnit(u) {
+      unit = u;
+      document.getElementById('btn-F').classList.toggle('active', u === 'F');
+      document.getElementById('btn-C').classList.toggle('active', u === 'C');
+    }
+
+    function setStatus(msg, isErr) {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = 'status' + (isErr ? ' err' : '');
+    }
+
+    function setActiveButton(mode) {
+      ['temp','humidity','uv','pressure'].forEach(m => {
+        document.getElementById('wxbtn-' + m).classList.toggle('active', m === mode);
+      });
+      activeMode = mode;
+    }
+
+    async function sendWeather(mode) {
+      const zip = document.getElementById('zipcode').value.trim() || '85013';
+      setStatus('Fetching weather… (takes a few seconds)', false);
+      setActiveButton(mode);
+      try {
+        const r = await fetch('/api/display/animation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'weather', zipcode: zip, units: unit, data_mode: mode, speed: 80 })
+        });
+        if (r.ok) {
+          setStatus('✓ Showing ' + (MODE_LABELS[mode] || mode) + ' on display', false);
+          setTimeout(fetchPreview, 1200);
+        } else {
+          setStatus('Error: HTTP ' + r.status, true);
+          setActiveButton(null);
+        }
+      } catch {
+        setStatus('Cannot reach board — check WiFi.', true);
+        setActiveButton(null);
+      }
+    }
+
+    async function clearDisplay() {
+      try {
+        const r = await fetch('/api/display/clear', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}'
+        });
+        if (r.ok) {
+          setStatus('Display cleared.', false);
+          setActiveButton(null);
+          document.getElementById('preview').classList.remove('visible');
+        } else {
+          setStatus('Error: HTTP ' + r.status, true);
+        }
+      } catch {
+        setStatus('Cannot reach board.', true);
+      }
+    }
+
+    async function fetchPreview() {
+      try {
+        const r = await fetch('/api/sensors/weather');
+        const d = await r.json();
+        const cat = d.category || 0;
+        document.getElementById('wx-icon').textContent = CATEGORY_ICONS[cat] || '☀️';
+        document.getElementById('wx-desc').textContent = (CATEGORY_NAMES[cat] || '') + '  ·  ZIP ' + (d.zip || '');
+        document.getElementById('wx-temp').textContent = (d.temp  || '—') + '°' + (d.unit || 'F');
+        document.getElementById('wx-hum').textContent  = (d.humidity  != null ? d.humidity  + '%' : '—');
+        document.getElementById('wx-uv').textContent   = (d.uvIndex   != null ? d.uvIndex        : '—');
+        document.getElementById('wx-pres').textContent = (d.pressure  != null ? d.pressure + ' hPa' : '—');
+        document.getElementById('preview').classList.add('visible');
+      } catch { /* silently skip */ }
+    }
+  </script>
+</body>
+</html>
