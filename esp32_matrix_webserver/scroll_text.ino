@@ -1,13 +1,34 @@
 // ============================================================
-// SECTION 8: FONT AND TEXT SCROLLING
+// SECTION 8: FONT DATA AND TEXT SCROLLING
 //
-// Each character is 5 pixels wide and 7 pixels tall.
-// Storage: 5 bytes per character, one byte per column.
-// In each byte: bit 0 = top row, bit 6 = bottom row.
-// Characters begin at ASCII 32 (space). Index = ascii_code - 32.
-// Only uppercase letters are defined; lowercase is auto-converted.
+// THREE FONTS for three size modes:
+//   Normal (default) — 5×7 pixels, one character visible at a time
+//   Small            — 3×5 pixels, two characters visible at once
+//   Tiny             — 3×3 pixels, three or more chars visible
+//
+// All fonts share the same encoding scheme:
+//   - Column bytes: each byte describes one vertical column of pixels
+//   - Bit0 = top row, bit6 (normal) or bit4 (small) = bottom row
+//   - Characters start at ASCII 32 (space): index = ascii_code - 32
+//   - Lowercase is auto-converted to uppercase at render time
+//
+// PROGMEM: the font tables are large (271 bytes for normal alone)
+// and never change, so they live in flash memory. pgm_read_byte()
+// reads each byte back at runtime.
+//
+// HOW SCROLLING WORKS:
+//   The text is treated as one long horizontal pixel strip.
+//   scrollOffset advances by 1 pixel per scroll tick.
+//   renderScrollFrame() maps each screen column back to a position
+//   in the pixel strip and draws the correct font column.
+//   When the strip has fully scrolled off the right edge, the
+//   loop pauses 1 second then resets to the beginning.
 // ============================================================
 
+// ── Normal Font (5×7) ─────────────────────────────────────────
+// 59 characters from ASCII 32 (space) to ASCII 90 (Z).
+// Each character: 5 bytes (one per column). Bit0 = top, bit6 = bottom.
+// Only uppercase defined — lowercase is converted by toupper() at render time.
 const uint8_t FONT[][5] PROGMEM = {
   { 0x00, 0x00, 0x00, 0x00, 0x00 }, // 32 space
   { 0x00, 0x00, 0x5F, 0x00, 0x00 }, // 33 !
@@ -72,12 +93,11 @@ const uint8_t FONT[][5] PROGMEM = {
 
 #define FONT_COUNT  (sizeof(FONT) / sizeof(FONT[0]))
 
-// ============================================================
-// SMALL FONT — 3×5 pixels per character, 1-pixel gap
-// Same encoding as FONT: column bytes, bit0=top row, bit4=bottom.
-// Vertically centered: rendered at matrix rows 1–5 (1px top margin).
-// Characters begin at ASCII 32 (space). Index = ascii_code - 32.
-// ============================================================
+// ── Small Font (3×5) ──────────────────────────────────────────
+// Same encoding as FONT but 3 bytes wide and 5 pixels tall.
+// Rendered with a 1-pixel top and bottom margin so it appears
+// vertically centered on the 8-pixel-tall matrix (rows 1-5).
+// Characters start at ASCII 32. Index = ascii_code - 32.
 const uint8_t SMALL_FONT[][3] PROGMEM = {
   {  0,  0,  0 }, // 32 space
   {  0, 23,  0 }, // 33 !   (rows 0-2,4 on center col)
@@ -112,35 +132,40 @@ const uint8_t SMALL_FONT[][3] PROGMEM = {
   { 17, 10,  4 }, // 62 >
   {  1, 21,  3 }, // 63 ?
   { 14, 21,  6 }, // 64 @
-  { 30,  5, 30 }, // 65 A   .X. / X.X / XXX / X.X / X.X
-  { 31, 21, 10 }, // 66 B   XX. / X.X / XX. / X.X / XX.
-  { 14, 17, 17 }, // 67 C   .XX / X.. / X.. / X.. / .XX
-  { 31, 17, 14 }, // 68 D   XX. / X.X / X.X / X.X / XX.
-  { 31, 21, 17 }, // 69 E   XXX / X.. / XX. / X.. / XXX
-  { 31,  5,  1 }, // 70 F   XXX / X.. / XX. / X.. / X..
-  { 14, 17, 29 }, // 71 G   .XX / X.. / X.X / X.X / .XX
-  { 31,  4, 31 }, // 72 H   X.X / X.X / XXX / X.X / X.X
-  { 17, 31, 17 }, // 73 I   XXX / .X. / .X. / .X. / XXX
-  {  8, 17, 15 }, // 74 J   .XX / ..X / ..X / X.X / .X.
-  { 31,  6, 25 }, // 75 K   X.X / XX. / XX. / X.X / X.X
-  { 31, 16, 16 }, // 76 L   X.. / X.. / X.. / X.. / XXX
-  { 31,  2, 31 }, // 77 M   X.X / XXX / X.X / X.X / X.X
-  { 31,  1, 30 }, // 78 N   XX. / X.X / X.X / X.X / X.X
-  { 14, 17, 14 }, // 79 O   .X. / X.X / X.X / X.X / .X.
-  { 31,  5,  2 }, // 80 P   XX. / X.X / XX. / X.. / X..
-  { 14, 17, 30 }, // 81 Q   .X. / X.X / X.X / X.X / .XX
-  { 31,  5, 26 }, // 82 R   XX. / X.X / XX. / X.X / X.X
-  { 18, 21,  9 }, // 83 S   .XX / X.. / .X. / ..X / XX.
-  {  1, 31,  1 }, // 84 T   XXX / .X. / .X. / .X. / .X.
-  { 31, 16, 31 }, // 85 U   X.X / X.X / X.X / X.X / XXX
-  {  7, 24,  7 }, // 86 V   X.X / X.X / X.X / .X. / .X.
-  { 31,  8, 31 }, // 87 W   X.X / X.X / X.X / XXX / X.X
-  { 27,  4, 27 }, // 88 X   X.X / X.X / .X. / X.X / X.X
-  {  3, 28,  3 }, // 89 Y   X.X / X.X / .X. / .X. / .X.
-  { 25, 21, 19 }, // 90 Z   XXX / ..X / .X. / X.. / XXX
+  { 30,  5, 30 }, // 65 A
+  { 31, 21, 10 }, // 66 B
+  { 14, 17, 17 }, // 67 C
+  { 31, 17, 14 }, // 68 D
+  { 31, 21, 17 }, // 69 E
+  { 31,  5,  1 }, // 70 F
+  { 14, 17, 29 }, // 71 G
+  { 31,  4, 31 }, // 72 H
+  { 17, 31, 17 }, // 73 I
+  {  8, 17, 15 }, // 74 J
+  { 31,  6, 25 }, // 75 K
+  { 31, 16, 16 }, // 76 L
+  { 31,  2, 31 }, // 77 M
+  { 31,  1, 30 }, // 78 N
+  { 14, 17, 14 }, // 79 O
+  { 31,  5,  2 }, // 80 P
+  { 14, 17, 30 }, // 81 Q
+  { 31,  5, 26 }, // 82 R
+  { 18, 21,  9 }, // 83 S
+  {  1, 31,  1 }, // 84 T
+  { 31, 16, 31 }, // 85 U
+  {  7, 24,  7 }, // 86 V
+  { 31,  8, 31 }, // 87 W
+  { 27,  4, 27 }, // 88 X
+  {  3, 28,  3 }, // 89 Y
+  { 25, 21, 19 }, // 90 Z
 };
 #define SMALL_FONT_COUNT (sizeof(SMALL_FONT) / sizeof(SMALL_FONT[0]))
 
+// ── drawCharCol ───────────────────────────────────────────────
+// Draws one vertical column of a normal (5×7) character at screenX.
+// Clears the entire column first (sets all 8 pixels), then lights
+// only the bits that are set in the font byte.
+// This ensures previous characters don't leave ghost pixels behind.
 void drawCharCol(int fontIdx, int charCol, int screenX, CRGB color) {
   if (screenX < 0 || screenX >= MATRIX_W)       return;
   if (fontIdx < 0 || fontIdx >= (int)FONT_COUNT) return;
@@ -151,25 +176,29 @@ void drawCharCol(int fontIdx, int charCol, int screenX, CRGB color) {
     bool on = (bits >> row) & 0x01;
     setPixel(screenX, row, on ? color : CRGB::Black);
   }
-  setPixel(screenX, 7, CRGB::Black);
+  setPixel(screenX, 7, CRGB::Black);   // row 7 always black (font is only 7 rows tall)
 }
 
-// Small font: 3×5 glyphs rendered at matrix rows 1–5 (1px top margin).
+// Small font: 3×5 glyphs rendered at rows 1-5 (1px margin top and bottom).
+// Only lights the set bits — doesn't clear surrounding pixels,
+// so the caller is responsible for clearing before rendering.
 void drawSmallCharCol(int fontIdx, int charCol, int screenX, CRGB color) {
   if (screenX < 0 || screenX >= MATRIX_W)             return;
   if (fontIdx < 0 || fontIdx >= (int)SMALL_FONT_COUNT) return;
 
   uint8_t bits = pgm_read_byte(&SMALL_FONT[fontIdx][charCol]);
   for (int row = 0; row < 5; row++) {
-    if ((bits >> row) & 0x01) setPixel(screenX, row + 1, color);
+    if ((bits >> row) & 0x01) setPixel(screenX, row + 1, color);   // +1 for top margin
   }
 }
 
-// Tiny font: 3×3 glyphs from FONT_3X3, rendered at matrix rows 2–4 (centered).
-// C-marked pixels drawn at 50% brightness.
+// Tiny font: 3×3 glyphs from FONT_3X3 (defined in fonts.ino),
+// rendered at rows 2-4 (vertically centered on the 8-row matrix).
+// The FONT_3X3_LIGHT mask marks pixels that should be dimmed to 50%
+// (currently only '?' and '!' use this for their dot pixels).
 void drawTinyCharCol(char c, int charCol, int screenX, CRGB color) {
   if (screenX < 0 || screenX >= MATRIX_W) return;
-  int idx = fontIdx(c);
+  int idx = fontIdx(c);   // fontIdx() is defined in fonts.ino
   CRGB dimColor = CRGB(color.r / 2, color.g / 2, color.b / 2);
   uint8_t bits  = pgm_read_byte(&FONT_3X3[idx][charCol]);
   uint8_t light = pgm_read_byte(&FONT_3X3_LIGHT[idx][charCol]);
@@ -179,6 +208,26 @@ void drawTinyCharCol(char c, int charCol, int screenX, CRGB color) {
   }
 }
 
+// ── renderScrollFrame ─────────────────────────────────────────
+// Computes the current visible portion of the scrolling text strip
+// and draws it onto leds[]. Called once per scroll tick by loop().
+//
+// KEY MAPPING — how screen column → text pixel position works:
+//
+//   scrollOffset: how many pixels the text strip has advanced
+//   The text starts off-screen to the RIGHT and scrolls LEFT.
+//   textPixelX = screenX - MATRIX_W + scrollOffset
+//
+//   When scrollOffset == 0: textPixelX for screenX=7 is -1 (off-screen left).
+//   As scrollOffset grows, text enters from the right.
+//
+//   charIdx = textPixelX / charTotal   → which character in the string
+//   charCol = textPixelX % charTotal   → which column within that character
+//   If charCol >= charW, it's a gap pixel (black, not drawn).
+//
+// GRADIENT: if scrollGradient is true, each text pixel's color is
+// lerped between scrollColor and scrollColor2 based on its position
+// in the total text strip (0 = left = scrollColor, 1 = right = scrollColor2).
 void renderScrollFrame() {
   fill_solid(leds, NUM_LEDS, CRGB::Black);
 
@@ -186,18 +235,20 @@ void renderScrollFrame() {
   int charTotal = scrollTiny ? TINY_CHAR_TOTAL : (scrollSmall ? SMALL_CHAR_TOTAL : CHAR_TOTAL);
 
   for (int screenX = 0; screenX < MATRIX_W; screenX++) {
+    // textPixelX: position within the text's pixel strip
     int textPixelX = screenX - MATRIX_W + scrollOffset;
-    if (textPixelX < 0) continue;
+    if (textPixelX < 0) continue;   // text hasn't entered the screen yet from the right
 
-    int charIdx = textPixelX / charTotal;
-    int charCol = textPixelX % charTotal;
+    int charIdx = textPixelX / charTotal;   // which character
+    int charCol = textPixelX % charTotal;   // which column within that character
 
-    if (charIdx >= (int)scrollText.length()) continue;
-    if (charCol >= charW) continue;
+    if (charIdx >= (int)scrollText.length()) continue;   // past the end of the text
+    if (charCol >= charW) continue;                       // in the inter-character gap
 
     char c = toupper(scrollText.charAt(charIdx));
-    int fontIdx = (int)c - 32;
+    int fontIdx = (int)c - 32;   // convert ASCII code to font array index
 
+    // Choose color: flat or gradient
     CRGB col = scrollColor;
     if (scrollGradient && scrollPixelLen > 1) {
       float t = constrain((float)textPixelX / (float)(scrollPixelLen - 1), 0.0f, 1.0f);
@@ -208,6 +259,7 @@ void renderScrollFrame() {
       );
     }
 
+    // Draw the pixel using the appropriate font
     if (scrollTiny) {
       drawTinyCharCol(c, charCol, screenX, col);
     } else if (scrollSmall) {
@@ -218,8 +270,11 @@ void renderScrollFrame() {
   }
 }
 
-// Draw scrolling text on top of whatever is already in leds[].
-// Only lit font pixels are painted; background is left intact.
+// ── overlayScrollText ─────────────────────────────────────────
+// Paints scrolling normal-font text ON TOP of whatever is
+// already in leds[] — only lit font pixels are written,
+// leaving the background (from an animation) intact.
+// Used for temperature display over a background gradient.
 void overlayScrollText(const String& text, int offset, CRGB color) {
   for (int sx = 0; sx < MATRIX_W; sx++) {
     int tpx = sx - MATRIX_W + offset;
@@ -231,6 +286,6 @@ void overlayScrollText(const String& text, int offset, CRGB color) {
     if (fi < 0 || fi >= 59) continue;
     uint8_t bits = pgm_read_byte(&FONT[fi][cc]);
     for (int row = 0; row < 7; row++)
-      if ((bits >> row) & 1) setPixel(sx, row, color);
+      if ((bits >> row) & 1) setPixel(sx, row, color);   // lit pixels only
   }
 }
