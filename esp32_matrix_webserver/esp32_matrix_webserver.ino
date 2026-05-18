@@ -77,105 +77,136 @@
 
 // ============================================================
 // SECTION 3: GLOBAL STATE
+//
+// All variables here are written by HTTP handlers and read by
+// animation frame functions. Because the ESP32 is single-threaded
+// (no RTOS tasks in this firmware), there are no race conditions —
+// a handler runs to completion before loop() resumes.
 // ============================================================
 
+// FastLED LED buffer — one CRGB (24-bit RGB) per physical LED.
+// FastLED.show() copies this array to the WS2812B strip.
 CRGB     leds[NUM_LEDS];
+
+// Built-in Arduino WebServer — handles HTTP on port 80.
 WebServer server(80);
 
-uint8_t  brightness      = 40;
-bool     animationActive = false;
-String   animationName   = "";
-uint32_t animationSpeed  = 66;
-uint32_t lastFrameMs     = 0;
-CRGB     solidColor      = CRGB(0, 100, 255);
+// ── Animation control ────────────────────────────────────────
+uint8_t  brightness      = 40;      // global FastLED brightness (0-255)
+bool     animationActive = false;   // true while any animation is running
+String   animationName   = "";      // which animation is active (e.g. "fire")
+uint32_t animationSpeed  = 66;      // ms between frames (lower = faster)
+uint32_t lastFrameMs     = 0;       // millis() timestamp of the last frame
+CRGB     solidColor      = CRGB(0, 100, 255);   // color used by solid/breathe/wave
 
+// ── Text scroll state ────────────────────────────────────────
 bool     textActive         = false;
 String   scrollText         = "";
 CRGB     scrollColor        = CRGB::White;
-CRGB     scrollColor2       = CRGB(255, 68, 0);
+CRGB     scrollColor2       = CRGB(255, 68, 0);   // second color for gradient mode
 bool     scrollGradient     = false;
-bool     scrollSmall        = false;
-bool     scrollTiny         = false;
-bool     scrollPausing      = false;
+bool     scrollSmall        = false;               // use 3×5 font
+bool     scrollTiny         = false;               // use 3×3 font (overrides small)
+bool     scrollPausing      = false;               // true during the 1s gap between loops
 uint32_t scrollPauseUntilMs = 0;
-uint32_t scrollSpeed      = 100;
-uint32_t lastScrollMs     = 0;
-int      scrollOffset     = 0;
-int      scrollPixelLen   = 0;
+uint32_t scrollSpeed        = 100;   // ms per scroll step (lower = faster)
+uint32_t lastScrollMs       = 0;
+int      scrollOffset       = 0;     // how many pixels the text strip has advanced
+int      scrollPixelLen     = 0;     // total pixel width of the text string
 
+// Per-font character stride (char width + 1px gap between chars)
 #define CHAR_W          5
 #define CHAR_GAP        1
-#define CHAR_TOTAL      (CHAR_W + CHAR_GAP)
+#define CHAR_TOTAL      (CHAR_W + CHAR_GAP)   // = 6 pixels per normal char
 
-#define SMALL_CHAR_W    3
+#define SMALL_CHAR_W     3
 #define SMALL_CHAR_TOTAL 4   // 3 wide + 1 gap
 #define TINY_CHAR_TOTAL  4   // 3×3 font: same stride as small
 
-String   chipTempUnit      = "F";
+// ── Chip temperature ─────────────────────────────────────────
+String   chipTempUnit      = "F";   // "F" or "C"
 
-String   weatherZip        = "85013";
-String   weatherUnit       = "F";
-int      weatherTempVal    = 0;
-int      weatherCode       = 113;
-int      weatherHumidity   = 0;
+// ── Weather state ─────────────────────────────────────────────
+String   weatherZip        = "85013";   // US zip code
+String   weatherUnit       = "F";       // temperature unit: "F" or "C"
+int      weatherTempVal    = 0;         // last fetched temperature
+int      weatherCode       = 113;       // wttr.in condition code (113 = clear)
+int      weatherHumidity   = 0;         // percent
 int      weatherUvIndex    = 0;
-int      weatherPressure   = 0;
-uint32_t lastWeatherFetch  = 0;
-uint8_t  weatherFrame      = 0;
-String   weatherDataMode   = "temp";
-String   weatherIconSource = "animated";
-uint32_t weatherPhaseStart = 0;
-bool     weatherShowIcon   = false;
-CRGB     weatherIconBuf[64];
-bool     weatherHasIcon    = false;
+int      weatherPressure   = 0;         // hPa
+uint32_t lastWeatherFetch  = 0;         // millis() of last successful fetch
+uint8_t  weatherFrame      = 0;         // frame counter for icon animations
+String   weatherDataMode   = "temp";    // which data to show: temp/humidity/uv/pressure/cycle
+String   weatherIconSource = "animated";// "animated" (built-in) or "remote" (fetched PNG)
+uint32_t weatherPhaseStart = 0;         // millis() when the current phase (data/icon) started
+bool     weatherShowIcon   = false;     // true = showing icon, false = showing data
+CRGB     weatherIconBuf[64];            // decoded remote PNG icon, scaled to 8×8
+bool     weatherHasIcon    = false;     // true once the remote icon has been fetched
 
-CRGB     clockBgColor      = CRGB(0, 0, 64);
-int      clockTimezone     = -7;
-bool     ntpSynced         = false;
-int      clockPrevHour     = -1;
-int      clockPrevMin      = -1;
+// ── Clock state ───────────────────────────────────────────────
+CRGB     clockBgColor  = CRGB(0, 0, 64);   // background fill color
+int      clockTimezone = -7;               // UTC offset in hours (e.g. -7 = Arizona MST)
+bool     ntpSynced     = false;
+int      clockPrevHour = -1;               // used to skip redraws when nothing changed
+int      clockPrevMin  = -1;
 
-uint32_t timerEndMs        = 0;
-uint32_t timerTotalMs      = 0;
-CRGB     timerColor1       = CRGB(255, 200, 0);
-CRGB     timerColor2       = CRGB(255,   0, 0);
-CRGB     timerColorColon   = CRGB::White;
-int      timerExpiredState = 0;
+// ── Timer state ───────────────────────────────────────────────
+uint32_t timerEndMs        = 0;             // millis() when the timer expires
+uint32_t timerTotalMs      = 0;             // original duration in ms
+CRGB     timerColor1       = CRGB(255, 200, 0);   // start color (bottom of fill, minutes)
+CRGB     timerColor2       = CRGB(255,   0, 0);   // end color (top of fill, seconds)
+CRGB     timerColorColon   = CRGB::White;          // colon color (timer_text only)
+int      timerExpiredState = 0;             // 0=running, 1=blinking, 2=solid (expired)
 uint32_t timerExpiredMs    = 0;
 
-int      fillLitCount      = 0;
+int      fillLitCount      = 0;   // not used directly — settlement count is in snowSettledCount
 
-struct SnowCell { uint8_t col; uint8_t row; }; // row: 0=bottom, 7=top
-SnowCell snowPos[64];           // shuffled settle order (bottom rows first)
-int      snowSettledCount   = 0;
+// ── Snow timer state ──────────────────────────────────────────
+// SnowCell: one LED position. row 0 = bottom, row 7 = top.
+// (The Y coordinate is inverted from matrix coordinates where y=0 is top.)
+struct SnowCell { uint8_t col; uint8_t row; };
+SnowCell snowPos[64];            // settlement order: cells sorted bottom-to-top, shuffled within each row
+int      snowSettledCount   = 0; // how many cells have settled so far
 bool     snowFallActive     = false;
 int      snowFallCol        = 0;
 int      snowFallTargetY    = 7;
 uint32_t snowFallStartMs    = 0;
 uint32_t snowFallDurationMs = 500;
 
-bool    imuReady              = false;
-float   liquidHeight[MATRIX_W];
-float   liquidVelocity[MATRIX_W];
-float   liquidDamping         = 0.88f;
+// ── Liquid/IMU state ──────────────────────────────────────────
+bool    imuReady              = false;         // set to true if IMU is detected at boot
+float   liquidHeight[MATRIX_W];               // simulated surface height per column (0-7)
+float   liquidVelocity[MATRIX_W];             // vertical velocity per column
+float   liquidDamping         = 0.88f;        // energy loss per frame (set from viscosity param)
 
 // ============================================================
 // SECTION 4: COORDINATE MAPPING
 //
-// Simple grid wiring — all rows left → right.
+// The Waveshare ESP32-S3-Matrix wires its 8×8 WS2812B grid in
+// a simple raster layout — every row goes left-to-right, top
+// row first. So LED 0 = top-left, LED 7 = top-right,
+// LED 8 = start of row 1, LED 63 = bottom-right.
+//
 // x=0 is left, x=7 is right. y=0 is top, y=7 is bottom.
 // ============================================================
 
+// Converts (x, y) matrix coordinates to a flat leds[] index.
+// Returns -1 for any out-of-bounds coordinate — callers check for this.
 int XY(int x, int y) {
   if (x < 0 || x >= MATRIX_W || y < 0 || y >= MATRIX_H) return -1;
   return y * MATRIX_W + x;
 }
 
+// Safe pixel setter: does nothing if coordinates are out of bounds.
 void setPixel(int x, int y, CRGB color) {
   int idx = XY(x, y);
   if (idx >= 0) leds[idx] = color;
 }
 
+// Parses a CSS hex color string ("#RRGGBB") into a CRGB value.
+// strtol(..., 16) converts the 6-char hex string to a 24-bit integer,
+// then bit-masking extracts each 8-bit channel.
+// Returns white if the input format is invalid.
 CRGB hexToColor(String hex) {
   if (hex.startsWith("#")) hex = hex.substring(1);
   if (hex.length() != 6) return CRGB::White;
@@ -260,6 +291,10 @@ void setup() {
   Serial.println(WIFI_SSID);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
+  // Connection progress animation: each LED lights blue briefly as
+  // we wait for WiFi. The dot counter sweeps left-to-right, top-to-bottom.
+  // delay() is safe here because we're still in setup() — the web server
+  // isn't running yet so there's nothing to be non-blocking about.
   int dot = 0;
   while (WiFi.status() != WL_CONNECTED) {
     int idx = XY(dot % MATRIX_W, (dot / MATRIX_W) % MATRIX_H);
@@ -332,14 +367,22 @@ void setup() {
 // SECTION 12: LOOP — runs continuously
 //
 // CRITICAL DESIGN RULE: Never use delay() in loop().
-// Use millis()-based timing so the web server stays responsive.
+// delay() blocks the entire CPU — server.handleClient() can't
+// run while we're waiting, so incoming HTTP requests time out.
+//
+// Instead we use millis() timestamps to check elapsed time:
+//   if (now - lastFrameMs >= animationSpeed) { ...update frame... }
+// This pattern is called "non-blocking timing" — it lets the loop
+// run thousands of times per second, calling handleClient() every
+// iteration, and only draws a new frame when enough time has passed.
 // ============================================================
 
 void loop() {
-  server.handleClient();
+  server.handleClient();   // process any pending HTTP requests first
 
-  uint32_t now = millis();
+  uint32_t now = millis();   // snapshot the clock once per loop iteration
 
+  // Animation frame tick: only draw when animationSpeed ms have elapsed
   if (animationActive && (now - lastFrameMs >= animationSpeed)) {
     lastFrameMs = now;
     if      (animationName == "fire")       stepFireFrame();
@@ -359,8 +402,11 @@ void loop() {
     FastLED.show();
   }
 
+  // Text scroll tick — same millis() pattern as animation above.
+  // The text loops: scroll across, blank for 1 second, then restart.
   if (textActive) {
     if (scrollPausing) {
+      // Blank screen pause between loops — wait for the timeout then restart
       if (now >= scrollPauseUntilMs) {
         scrollPausing = false;
         scrollOffset  = 0;
@@ -371,6 +417,8 @@ void loop() {
     } else if (now - lastScrollMs >= scrollSpeed) {
       lastScrollMs = now;
       scrollOffset++;
+      // Once the full text strip + the width of the screen has scrolled past,
+      // the display is clear — start the 1-second pause before looping.
       if (scrollOffset >= MATRIX_W + scrollPixelLen) {
         scrollPausing      = true;
         scrollPauseUntilMs = now + 1000;
