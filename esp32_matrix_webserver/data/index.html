@@ -29,6 +29,15 @@
     button.danger:hover { background: #250000; }
     .status { font-size: 0.78rem; margin-top: 12px; min-height: 1.2em; color: #00cc66; }
     .status.err { color: #ff5555; }
+    .heat-track { position: relative; height: 5px; border-radius: 3px; background: linear-gradient(to right, #22882a 0%, #22882a 16%, #e8b800 30%, #f97316 42%, #cc2200 100%); margin: 4px 0; }
+    .heat-lock-line { position: absolute; left: 39.2%; top: -3px; bottom: -3px; width: 2px; background: rgba(255,255,255,0.22); border-radius: 1px; }
+    .heat-labels { display: flex; justify-content: space-between; font-size: 0.62rem; color: #555; margin-bottom: 10px; }
+    .heat-labels .safe { color: #22882a; }
+    .heat-labels .hot  { color: #f97316; }
+    .warn-row { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border: 1px solid #3a1a00; border-radius: 7px; background: #130900; }
+    .warn-row input[type=checkbox] { accent-color: #f97316; width: 14px; height: 14px; margin-top: 2px; flex-shrink: 0; cursor: pointer; }
+    .warn-text { font-size: 0.75rem; color: #c05000; line-height: 1.4; }
+    .warn-text strong { color: #f97316; }
     footer { margin-top: 24px; font-size: 0.7rem; color: #3a3a3a; text-align: center; }
   </style>
 </head>
@@ -100,8 +109,16 @@
   <div class="panel">
     <div class="panel-title">Quick Controls</div>
     <div class="row">
-      <label>Brightness: <strong id="bval">40</strong></label>
-      <input type="range" id="brightness" min="0" max="255" value="40" oninput="updateBrightness(this.value)">
+      <label>Brightness: <strong id="bval" style="display:inline-block;min-width:2.5ch;text-align:right">10</strong></label>
+      <input type="range" id="brightness" min="0" max="255" value="10" oninput="updateBrightness(this.value)">
+    </div>
+    <div class="heat-track"><div class="heat-lock-line"></div></div>
+    <div class="heat-labels">
+      <span>0</span><span class="safe">safe</span><span>100</span><span class="hot">&#x26A0; hot</span><span>255</span>
+    </div>
+    <div class="warn-row">
+      <input type="checkbox" id="cbHighBright" onchange="onHighBrightToggle()">
+      <span class="warn-text"><strong>&#x26A0; Heat warning:</strong> above 100 risks overheating. Check to unlock.</span>
     </div>
     <div class="row">
       <button class="danger" onclick="clearDisplay()">Clear Display</button>
@@ -137,12 +154,50 @@
       setStatus(ok ? 'Display cleared.' : 'Error — is the board reachable?', !ok);
     }
 
+    // ── Brightness ──────────────────────────────────────────────────────────
+
     let brightTimer;
-    function updateBrightness(val) {
+
+    (function initBrightness() {
+      const storedVal = localStorage.getItem('matrix_brightness');
+      const highUnlocked = localStorage.getItem('matrix_highbright') === '1';
+      let val = storedVal !== null ? +storedVal : 10;
+      if (!highUnlocked && val > 100) val = 100;
+      document.getElementById('brightness').value = val;
       document.getElementById('bval').textContent = val;
+      document.getElementById('cbHighBright').checked = highUnlocked;
+    })();
+
+    function onHighBrightToggle() {
+      const unlocked = document.getElementById('cbHighBright').checked;
+      localStorage.setItem('matrix_highbright', unlocked ? '1' : '0');
+      if (!unlocked) {
+        const slider = document.getElementById('brightness');
+        if (+slider.value > 100) {
+          slider.value = 100;
+          document.getElementById('bval').textContent = 100;
+          localStorage.setItem('matrix_brightness', '100');
+          clearTimeout(brightTimer);
+          brightTimer = setTimeout(async () => {
+            const ok = await post('/api/brightness', { level: 100 });
+            setStatus(ok ? 'Brightness updated.' : 'Error updating brightness.', !ok);
+          }, 250);
+        }
+      }
+    }
+
+    function updateBrightness(rawVal) {
+      let val = +rawVal;
+      const unlocked = document.getElementById('cbHighBright').checked;
+      if (!unlocked && val > 100) {
+        val = 100;
+        document.getElementById('brightness').value = 100;
+      }
+      document.getElementById('bval').textContent = val;
+      localStorage.setItem('matrix_brightness', String(val));
       clearTimeout(brightTimer);
       brightTimer = setTimeout(async () => {
-        const ok = await post('/api/brightness', { level: +val });
+        const ok = await post('/api/brightness', { level: val });
         setStatus(ok ? 'Brightness updated.' : 'Error updating brightness.', !ok);
       }, 250);
     }
