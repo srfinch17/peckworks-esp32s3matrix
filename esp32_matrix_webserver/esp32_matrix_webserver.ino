@@ -181,6 +181,32 @@ float   liquidHeight[MATRIX_W];               // simulated surface height per co
 float   liquidVelocity[MATRIX_W];             // vertical velocity per column
 float   liquidDamping         = 0.88f;        // energy loss per frame (set from viscosity param)
 
+// ── Gradient Spiral ───────────────────────────────────────────────────────────
+CRGB     spiralColor1   = CRGB(255,   0,   0);
+CRGB     spiralColor2   = CRGB(  0,   0, 255);
+
+// ── Gradient Starfield ────────────────────────────────────────────────────────
+CRGB     starColor1     = CRGB(255, 255, 255);
+CRGB     starColor2     = CRGB(  0, 100, 255);
+uint8_t  starDensity    = 8;
+bool     starInward     = false;
+
+// ── Fireworks ─────────────────────────────────────────────────────────────────
+CRGB     fwColor1       = CRGB(255,  50,   0);
+CRGB     fwColor2       = CRGB(255, 200,   0);
+CRGB     fwColor3       = CRGB(  0, 100, 255);
+
+// ── Comet ─────────────────────────────────────────────────────────────────────
+CRGB     cometColor1    = CRGB(255, 200,  50);
+CRGB     cometColor2    = CRGB(255, 100,   0);
+CRGB     cometColor3    = CRGB(150,  30,   0);
+
+// ── Sun ───────────────────────────────────────────────────────────────────────
+CRGB     sunColor1      = CRGB(255, 183,   0);
+CRGB     sunColor2      = CRGB(255, 102,   0);
+CRGB     sunColor3      = CRGB(255,  51,   0);
+CRGB     sunColor4      = CRGB(204,  17,   0);
+
 // ============================================================
 // SECTION 4: COORDINATE MAPPING
 //
@@ -401,6 +427,11 @@ void loop() {
     else if (animationName == "timer_text") stepTimerTextFrame();
     else if (animationName == "clock")      stepClockFrame();
     else if (animationName == "matrix_rain") stepMatrixFrame();
+    else if (animationName == "spiral")    runSpiralFrame();
+    else if (animationName == "starfield") runStarfieldFrame();
+    else if (animationName == "fireworks") stepFireworksFrame();
+    else if (animationName == "comet")     runCometFrame();
+    else if (animationName == "sun")       runSunFrame();
     FastLED.show();
   }
 
