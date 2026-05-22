@@ -104,9 +104,9 @@ void drawTimeDisplay(int hVal, int mVal, CRGB colorH, CRGB colorC, CRGB colorM) 
         if ((bits >> row) & 1) setPixel(col, row, colorH);
     }
   } else {
-    // Draw '1' (FONT_3X3 index 27) at cols 0–2
+    // Draw '1' (FONT_3X3 index 26+1) at cols 0–2
     for (int col = 0; col < 3; col++) {
-      uint8_t bits = pgm_read_byte(&FONT_3X3[27][col]);
+      uint8_t bits = pgm_read_byte(&FONT_3X3[26 + 1][col]);
       for (int row = 0; row < 3; row++)
         if ((bits >> row) & 1) setPixel(col, row, colorH);
     }
