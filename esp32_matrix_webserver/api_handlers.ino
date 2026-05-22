@@ -223,6 +223,7 @@ void handleAnimation() {
     starColor2  = hexToColor(String(c2));
     starDensity = constrain((int)(doc["density"] | 8), 1, 16);
     starInward  = (bool)(doc["inward"] | false);
+    starsInitialized = false;
   }
 
   if (animationName == "fireworks") {
