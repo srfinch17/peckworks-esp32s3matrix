@@ -140,15 +140,13 @@ void handleAnimation() {
   }
 
   if (animationName == "clock") {
-    clockTimezone = (int)(doc["timezone"] | -7);
-    String colorStr = String(doc["color"] | "#003366");
-    clockBgColor  = hexToColor(colorStr);
-    clockPrevHour = -1;
-    clockPrevMin  = -1;
-    ntpSynced     = false;
-    // configTime sets up the ESP32's POSIX time library.
-    // timezone * 3600 converts the UTC offset (hours) to seconds.
-    // pool.ntp.org and time.nist.gov are public NTP servers.
+    clockTimezone    = (int)(doc["timezone"] | -7);
+    clockColorHours  = hexToColor(String(doc["colorHours"]   | "#FF3300"));
+    clockColorColon  = hexToColor(String(doc["colorColon"]   | "#FFFFFF"));
+    clockColorMins   = hexToColor(String(doc["colorMinutes"] | "#00CCFF"));
+    clockPrevHour    = -1;
+    clockPrevMin     = -1;
+    ntpSynced        = false;
     configTime((long)clockTimezone * 3600L, 0, "pool.ntp.org", "time.nist.gov");
   }
 

@@ -65,102 +65,57 @@ const uint8_t COMPACT_TENS[4][2] PROGMEM = {
 };
 
 // ── drawTimeDisplay ───────────────────────────────────────────
-// Renders a time value in H:MM format on the 8×8 matrix.
-// Used by both the clock mode (hours 1-12) and timer_text mode
-// (minutes 0-59).
+// Renders H:MM on the 8×8 matrix using three independent colors.
 //
 // LAYOUT:
-//   Rows 0-2: hours digit (top half, various font sizes by range)
-//   Rows 3-7: minutes tens and units (3×5 MINI_FONT, two digits)
-//   Col 0, rows 5 and 7: colon dots
+//   Rows 0–2  : hours  (FONT_3X3, 3×3 pixels)
+//   Rows 3–7  : minutes (MINI_FONT, 3×5 pixels)
+//   Col layout: colon[0] · tens[1–3] · gap[4] · units[5–7]
+//   Colon dots: col 0, rows 5 and 7
 //
-// WHY SO MANY CASES:
-//   Hours 1-9 use a 3×5 font (clipped to rows 0-3).
-//   Hours 10-12 are drawn pixel-by-pixel because they need to fit
-//   in 3-4 columns at the top of the matrix — no pre-made font fits.
-//   Hours 13-19 use a "1" bar + FONT_2X4 for the units.
-//   Hours 20-59 use COMPACT_TENS for the tens digit + MINI_FONT top-3 rows.
-//   (The 20-59 range is used in timer_text mode where hVal is minutes.)
-void drawTimeDisplay(int hVal, int mVal, CRGB color) {
-  // Colon dots — two pixels in col 0 at rows 5 and 7
-  setPixel(0, 5, color);
-  setPixel(0, 7, color);
+// HOURS:
+//   1–9  : single digit at cols 0–2
+//   10–12: '1' at cols 0–2, units digit at cols 4–6 (col 3 gap)
+void drawTimeDisplay(int hVal, int mVal, CRGB colorH, CRGB colorC, CRGB colorM) {
+  // Colon dots
+  setPixel(0, 5, colorC);
+  setPixel(0, 7, colorC);
 
-  // Minutes digits — always the same: MINI_FONT, cols 2-4 (tens) and 5-7 (units)
+  // Minutes — MINI_FONT, rows 3–7
+  // tens at cols 1–3, units at cols 5–7, col 4 is the 1-pixel gap
   int mTens  = (mVal / 10) % 10;
   int mUnits = mVal % 10;
   for (int col = 0; col < 3; col++) {
     uint8_t bT = pgm_read_byte(&MINI_FONT[mTens][col]);
     uint8_t bU = pgm_read_byte(&MINI_FONT[mUnits][col]);
     for (int row = 0; row < 5; row++) {
-      if ((bT >> row) & 1) setPixel(col + 2, row + 3, color);
-      if ((bU >> row) & 1) setPixel(col + 5, row + 3, color);
+      if ((bT >> row) & 1) setPixel(col + 1, row + 3, colorM);
+      if ((bU >> row) & 1) setPixel(col + 5, row + 3, colorM);
     }
   }
 
-  // Hours digit — rendering depends on value range
-  if (hVal >= 0 && hVal <= 9) {
-    // Single digit 1-9: use MINI_FONT clipped to 4 rows (skip bottom-right corner
-    // to avoid overlapping the colon dot at col2,row7)
+  // Hours — FONT_3X3, rows 0–2
+  // FONT_3X3 digits are at indices 26–35 (digit 0 = index 26, digit 9 = index 35)
+  if (hVal <= 9) {
+    int idx = 26 + hVal;
     for (int col = 0; col < 3; col++) {
-      uint8_t bits = pgm_read_byte(&MINI_FONT[hVal][col]);
-      for (int row = 0; row < 5; row++) {
-        if ((bits >> row) & 1) {
-          if (col == 2 && row == 4) continue;   // skip this pixel — it's in the colon zone
-          setPixel(col, row, color);
-        }
-      }
-    }
-  } else if (hVal == 10) {
-    // "10": vertical bar at col 0 + small "0" glyph at cols 2-4
-    for (int r = 0; r <= 3; r++) setPixel(0, r, color);
-    setPixel(2,0,color); setPixel(3,0,color); setPixel(4,0,color);
-    setPixel(2,1,color);                       setPixel(4,1,color);
-    setPixel(2,2,color); setPixel(3,2,color); setPixel(4,2,color);
-  } else if (hVal == 11) {
-    // "11": two vertical bars side by side
-    for (int r = 0; r <= 3; r++) { setPixel(0, r, color); setPixel(2, r, color); }
-  } else if (hVal == 12) {
-    // "12": vertical bar + hand-drawn "2"
-    for (int r = 0; r <= 3; r++) setPixel(0, r, color);
-    setPixel(1,0,color); setPixel(2,0,color);
-                          setPixel(2,1,color);
-    setPixel(1,2,color);
-    setPixel(1,3,color); setPixel(2,3,color);
-  } else if (hVal >= 13 && hVal <= 19) {
-    // "13"-"19": vertical bar for "1" + FONT_2X4 for units
-    for (int r = 0; r <= 3; r++) setPixel(0, r, color);
-    int units = hVal % 10;
-    if (units == 0) {
-      setPixel(2,0,color); setPixel(3,0,color); setPixel(4,0,color);
-      setPixel(2,1,color);                       setPixel(4,1,color);
-      setPixel(2,2,color); setPixel(3,2,color); setPixel(4,2,color);
-    } else if (units == 1) {
-      for (int r = 0; r <= 3; r++) setPixel(2, r, color);
-    } else {
-      uint8_t c0 = pgm_read_byte(&FONT_2X4[units][0]);
-      uint8_t c1 = pgm_read_byte(&FONT_2X4[units][1]);
-      for (int row = 0; row < 4; row++) {
-        if ((c0 >> row) & 1) setPixel(1, row, color);
-        if ((c1 >> row) & 1) setPixel(2, row, color);
-      }
-    }
-  } else if (hVal >= 20 && hVal <= 59) {
-    // "20"-"59": COMPACT_TENS for tens + top-3 rows of MINI_FONT for units
-    // This range handles minute values in timer_text mode.
-    int tens  = hVal / 10;
-    int units = hVal % 10;
-    uint8_t ct0 = pgm_read_byte(&COMPACT_TENS[tens - 2][0]);
-    uint8_t ct1 = pgm_read_byte(&COMPACT_TENS[tens - 2][1]);
-    for (int row = 0; row < 3; row++) {
-      if ((ct0 >> row) & 1) setPixel(0, row, color);
-      if ((ct1 >> row) & 1) setPixel(1, row, color);
-    }
-    // Clip MINI_FONT to just the top 3 rows (bits 0-2) to stay out of the colon zone
-    for (int col = 0; col < 3; col++) {
-      uint8_t bits = pgm_read_byte(&MINI_FONT[units][col]) & 0x07;
+      uint8_t bits = pgm_read_byte(&FONT_3X3[idx][col]);
       for (int row = 0; row < 3; row++)
-        if ((bits >> row) & 1) setPixel(col + 3, row, color);
+        if ((bits >> row) & 1) setPixel(col, row, colorH);
+    }
+  } else {
+    // Draw '1' (FONT_3X3 index 27) at cols 0–2
+    for (int col = 0; col < 3; col++) {
+      uint8_t bits = pgm_read_byte(&FONT_3X3[27][col]);
+      for (int row = 0; row < 3; row++)
+        if ((bits >> row) & 1) setPixel(col, row, colorH);
+    }
+    // Draw units digit at cols 4–6
+    int idxU = 26 + (hVal % 10);
+    for (int col = 0; col < 3; col++) {
+      uint8_t bits = pgm_read_byte(&FONT_3X3[idxU][col]);
+      for (int row = 0; row < 3; row++)
+        if ((bits >> row) & 1) setPixel(col + 4, row, colorH);
     }
   }
 }
@@ -324,7 +279,7 @@ void stepTimerTextFrame() {
 // ── Clock Mode (NTP) ─────────────────────────────────────────
 // Displays the current time synced from pool.ntp.org.
 // configTime() is called in handleAnimation() to start NTP sync.
-// Until sync completes, the display pulses clockBgColor to show
+// Until sync completes, the display pulses dim white to show
 // it's waiting for a time signal.
 //
 // The display only redraws when the hour or minute changes —
@@ -334,13 +289,9 @@ void stepTimerTextFrame() {
 void stepClockFrame() {
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo, 100)) {
-    // NTP not synced yet — pulse the background color while waiting
+    // NTP not yet synced — pulse dim white while waiting
     uint8_t pulse = (uint8_t)(128 + 60 * sinf(millis() / 800.0f));
-    fill_solid(leds, NUM_LEDS, CRGB(
-      (uint8_t)((uint32_t)clockBgColor.r * pulse / 255),
-      (uint8_t)((uint32_t)clockBgColor.g * pulse / 255),
-      (uint8_t)((uint32_t)clockBgColor.b * pulse / 255)
-    ));
+    fill_solid(leds, NUM_LEDS, CRGB(pulse, pulse, pulse));
     return;
   }
   ntpSynced = true;
@@ -355,12 +306,6 @@ void stepClockFrame() {
   clockPrevHour = h;
   clockPrevMin  = m;
 
-  fill_solid(leds, NUM_LEDS, clockBgColor);
-
-  // Choose digit color: same hue as the background but desaturated and bright,
-  // so the digits always contrast against any background color the user sets.
-  CHSV bgHSV = rgb2hsv_approximate(clockBgColor);
-  CRGB digitColor = CHSV(bgHSV.h, 50, 220);
-
-  drawTimeDisplay(h, m, digitColor);
+  fill_solid(leds, NUM_LEDS, CRGB::Black);
+  drawTimeDisplay(h, m, clockColorHours, clockColorColon, clockColorMins);
 }
