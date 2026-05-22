@@ -209,6 +209,51 @@ void handleAnimation() {
     }
   }
 
+  if (animationName == "spiral") {
+    const char* c1 = doc["color1"] | "#FF0000";
+    const char* c2 = doc["color2"] | "#0000FF";
+    spiralColor1 = hexToColor(String(c1));
+    spiralColor2 = hexToColor(String(c2));
+  }
+
+  if (animationName == "starfield") {
+    const char* c1 = doc["color1"] | "#FFFFFF";
+    const char* c2 = doc["color2"] | "#0064FF";
+    starColor1  = hexToColor(String(c1));
+    starColor2  = hexToColor(String(c2));
+    starDensity = constrain((int)(doc["density"] | 8), 1, 16);
+    starInward  = (bool)(doc["inward"] | false);
+  }
+
+  if (animationName == "fireworks") {
+    const char* c1 = doc["color1"] | "#FF3200";
+    const char* c2 = doc["color2"] | "#FFC800";
+    const char* c3 = doc["color3"] | "#0064FF";
+    fwColor1 = hexToColor(String(c1));
+    fwColor2 = hexToColor(String(c2));
+    fwColor3 = hexToColor(String(c3));
+  }
+
+  if (animationName == "comet") {
+    const char* c1 = doc["color1"] | "#FFC832";
+    const char* c2 = doc["color2"] | "#FF6400";
+    const char* c3 = doc["color3"] | "#961E00";
+    cometColor1 = hexToColor(String(c1));
+    cometColor2 = hexToColor(String(c2));
+    cometColor3 = hexToColor(String(c3));
+  }
+
+  if (animationName == "sun") {
+    const char* c1 = doc["color1"] | "#FFB700";
+    const char* c2 = doc["color2"] | "#FF6600";
+    const char* c3 = doc["color3"] | "#FF3300";
+    const char* c4 = doc["color4"] | "#CC1100";
+    sunColor1 = hexToColor(String(c1));
+    sunColor2 = hexToColor(String(c2));
+    sunColor3 = hexToColor(String(c3));
+    sunColor4 = hexToColor(String(c4));
+  }
+
   animationActive = true;
   sendJson(200, "{\"status\":\"ok\",\"animation\":\"" + animationName + "\"}");
 }
