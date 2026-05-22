@@ -36,7 +36,7 @@
     .heat-labels .hot  { color: #f97316; }
     .warn-row { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border: 1px solid #3a1a00; border-radius: 7px; background: #130900; }
     .warn-row input[type=checkbox] { accent-color: #f97316; width: 14px; height: 14px; margin-top: 2px; flex-shrink: 0; cursor: pointer; }
-    .warn-text { font-size: 0.75rem; color: #c05000; line-height: 1.4; }
+    .warn-text { font-size: 0.75rem; color: #c05000; line-height: 1.4; cursor: pointer; }
     .warn-text strong { color: #f97316; }
     footer { margin-top: 24px; font-size: 0.7rem; color: #3a3a3a; text-align: center; }
   </style>
@@ -118,7 +118,7 @@
     </div>
     <div class="warn-row">
       <input type="checkbox" id="cbHighBright" onchange="onHighBrightToggle()">
-      <span class="warn-text"><strong>&#x26A0; Heat warning:</strong> above 100 risks overheating. Check to unlock.</span>
+      <label for="cbHighBright" class="warn-text"><strong>&#x26A0; Heat warning:</strong> above 100 risks overheating. Check to unlock.</label>
     </div>
     <div class="row">
       <button class="danger" onclick="clearDisplay()">Clear Display</button>
@@ -166,6 +166,7 @@
       document.getElementById('brightness').value = val;
       document.getElementById('bval').textContent = val;
       document.getElementById('cbHighBright').checked = highUnlocked;
+      post('/api/brightness', { level: val });
     })();
 
     function onHighBrightToggle() {
