@@ -7,6 +7,7 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: system-ui, -apple-system, sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; padding: 20px; }
+    .wrap { max-width: 760px; margin: 0 auto; }
     header { margin-bottom: 24px; display: flex; align-items: center; gap: 14px; }
     a.back { color: #555; text-decoration: none; font-size: 0.85rem; }
     a.back:hover { color: #aaa; }
@@ -30,6 +31,7 @@
   </style>
 </head>
 <body>
+  <div class="wrap">
   <header>
     <a class="back" href="/">← Back</a>
     <h1>🕰️ Clock</h1>
@@ -113,5 +115,6 @@
       setStatus(ok ? 'Display cleared.' : 'Error — is the board reachable?', !ok);
     }
   </script>
+  </div>
 </body>
 </html>

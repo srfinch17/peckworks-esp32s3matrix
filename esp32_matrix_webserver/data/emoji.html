@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Emoji — ESP32 Matrix</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; padding: 20px; }
+    .wrap { max-width: 760px; margin: 0 auto; }
+    .back { color: #555; text-decoration: none; font-size: 0.85rem; display: inline-block; margin-bottom: 16px; }
+    .back:hover { color: #999; }
+    h1 { font-size: 1.3rem; color: #ffcc00; margin-bottom: 4px; }
+    .subtitle { color: #555; font-size: 0.82rem; margin-bottom: 20px; }
+    .panel { background: #161616; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+    .panel-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #666; margin-bottom: 16px; }
+    .group { margin-bottom: 20px; }
+    .group:last-child { margin-bottom: 0; }
+    .group > label { display: block; font-size: 0.72rem; color: #777; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 9px; }
+    select {
+      background: #1e1e1e; color: #e0e0e0; border: 1px solid #333;
+      border-radius: 7px; padding: 10px 14px; font-size: 1.1rem;
+      width: 100%; max-width: 360px; cursor: pointer;
+    }
+    select:focus { outline: none; border-color: #ffcc00; }
+    .layout { display: flex; gap: 32px; align-items: flex-start; flex-wrap: wrap; margin-top: 20px; }
+    .col-label { font-size: 0.68rem; color: #444; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; text-align: center; }
+    .source-emoji { font-size: 4.5rem; line-height: 1; text-align: center; min-width: 80px; }
+    /* 8×8 pixel preview grid */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(8, 20px);
+      grid-template-rows: repeat(8, 20px);
+      gap: 2px;
+    }
+    .pixel { border-radius: 3px; background: #0a0a0a; }
+    .actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+    button {
+      background: #1e1e1e; color: #ccc; border: 1px solid #333;
+      border-radius: 7px; padding: 9px 22px; cursor: pointer;
+      font-size: 0.88rem; transition: background 0.12s;
+    }
+    button:hover { background: #272727; }
+    button.send { border-color: #ffcc00; color: #ffcc00; }
+    button.send:hover { background: #1a1600; }
+    .status { font-size: 0.78rem; min-height: 1.2em; color: #00cc66; }
+    .status.err { color: #ff5555; }
+    canvas { display: none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+  <a href="/" class="back">← Back</a>
+  <h1>😊 Emoji</h1>
+  <p class="subtitle">Pick an emoji — preview the 8×8 render, then send it to the board</p>
+
+  <div class="panel">
+    <div class="panel-title">Select Emoji</div>
+
+    <div class="group">
+      <label for="emojiSelect">Emoji</label>
+      <select id="emojiSelect" onchange="onEmojiChange()">
+        <optgroup label="Faces">
+          <option value="😀">😀  Grinning</option>
+          <option value="😊">😊  Smiling</option>
+          <option value="😍">😍  Heart Eyes</option>
+          <option value="😂">😂  Tears of Joy</option>
+          <option value="🥹">🥹  Holding Back Tears</option>
+          <option value="😢">😢  Crying</option>
+          <option value="😡">😡  Angry</option>
+          <option value="🤔">🤔  Thinking</option>
+          <option value="😎">😎  Cool</option>
+          <option value="🤩">🤩  Star-Struck</option>
+          <option value="😴">😴  Sleeping</option>
+          <option value="🤗">🤗  Hugging</option>
+          <option value="🥳">🥳  Partying</option>
+          <option value="😱">😱  Shocked</option>
+          <option value="🤯">🤯  Mind Blown</option>
+          <option value="🤑">🤑  Money-Mouth</option>
+        </optgroup>
+        <optgroup label="Hearts &amp; Symbols">
+          <option value="❤️">❤️  Red Heart</option>
+          <option value="🧡">🧡  Orange Heart</option>
+          <option value="💛">💛  Yellow Heart</option>
+          <option value="💚">💚  Green Heart</option>
+          <option value="💙">💙  Blue Heart</option>
+          <option value="💜">💜  Purple Heart</option>
+          <option value="🖤">🖤  Black Heart</option>
+          <option value="💕">💕  Two Hearts</option>
+          <option value="💥">💥  Explosion</option>
+          <option value="⭐">⭐  Star</option>
+          <option value="🌟">🌟  Glowing Star</option>
+          <option value="✨">✨  Sparkles</option>
+          <option value="💎">💎  Diamond</option>
+        </optgroup>
+        <optgroup label="Animals">
+          <option value="🐶">🐶  Dog</option>
+          <option value="🐱">🐱  Cat</option>
+          <option value="🐭">🐭  Mouse</option>
+          <option value="🐸">🐸  Frog</option>
+          <option value="🐧">🐧  Penguin</option>
+          <option value="🦁">🦁  Lion</option>
+          <option value="🦊">🦊  Fox</option>
+          <option value="🐻">🐻  Bear</option>
+          <option value="🐼">🐼  Panda</option>
+          <option value="🦋">🦋  Butterfly</option>
+          <option value="🦄">🦄  Unicorn</option>
+        </optgroup>
+        <optgroup label="Food">
+          <option value="🍎">🍎  Apple</option>
+          <option value="🍊">🍊  Orange</option>
+          <option value="🍋">🍋  Lemon</option>
+          <option value="🍓">🍓  Strawberry</option>
+          <option value="🍕">🍕  Pizza</option>
+          <option value="🎂">🎂  Birthday Cake</option>
+          <option value="🍦">🍦  Ice Cream</option>
+          <option value="🍩">🍩  Donut</option>
+          <option value="🍺">🍺  Beer</option>
+          <option value="☕">☕  Coffee</option>
+        </optgroup>
+        <optgroup label="Activities &amp; Objects">
+          <option value="🎉">🎉  Party Popper</option>
+          <option value="🎊">🎊  Confetti</option>
+          <option value="🎁">🎁  Gift</option>
+          <option value="🔥">🔥  Fire</option>
+          <option value="🚀">🚀  Rocket</option>
+          <option value="🎮">🎮  Game Controller</option>
+          <option value="🎵">🎵  Music Note</option>
+          <option value="🌈">🌈  Rainbow</option>
+          <option value="☀️">☀️  Sun</option>
+          <option value="🌙">🌙  Moon</option>
+          <option value="❄️">❄️  Snowflake</option>
+          <option value="⚡">⚡  Lightning</option>
+          <option value="🏆">🏆  Trophy</option>
+          <option value="💀">💀  Skull</option>
+        </optgroup>
+        <optgroup label="Gestures">
+          <option value="👍">👍  Thumbs Up</option>
+          <option value="👎">👎  Thumbs Down</option>
+          <option value="👋">👋  Waving Hand</option>
+          <option value="🤝">🤝  Handshake</option>
+          <option value="🙌">🙌  Raising Hands</option>
+          <option value="💪">💪  Flexed Bicep</option>
+          <option value="🫶">🫶  Heart Hands</option>
+          <option value="👏">👏  Clapping</option>
+          <option value="🤞">🤞  Fingers Crossed</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <div class="layout">
+      <div>
+        <div class="col-label">Source</div>
+        <div class="source-emoji" id="sourceEmoji">😀</div>
+      </div>
+      <div>
+        <div class="col-label">8×8 Preview</div>
+        <div class="grid" id="pixelGrid"></div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="send" onclick="sendToBoard()">Send to Board</button>
+    </div>
+    <div class="status" id="status"></div>
+  </div>
+
+  <!-- Hidden canvas used only for pixel extraction -->
+  <canvas id="renderCanvas" width="64" height="64"></canvas>
+
+  <script>
+    const canvas = document.getElementById('renderCanvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    let currentMatrix = null;
+
+    // Render emoji on a 64x64 canvas, then average each 8x8 block
+    // down to a single color to get the 8x8 output matrix.
+    function renderEmoji(emoji) {
+      ctx.clearRect(0, 0, 64, 64);
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, 64, 64);
+      ctx.font = '52px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(emoji, 32, 32);
+
+      const { data } = ctx.getImageData(0, 0, 64, 64);
+      const BLOCK = 8;
+      const matrix = [];
+
+      for (let by = 0; by < 8; by++) {
+        const row = [];
+        for (let bx = 0; bx < 8; bx++) {
+          let r = 0, g = 0, b = 0;
+          for (let py = 0; py < BLOCK; py++) {
+            for (let px = 0; px < BLOCK; px++) {
+              const ix = bx * BLOCK + px;
+              const iy = by * BLOCK + py;
+              const i  = (iy * 64 + ix) * 4;
+              const a  = data[i + 3] / 255;  // pre-multiply alpha against black
+              r += data[i]     * a;
+              g += data[i + 1] * a;
+              b += data[i + 2] * a;
+            }
+          }
+          const n = BLOCK * BLOCK;
+          const h = v => Math.round(v / n).toString(16).padStart(2, '0');
+          row.push(`#${h(r)}${h(g)}${h(b)}`);
+        }
+        matrix.push(row);
+      }
+      return matrix;
+    }
+
+    function updatePreview(matrix) {
+      const grid = document.getElementById('pixelGrid');
+      grid.innerHTML = '';
+      for (let y = 0; y < 8; y++) {
+        for (let x = 0; x < 8; x++) {
+          const px = document.createElement('div');
+          px.className = 'pixel';
+          px.style.background = matrix[y][x];
+          grid.appendChild(px);
+        }
+      }
+    }
+
+    function onEmojiChange() {
+      const emoji = document.getElementById('emojiSelect').value;
+      document.getElementById('sourceEmoji').textContent = emoji;
+      currentMatrix = renderEmoji(emoji);
+      updatePreview(currentMatrix);
+    }
+
+    async function sendToBoard() {
+      if (!currentMatrix) return;
+      setStatus('Sending…');
+      try {
+        const r = await fetch('/api/display/matrix', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ matrix: currentMatrix })
+        });
+        setStatus(r.ok ? 'Sent!' : 'Error — is the board reachable?', !r.ok);
+      } catch {
+        setStatus('Error — could not reach board.', true);
+      }
+    }
+
+    function setStatus(msg, isErr = false) {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = 'status' + (isErr ? ' err' : '');
+    }
+
+    onEmojiChange();
+  </script>
+  </div>
+</body>
+</html>
