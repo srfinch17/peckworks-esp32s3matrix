@@ -7,6 +7,7 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: system-ui, -apple-system, sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; padding: 20px; }
+    .wrap { max-width: 720px; margin: 0 auto; }
     header { margin-bottom: 24px; }
     h1 { font-size: 1.5rem; color: #00ff88; letter-spacing: -0.02em; }
     .subtitle { color: #555; font-size: 0.82rem; margin-top: 4px; }
@@ -32,12 +33,13 @@
   </style>
 </head>
 <body>
-  <header>
-    <h1>ESP32-S3 Matrix</h1>
-    <p class="subtitle">Web control panel — served directly from the board</p>
-  </header>
+  <div class="wrap">
+    <header>
+      <h1>ESP32-S3 Matrix</h1>
+      <p class="subtitle">Web control panel — served directly from the board</p>
+    </header>
 
-  <div class="apps">
+    <div class="apps">
     <a href="/fire.html" class="card">
       <span class="icon">🔥</span>
       <div class="name">Fire</div>
@@ -88,6 +90,11 @@
       <div class="name">Matrix Rain</div>
       <div class="desc">Digital rain with falling drops and fading color trails</div>
     </a>
+    <a href="/emoji.html" class="card">
+      <span class="icon">😊</span>
+      <div class="name">Emoji</div>
+      <div class="desc">Display any emoji on the matrix in full color</div>
+    </a>
   </div>
 
   <div class="panel">
@@ -102,7 +109,8 @@
     <div class="status" id="status"></div>
   </div>
 
-  <footer>Board IP: <span id="ip">…</span></footer>
+    <footer>Board IP: <span id="ip">…</span></footer>
+  </div>
 
   <script>
     document.getElementById('ip').textContent = window.location.hostname;
