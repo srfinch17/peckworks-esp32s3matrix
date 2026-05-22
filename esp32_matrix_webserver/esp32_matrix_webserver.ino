@@ -144,11 +144,13 @@ CRGB     weatherIconBuf[64];            // decoded remote PNG icon, scaled to 8�
 bool     weatherHasIcon    = false;     // true once the remote icon has been fetched
 
 // ── Clock state ───────────────────────────────────────────────
-CRGB     clockBgColor  = CRGB(0, 0, 64);   // background fill color
-int      clockTimezone = -7;               // UTC offset in hours (e.g. -7 = Arizona MST)
-bool     ntpSynced     = false;
-int      clockPrevHour = -1;               // used to skip redraws when nothing changed
-int      clockPrevMin  = -1;
+CRGB     clockColorHours = CRGB(255,  51,   0);  // hours digit color    (#FF3300)
+CRGB     clockColorColon = CRGB(255, 255, 255);  // colon dot color      (#FFFFFF)
+CRGB     clockColorMins  = CRGB(  0, 204, 255);  // minutes digit color  (#00CCFF)
+int      clockTimezone   = -7;                   // UTC offset in hours (e.g. -7 = Arizona MST)
+bool     ntpSynced       = false;
+int      clockPrevHour   = -1;                   // used to skip redraws when nothing changed
+int      clockPrevMin    = -1;
 
 // ── Timer state ───────────────────────────────────────────────
 uint32_t timerEndMs        = 0;             // millis() when the timer expires
