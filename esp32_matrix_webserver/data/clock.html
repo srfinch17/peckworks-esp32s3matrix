@@ -12,20 +12,54 @@
     a.back { color: #555; text-decoration: none; font-size: 0.85rem; }
     a.back:hover { color: #aaa; }
     h1 { font-size: 1.5rem; color: #00ff88; }
-    .panel { background: #161616; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+    .panel { background: #161616; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px; }
     .panel-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #666; margin-bottom: 16px; }
-    .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
-    .row:last-child { margin-bottom: 0; }
-    label { font-size: 0.85rem; color: #aaa; min-width: 110px; }
-    input[type=color] { width: 44px; height: 32px; border: 1px solid #333; border-radius: 6px; background: none; cursor: pointer; padding: 2px; }
-    select { background: #1e1e1e; color: #ccc; border: 1px solid #333; border-radius: 7px; padding: 7px 10px; font-size: 0.85rem; cursor: pointer; }
-    button { background: #1e1e1e; color: #ccc; border: 1px solid #333; border-radius: 7px; padding: 8px 18px; cursor: pointer; font-size: 0.85rem; transition: background 0.12s; }
-    button:hover { background: #272727; }
+    .preview-wrap { display: flex; flex-direction: column; align-items: center; margin-bottom: 18px; }
+    .pixel-grid {
+      display: grid;
+      grid-template-columns: repeat(8, 22px);
+      grid-template-rows: repeat(8, 22px);
+      gap: 3px;
+      background: #000;
+      padding: 8px;
+      border-radius: 7px;
+      border: 1px solid #1e1e1e;
+    }
+    .px { border-radius: 3px; background: #0a0a0a; }
+    .preview-label { font-size: 0.62rem; color: #333; margin-top: 6px; text-transform: uppercase; letter-spacing: .06em; }
+    .pickers { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+    .picker-group { display: flex; flex-direction: column; gap: 5px; }
+    .picker-group label { font-size: 0.68rem; color: #666; text-transform: uppercase; letter-spacing: .06em; }
+    .picker-group input[type=color] {
+      width: 48px; height: 34px; border: 1px solid #333; border-radius: 6px;
+      background: none; cursor: pointer; padding: 2px;
+    }
+    .presets-label { font-size: 0.68rem; color: #555; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+    .presets-grid {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 5px;
+      margin-bottom: 18px;
+    }
+    .preset {
+      aspect-ratio: 1;
+      border-radius: 5px;
+      border: 1px solid rgba(255,255,255,0.07);
+      cursor: pointer;
+      transition: transform .1s;
+      position: relative;
+      overflow: hidden;
+    }
+    .preset:hover { transform: scale(1.12); }
+    .preset.active { outline: 2px solid #fff; outline-offset: 2px; }
+    .preset .comp-strip { position: absolute; bottom: 0; left: 0; right: 0; height: 35%; }
+    .footer-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    select { background: #1e1e1e; color: #ccc; border: 1px solid #333; border-radius: 6px; padding: 6px 10px; font-size: 0.82rem; cursor: pointer; }
+    button { background: #1e1e1e; color: #ccc; border: 1px solid #333; border-radius: 7px; padding: 8px 18px; cursor: pointer; font-size: 0.85rem; }
     button.primary { border-color: #00aa55; color: #00ff88; }
     button.primary:hover { background: #002211; }
     button.danger { border-color: #7a0000; color: #ff5555; }
     button.danger:hover { background: #250000; }
-    .note { font-size: 0.78rem; color: #555; margin-top: 8px; line-height: 1.5; }
     .status { font-size: 0.78rem; margin-top: 12px; min-height: 1.2em; color: #00cc66; }
     .status.err { color: #ff5555; }
   </style>
@@ -39,12 +73,31 @@
 
   <div class="panel">
     <div class="panel-title">Clock Settings</div>
-    <div class="row">
-      <label>Background color</label>
-      <input type="color" id="bgColor" value="#003366">
+
+    <div class="preview-wrap">
+      <div class="pixel-grid" id="pixelGrid"></div>
+      <div class="preview-label">Live 8×8 preview — updates every second</div>
     </div>
-    <div class="row">
-      <label>Timezone (UTC offset)</label>
+
+    <div class="pickers">
+      <div class="picker-group">
+        <label for="cHours">Hours</label>
+        <input type="color" id="cHours" value="#ff3300" oninput="updatePreview()">
+      </div>
+      <div class="picker-group">
+        <label for="cColon">Colon</label>
+        <input type="color" id="cColon" value="#ffffff" oninput="updatePreview()">
+      </div>
+      <div class="picker-group">
+        <label for="cMins">Minutes</label>
+        <input type="color" id="cMins" value="#00ccff" oninput="updatePreview()">
+      </div>
+    </div>
+
+    <div class="presets-label">Color Presets</div>
+    <div class="presets-grid" id="presetsGrid"></div>
+
+    <div class="footer-row">
       <select id="timezone">
         <option value="-12">UTC-12</option>
         <option value="-11">UTC-11</option>
@@ -72,16 +125,126 @@
         <option value="11">UTC+11</option>
         <option value="12">UTC+12</option>
       </select>
-    </div>
-    <div class="row">
       <button class="primary" onclick="startClock()">Start Clock</button>
       <button class="danger" onclick="stopClock()">Stop</button>
     </div>
-    <p class="note">Clock syncs time via NTP (internet) on first start. May take a few seconds to display. Digits are a whitish tint of the background color. 12-hour format.</p>
     <div class="status" id="status"></div>
   </div>
 
   <script>
+    // FONT_3X3 digits 0–9 (indices 26–35 from fonts.ino)
+    // [col0, col1, col2] — bit0 = top row, bit2 = bottom row
+    const FONT_3X3 = [
+      [7,5,7],[5,7,4],[1,7,4],[5,7,7],[3,2,7],
+      [4,7,1],[7,6,6],[1,1,7],[7,7,7],[3,3,7],
+    ];
+
+    // MINI_FONT 3×5 (from clock_timer.ino)
+    // [col0, col1, col2] — bit0 = top row, bit4 = bottom row
+    const MINI_FONT = [
+      [31,17,31],[2,31,16],[29,21,23],[17,21,31],[7,4,31],
+      [23,21,29],[31,21,29],[25,5,3],[31,21,31],[23,21,31],
+    ];
+
+    const grid = document.getElementById('pixelGrid');
+    const pixels = [];
+    for (let i = 0; i < 64; i++) {
+      const d = document.createElement('div');
+      d.className = 'px';
+      grid.appendChild(d);
+      pixels.push(d);
+    }
+
+    function setPixel(x, y, color) {
+      if (x < 0 || x > 7 || y < 0 || y > 7) return;
+      pixels[y * 8 + x].style.background = color;
+    }
+    function clearGrid() { pixels.forEach(p => p.style.background = '#0a0a0a'); }
+
+    function draw3x3(digit, startX, startY, color) {
+      const f = FONT_3X3[digit];
+      for (let col = 0; col < 3; col++)
+        for (let row = 0; row < 3; row++)
+          if ((f[col] >> row) & 1) setPixel(startX + col, startY + row, color);
+    }
+
+    function drawMini(digit, startX, startY, color) {
+      const f = MINI_FONT[digit];
+      for (let col = 0; col < 3; col++)
+        for (let row = 0; row < 5; row++)
+          if ((f[col] >> row) & 1) setPixel(startX + col, startY + row, color);
+    }
+
+    function renderClock(h, m, cH, cC, cM) {
+      clearGrid();
+      // Colon dots: col 0, rows 5 and 7
+      setPixel(0, 5, cC);
+      setPixel(0, 7, cC);
+      // Minutes: tens at cols 1–3, units at cols 5–7 (col 4 gap), rows 3–7
+      drawMini(Math.floor(m / 10), 1, 3, cM);
+      drawMini(m % 10, 5, 3, cM);
+      // Hours: 1–9 at cols 0–2; 10–12: '1' at cols 0–2, units at cols 4–6
+      if (h <= 9) {
+        draw3x3(h, 0, 0, cH);
+      } else {
+        draw3x3(1, 0, 0, cH);
+        draw3x3(h % 10, 4, 0, cH);
+      }
+    }
+
+    function updatePreview() {
+      const now = new Date();
+      const h = now.getHours() % 12 || 12;
+      const m = now.getMinutes();
+      renderClock(h, m,
+        document.getElementById('cHours').value,
+        document.getElementById('cColon').value,
+        document.getElementById('cMins').value
+      );
+    }
+
+    function hslToHex(h, s, l) {
+      s /= 100; l /= 100;
+      const k = n => (n + h / 30) % 12;
+      const a = s * Math.min(l, 1 - l);
+      const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+      return '#' + [f(0),f(8),f(4)].map(x => Math.round(x*255).toString(16).padStart(2,'0')).join('');
+    }
+
+    const presetsGrid = document.getElementById('presetsGrid');
+    let activePreset = null;
+
+    for (let i = 0; i < 32; i++) {
+      const hue = Math.round(i * 360 / 32);
+      const hoursHex = hslToHex(hue, 100, 50);
+      const minsHex  = hslToHex((hue + 180) % 360, 100, 50);
+
+      const wrap = document.createElement('div');
+      wrap.className = 'preset';
+      wrap.style.background = hoursHex;
+      wrap.title = `Hours: ${hoursHex}  Colon: #ffffff  Minutes: ${minsHex}`;
+
+      const strip = document.createElement('div');
+      strip.className = 'comp-strip';
+      strip.style.background = minsHex;
+      wrap.appendChild(strip);
+
+      wrap.addEventListener('click', () => {
+        if (activePreset) activePreset.classList.remove('active');
+        wrap.classList.add('active');
+        activePreset = wrap;
+        document.getElementById('cHours').value = hoursHex;
+        document.getElementById('cColon').value = '#ffffff';
+        document.getElementById('cMins').value  = minsHex;
+        updatePreview();
+      });
+
+      presetsGrid.appendChild(wrap);
+    }
+
+    updatePreview();
+    setInterval(updatePreview, 1000);
+
     function setStatus(msg, isErr) {
       const el = document.getElementById('status');
       el.textContent = msg;
@@ -100,12 +263,12 @@
     }
 
     async function startClock() {
-      const color = document.getElementById('bgColor').value;
-      const tz = parseInt(document.getElementById('timezone').value, 10);
       const ok = await post('/api/display/animation', {
-        type: 'clock',
-        color: color,
-        timezone: tz
+        type:         'clock',
+        colorHours:   document.getElementById('cHours').value,
+        colorColon:   document.getElementById('cColon').value,
+        colorMinutes: document.getElementById('cMins').value,
+        timezone:     parseInt(document.getElementById('timezone').value, 10)
       });
       setStatus(ok ? 'Clock started. NTP sync may take a few seconds…' : 'Error — is the board reachable?', !ok);
     }
