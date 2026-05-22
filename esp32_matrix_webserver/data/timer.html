@@ -7,6 +7,7 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: system-ui, -apple-system, sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; padding: 20px; }
+    .wrap { max-width: 760px; margin: 0 auto; }
     .back { color: #555; text-decoration: none; font-size: 0.85rem; display: inline-block; margin-bottom: 16px; }
     .back:hover { color: #999; }
     h1 { font-size: 1.3rem; color: #4499ff; margin-bottom: 24px; }
@@ -43,6 +44,7 @@
   </style>
 </head>
 <body>
+  <div class="wrap">
   <a href="/" class="back">← Home</a>
   <h1>⏱ Timer</h1>
 
@@ -208,5 +210,6 @@
       }
     }
   </script>
+  </div>
 </body>
 </html>
