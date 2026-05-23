@@ -54,7 +54,8 @@ struct StarParticle {
 static StarParticle stars[16];
 static bool starsInitialized = false;
 
-static void spawnStar(StarParticle& s) {
+static void spawnStar(uint8_t idx) {
+  StarParticle& s = stars[idx];
   if (starInward) {
     uint8_t edge = random(4);
     if      (edge == 0) { s.x = (float)random(8); s.y = 0.0f; }
@@ -74,7 +75,7 @@ static void spawnStar(StarParticle& s) {
     s.dx = cos(angle) * speed;
     s.dy = sin(angle) * speed;
   }
-  s.age        = starInward ? 0 : random(10);   // stagger ages on first spawn
+  s.age        = starInward ? 0 : random(10);
   s.maxAge     = 25 + random(20);
   s.brightness = 80 + random(175);
   s.active     = true;
@@ -86,7 +87,7 @@ void runStarfieldFrame() {
   uint8_t count = min((uint8_t)starDensity, (uint8_t)16);
   for (uint8_t i = 0; i < count; i++) {
     StarParticle& s = stars[i];
-    if (!starsInitialized || !s.active || s.age >= s.maxAge) { spawnStar(s); }
+    if (!starsInitialized || !s.active || s.age >= s.maxAge) { spawnStar(i); }
 
     s.x   += s.dx;
     s.y   += s.dy;
@@ -94,7 +95,7 @@ void runStarfieldFrame() {
 
     bool offScreen = (s.x < 0 || s.x > 7 || s.y < 0 || s.y > 7);
     bool atCenter  = starInward && (fabsf(s.x - 3.5f) < 0.7f && fabsf(s.y - 3.5f) < 0.7f);
-    if (offScreen || atCenter) { spawnStar(s); continue; }
+    if (offScreen || atCenter) { spawnStar(i); continue; }
 
     uint8_t t = (uint8_t)(((uint16_t)s.age * 255) / s.maxAge);
     CRGB c    = blend(starColor1, starColor2, t);
