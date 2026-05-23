@@ -11,24 +11,32 @@
     .back { color: #555; text-decoration: none; font-size: 0.85rem; display: inline-block; margin-bottom: 16px; }
     .back:hover { color: #999; }
     h1 { font-size: 1.3rem; color: #cc88ff; margin-bottom: 24px; }
-    .anim-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
-    .anim-card { background: #161616; border: 2px solid #2a2a2a; border-radius: 12px; padding: 16px; cursor: pointer; transition: border-color 0.15s; }
+    .anim-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 24px; }
+    .anim-card { background: #161616; border: 2px solid #2a2a2a; border-radius: 12px; padding: 14px; cursor: pointer; transition: border-color 0.15s; }
     .anim-card:hover { border-color: #3a3a3a; }
     .anim-card.selected { border-color: #cc88ff; background: #180e28; }
-    .anim-card .icon { font-size: 2rem; display: block; margin-bottom: 8px; }
-    .anim-card .name { font-weight: 600; font-size: 0.9rem; margin-bottom: 4px; }
-    .anim-card .desc { font-size: 0.7rem; color: #666; line-height: 1.4; }
+    .anim-card .icon { font-size: 1.8rem; display: block; margin-bottom: 6px; }
+    .anim-card .name { font-weight: 600; font-size: 0.85rem; margin-bottom: 3px; }
+    .anim-card .desc { font-size: 0.68rem; color: #666; line-height: 1.4; }
     .panel { background: #161616; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px; }
     .panel-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #666; margin-bottom: 16px; }
     .group { margin-bottom: 18px; }
     .group label { display: block; font-size: 0.75rem; color: #777; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; }
     .slider-row { display: flex; align-items: center; gap: 12px; }
     input[type=range] { flex: 1; accent-color: #cc88ff; cursor: pointer; }
-    .color-row { display: flex; align-items: center; gap: 12px; }
-    input[type=color] { width: 48px; height: 36px; border: 1px solid #333; border-radius: 6px; background: none; cursor: pointer; padding: 2px; }
-    .color-hex { font-size: 0.85rem; color: #777; font-family: monospace; }
-    .color-group { transition: opacity 0.2s; }
-    .color-group.hidden { opacity: 0.25; pointer-events: none; }
+    .color-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .picker-group { display: flex; flex-direction: column; gap: 5px; }
+    .picker-group label { font-size: 0.68rem; color: #666; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 0; }
+    input[type=color] { width: 44px; height: 32px; border: 1px solid #333; border-radius: 6px; background: none; cursor: pointer; padding: 2px; }
+    .toggle-row { display: flex; align-items: center; gap: 10px; }
+    input[type=checkbox] { accent-color: #cc88ff; width: 16px; height: 16px; cursor: pointer; }
+    .anim-panel { display: none; }
+    .anim-panel.visible { display: block; }
+    .presets-label { font-size: 0.68rem; color: #555; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+    .presets-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 16px; }
+    .preset-swatch { aspect-ratio: 1; border-radius: 6px; border: 2px solid rgba(255,255,255,0.06); cursor: pointer; transition: transform .1s; }
+    .preset-swatch:hover { transform: scale(1.1); }
+    .preset-swatch.active { outline: 2px solid #fff; outline-offset: 2px; }
     .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
     .btn-primary { background: #270a44; color: #cc88ff; border: 1px solid #4a1a77; border-radius: 7px; padding: 10px 22px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: background 0.12s; }
     .btn-primary:hover { background: #30105a; }
@@ -47,22 +55,47 @@
     <div class="anim-card selected" data-type="rainbow" onclick="selectAnim(this)">
       <span class="icon">🌈</span>
       <div class="name">Rainbow</div>
-      <div class="desc">Cycles through all hues across the matrix</div>
+      <div class="desc">Cycles through all hues</div>
     </div>
     <div class="anim-card" data-type="breathe" onclick="selectAnim(this)">
       <span class="icon">💨</span>
       <div class="name">Breathe</div>
-      <div class="desc">Slow pulsing glow — pick your color</div>
+      <div class="desc">Slow pulsing glow</div>
     </div>
     <div class="anim-card" data-type="wave" onclick="selectAnim(this)">
       <span class="icon">🌊</span>
       <div class="name">Wave</div>
-      <div class="desc">Rising blue water columns</div>
+      <div class="desc">Rising blue columns</div>
     </div>
     <div class="anim-card" data-type="solid" onclick="selectAnim(this)">
       <span class="icon">⬛</span>
       <div class="name">Solid</div>
-      <div class="desc">Fill the matrix with one color</div>
+      <div class="desc">Single fill color</div>
+    </div>
+    <div class="anim-card" data-type="spiral" onclick="selectAnim(this)">
+      <span class="icon">🌀</span>
+      <div class="name">Spiral</div>
+      <div class="desc">Gradient snake spirals inward</div>
+    </div>
+    <div class="anim-card" data-type="starfield" onclick="selectAnim(this)">
+      <span class="icon">✨</span>
+      <div class="name">Starfield</div>
+      <div class="desc">Stars radiate from center</div>
+    </div>
+    <div class="anim-card" data-type="fireworks" onclick="selectAnim(this)">
+      <span class="icon">🎆</span>
+      <div class="name">Fireworks</div>
+      <div class="desc">Mortar + radial burst</div>
+    </div>
+    <div class="anim-card" data-type="comet" onclick="selectAnim(this)">
+      <span class="icon">☄️</span>
+      <div class="name">Comet</div>
+      <div class="desc">Bobbing comet with wave tail</div>
+    </div>
+    <div class="anim-card" data-type="sun" onclick="selectAnim(this)">
+      <span class="icon">☀️</span>
+      <div class="name">Sun</div>
+      <div class="desc">Spinning gradient ring</div>
     </div>
   </div>
 
@@ -72,15 +105,91 @@
     <div class="group">
       <label>Speed — <span id="v-speed">15</span> fps</label>
       <div class="slider-row">
-        <input type="range" id="speed" min="30" max="200" value="66" oninput="updateSpeed(this.value)">
+        <input type="range" id="speed" min="20" max="200" value="66" oninput="updateSpeed(this.value)">
       </div>
     </div>
 
-    <div class="group color-group hidden" id="color-group">
-      <label>Color</label>
-      <div class="color-row">
-        <input type="color" id="color" value="#0064ff" oninput="updateColorHex()">
-        <span class="color-hex" id="color-hex">#0064FF</span>
+    <!-- Panel: breathe + solid -->
+    <div class="anim-panel" id="panel-color">
+      <div class="group">
+        <label>Color</label>
+        <div class="color-row">
+          <input type="color" id="color" value="#0064ff">
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel: spiral -->
+    <div class="anim-panel" id="panel-spiral">
+      <div class="group">
+        <label>Colors</label>
+        <div class="color-row">
+          <div class="picker-group"><label>Start</label><input type="color" id="spiral-c1" value="#ff0000"></div>
+          <div class="picker-group"><label>End</label><input type="color" id="spiral-c2" value="#0000ff"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel: starfield -->
+    <div class="anim-panel" id="panel-starfield">
+      <div class="group">
+        <label>Colors</label>
+        <div class="color-row">
+          <div class="picker-group"><label>Birth</label><input type="color" id="star-c1" value="#ffffff"></div>
+          <div class="picker-group"><label>Death</label><input type="color" id="star-c2" value="#0064ff"></div>
+        </div>
+      </div>
+      <div class="group">
+        <label>Density — <span id="v-density">8</span> stars</label>
+        <div class="slider-row">
+          <input type="range" id="star-density" min="1" max="16" value="8" oninput="document.getElementById('v-density').textContent=this.value">
+        </div>
+      </div>
+      <div class="group">
+        <label>Direction</label>
+        <div class="toggle-row">
+          <input type="checkbox" id="star-inward">
+          <span style="font-size:0.8rem;color:#888">Inward (fall toward center)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel: fireworks -->
+    <div class="anim-panel" id="panel-fireworks">
+      <div class="group">
+        <label>Explosion Palette</label>
+        <div class="color-row">
+          <div class="picker-group"><label>Color 1</label><input type="color" id="fw-c1" value="#ff3200"></div>
+          <div class="picker-group"><label>Color 2</label><input type="color" id="fw-c2" value="#ffc800"></div>
+          <div class="picker-group"><label>Color 3</label><input type="color" id="fw-c3" value="#0064ff"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel: comet -->
+    <div class="anim-panel" id="panel-comet">
+      <div class="group">
+        <label>Colors</label>
+        <div class="color-row">
+          <div class="picker-group"><label>Heart</label><input type="color" id="comet-c1" value="#ffc832"></div>
+          <div class="picker-group"><label>Shell</label><input type="color" id="comet-c2" value="#ff6400"></div>
+          <div class="picker-group"><label>Tail</label><input type="color" id="comet-c3" value="#961e00"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel: sun -->
+    <div class="anim-panel" id="panel-sun">
+      <div class="group">
+        <div class="presets-label">Color Presets</div>
+        <div class="presets-grid" id="sun-presets"></div>
+        <label style="margin-top:12px">Colors</label>
+        <div class="color-row" style="margin-top:8px">
+          <div class="picker-group"><label>Sun</label><input type="color" id="sun-c1" value="#ffb700" oninput="clearSunPreset()"></div>
+          <div class="picker-group"><label>Ring 1</label><input type="color" id="sun-c2" value="#ff6600" oninput="clearSunPreset()"></div>
+          <div class="picker-group"><label>Ring 2</label><input type="color" id="sun-c3" value="#ff3300" oninput="clearSunPreset()"></div>
+          <div class="picker-group"><label>Ring 3</label><input type="color" id="sun-c4" value="#cc1100" oninput="clearSunPreset()"></div>
+        </div>
       </div>
     </div>
 
@@ -92,24 +201,87 @@
   </div>
 
   <script>
-    // Animations that expose a color picker (rainbow and wave have fixed colors)
-    const needsColor = new Set(['breathe', 'solid']);
+    const SUN_PRESETS = [
+      { name: 'Solar',   c1: '#ffb700', c2: '#ff6600', c3: '#ff3300', c4: '#cc1100' },
+      { name: 'Arctic',  c1: '#ffffff', c2: '#88ddff', c3: '#4499ff', c4: '#0055cc' },
+      { name: 'Twilight',c1: '#ff99ff', c2: '#cc44ff', c3: '#9900cc', c4: '#550088' },
+      { name: 'Neon',    c1: '#aaffaa', c2: '#00ff44', c3: '#00cc22', c4: '#005511' },
+      { name: 'Lava',    c1: '#ffff00', c2: '#ff4400', c3: '#cc0000', c4: '#660000' },
+    ];
+
+    const PANEL_MAP = {
+      breathe: 'panel-color', solid: 'panel-color',
+      spiral: 'panel-spiral', starfield: 'panel-starfield',
+      fireworks: 'panel-fireworks', comet: 'panel-comet', sun: 'panel-sun',
+    };
+
     let selectedType = 'rainbow';
+
+    const presetsEl = document.getElementById('sun-presets');
+    SUN_PRESETS.forEach((p, i) => {
+      const el = document.createElement('div');
+      el.className = 'preset-swatch' + (i === 0 ? ' active' : '');
+      el.title = p.name;
+      el.style.background = `linear-gradient(135deg, ${p.c1} 40%, ${p.c2} 70%, ${p.c3})`;
+      el.onclick = () => applySunPreset(i);
+      presetsEl.appendChild(el);
+    });
+
+    function applySunPreset(i) {
+      const p = SUN_PRESETS[i];
+      document.getElementById('sun-c1').value = p.c1;
+      document.getElementById('sun-c2').value = p.c2;
+      document.getElementById('sun-c3').value = p.c3;
+      document.getElementById('sun-c4').value = p.c4;
+      presetsEl.querySelectorAll('.preset-swatch').forEach((el, j) =>
+        el.classList.toggle('active', j === i));
+    }
+
+    function clearSunPreset() {
+      presetsEl.querySelectorAll('.preset-swatch').forEach(el => el.classList.remove('active'));
+    }
 
     function selectAnim(card) {
       document.querySelectorAll('.anim-card').forEach(c => c.classList.remove('selected'));
       card.classList.add('selected');
       selectedType = card.dataset.type;
-      document.getElementById('color-group').classList.toggle('hidden', !needsColor.has(selectedType));
+      document.querySelectorAll('.anim-panel').forEach(p => p.classList.remove('visible'));
+      const panelId = PANEL_MAP[selectedType];
+      if (panelId) document.getElementById(panelId).classList.add('visible');
     }
 
     function updateSpeed(val) {
       document.getElementById('v-speed').textContent = Math.round(1000 / val);
     }
 
-    function updateColorHex() {
-      document.getElementById('color-hex').textContent =
-        document.getElementById('color').value.toUpperCase();
+    function buildPayload() {
+      const speed = +document.getElementById('speed').value;
+      const body  = { type: selectedType, speed };
+      if (selectedType === 'breathe' || selectedType === 'solid') {
+        body.color  = document.getElementById('color').value;
+      } else if (selectedType === 'spiral') {
+        body.color1 = document.getElementById('spiral-c1').value;
+        body.color2 = document.getElementById('spiral-c2').value;
+      } else if (selectedType === 'starfield') {
+        body.color1   = document.getElementById('star-c1').value;
+        body.color2   = document.getElementById('star-c2').value;
+        body.density  = +document.getElementById('star-density').value;
+        body.inward   = document.getElementById('star-inward').checked;
+      } else if (selectedType === 'fireworks') {
+        body.color1 = document.getElementById('fw-c1').value;
+        body.color2 = document.getElementById('fw-c2').value;
+        body.color3 = document.getElementById('fw-c3').value;
+      } else if (selectedType === 'comet') {
+        body.color1 = document.getElementById('comet-c1').value;
+        body.color2 = document.getElementById('comet-c2').value;
+        body.color3 = document.getElementById('comet-c3').value;
+      } else if (selectedType === 'sun') {
+        body.color1 = document.getElementById('sun-c1').value;
+        body.color2 = document.getElementById('sun-c2').value;
+        body.color3 = document.getElementById('sun-c3').value;
+        body.color4 = document.getElementById('sun-c4').value;
+      }
+      return body;
     }
 
     function setStatus(msg, isErr) {
@@ -119,16 +291,11 @@
     }
 
     async function applyAnimation() {
-      const speed = +document.getElementById('speed').value;
-      const color = document.getElementById('color').value;
-      const body  = { type: selectedType, speed };
-      if (needsColor.has(selectedType)) body.color = color;
-
       try {
         const r = await fetch('/api/display/animation', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
+          body: JSON.stringify(buildPayload())
         });
         setStatus(r.ok ? '✓ Running: ' + selectedType : 'Error: HTTP ' + r.status, !r.ok);
       } catch {
@@ -139,9 +306,7 @@
     async function clearDisplay() {
       try {
         const r = await fetch('/api/display/clear', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: '{}'
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}'
         });
         setStatus(r.ok ? 'Display cleared.' : 'Error: HTTP ' + r.status, !r.ok);
       } catch {
