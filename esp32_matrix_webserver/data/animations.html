@@ -109,6 +109,11 @@
       </div>
     </div>
 
+    <!-- Panel: rainbow + wave (no color settings) -->
+    <div class="anim-panel" id="panel-none">
+      <p style="font-size:0.75rem;color:#555;padding:4px 0 8px">No color settings — use the speed slider above.</p>
+    </div>
+
     <!-- Panel: breathe + solid -->
     <div class="anim-panel" id="panel-color">
       <div class="group">
@@ -210,6 +215,7 @@
     ];
 
     const PANEL_MAP = {
+      rainbow: 'panel-none', wave: 'panel-none',
       breathe: 'panel-color', solid: 'panel-color',
       spiral: 'panel-spiral', starfield: 'panel-starfield',
       fireworks: 'panel-fireworks', comet: 'panel-comet', sun: 'panel-sun',
