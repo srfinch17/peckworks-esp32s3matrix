@@ -87,6 +87,21 @@
       <div class="name">Fireworks</div>
       <div class="desc">Mortar + radial burst</div>
     </div>
+    <div class="anim-card" data-type="fireworks2" onclick="selectAnim(this)">
+      <span class="icon">🎇</span>
+      <div class="name">Fireworks 2</div>
+      <div class="desc">Comet tails — colored tip, white trail</div>
+    </div>
+    <div class="anim-card" data-type="fireworks3" onclick="selectAnim(this)">
+      <span class="icon">✦</span>
+      <div class="name">Fireworks 3</div>
+      <div class="desc">Coming soon</div>
+    </div>
+    <div class="anim-card" data-type="fireworks4" onclick="selectAnim(this)">
+      <span class="icon">✧</span>
+      <div class="name">Fireworks 4</div>
+      <div class="desc">Coming soon</div>
+    </div>
     <div class="anim-card" data-type="comet" onclick="selectAnim(this)">
       <span class="icon">☄️</span>
       <div class="name">Comet</div>
@@ -171,6 +186,18 @@
       </div>
     </div>
 
+    <!-- Panel: fireworks2 -->
+    <div class="anim-panel" id="panel-fireworks2">
+      <div class="group">
+        <label>Tip Color Palette</label>
+        <div class="color-row">
+          <div class="picker-group"><label>Tip 1</label><input type="color" id="fw2-c1" value="#ff3200"></div>
+          <div class="picker-group"><label>Tip 2</label><input type="color" id="fw2-c2" value="#ffc800"></div>
+          <div class="picker-group"><label>Tip 3</label><input type="color" id="fw2-c3" value="#0064ff"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- Panel: comet -->
     <div class="anim-panel" id="panel-comet">
       <div class="group">
@@ -218,7 +245,8 @@
       rainbow: 'panel-none', wave: 'panel-none',
       breathe: 'panel-color', solid: 'panel-color',
       spiral: 'panel-spiral', starfield: 'panel-starfield',
-      fireworks: 'panel-fireworks', comet: 'panel-comet', sun: 'panel-sun',
+      fireworks: 'panel-fireworks', fireworks2: 'panel-fireworks2',
+      comet: 'panel-comet', sun: 'panel-sun',
     };
 
     let selectedType = 'rainbow';
@@ -277,6 +305,10 @@
         body.color1 = document.getElementById('fw-c1').value;
         body.color2 = document.getElementById('fw-c2').value;
         body.color3 = document.getElementById('fw-c3').value;
+      } else if (selectedType === 'fireworks2') {
+        body.color1 = document.getElementById('fw2-c1').value;
+        body.color2 = document.getElementById('fw2-c2').value;
+        body.color3 = document.getElementById('fw2-c3').value;
       } else if (selectedType === 'comet') {
         body.color1 = document.getElementById('comet-c1').value;
         body.color2 = document.getElementById('comet-c2').value;

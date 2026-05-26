@@ -235,6 +235,27 @@ void handleAnimation() {
     fwColor3 = hexToColor(String(c3));
   }
 
+  if (animationName == "fireworks2") {
+    const char* c1 = doc["color1"] | "#FF3200";
+    const char* c2 = doc["color2"] | "#FFC800";
+    const char* c3 = doc["color3"] | "#0064FF";
+    fw2Color1 = hexToColor(String(c1));
+    fw2Color2 = hexToColor(String(c2));
+    fw2Color3 = hexToColor(String(c3));
+    fw2Phase       = FW_IDLE;
+    fw2IdleStartMs = 0;
+  }
+
+  if (animationName == "fireworks3") {
+    fw2Phase       = FW_IDLE;
+    fw2IdleStartMs = 0;
+  }
+
+  if (animationName == "fireworks4") {
+    fwPhase       = FW_IDLE;
+    fwIdleStartMs = 0;
+  }
+
   if (animationName == "comet") {
     const char* c1 = doc["color1"] | "#FFC832";
     const char* c2 = doc["color2"] | "#FF6400";
