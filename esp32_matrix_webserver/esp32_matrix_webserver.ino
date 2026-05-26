@@ -191,10 +191,15 @@ CRGB     starColor2     = CRGB(  0, 100, 255);
 uint8_t  starDensity    = 8;
 bool     starInward     = false;
 
-// ── Fireworks ─────────────────────────────────────────────────────────────────
+// ── Fireworks 1 ───────────────────────────────────────────────────────────────
 CRGB     fwColor1       = CRGB(255,  50,   0);
 CRGB     fwColor2       = CRGB(255, 200,   0);
 CRGB     fwColor3       = CRGB(  0, 100, 255);
+
+// ── Fireworks 2 ───────────────────────────────────────────────────────────────
+CRGB     fw2Color1      = CRGB(255,  50,   0);
+CRGB     fw2Color2      = CRGB(255, 200,   0);
+CRGB     fw2Color3      = CRGB(  0, 100, 255);
 
 // ── Comet ─────────────────────────────────────────────────────────────────────
 CRGB     cometColor1    = CRGB(255, 200,  50);
@@ -429,8 +434,11 @@ void loop() {
     else if (animationName == "matrix_rain") stepMatrixFrame();
     else if (animationName == "spiral")    runSpiralFrame();
     else if (animationName == "starfield") runStarfieldFrame();
-    else if (animationName == "fireworks") stepFireworksFrame();
-    else if (animationName == "comet")     runCometFrame();
+    else if (animationName == "fireworks")  stepFireworksFrame();
+    else if (animationName == "fireworks2") stepFireworks2Frame();
+    else if (animationName == "fireworks3") stepFireworks3Frame();
+    else if (animationName == "fireworks4") stepFireworks4Frame();
+    else if (animationName == "comet")      runCometFrame();
     else if (animationName == "sun")       runSunFrame();
     FastLED.show();
   }
