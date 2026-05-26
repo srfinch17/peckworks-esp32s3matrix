@@ -216,6 +216,12 @@ void handleAnimation() {
     spiralColor2 = hexToColor(String(c2));
   }
 
+  if (animationName == "dancefloor") {
+    dfPalette = (uint8_t)constrain((int)(doc["palette"] | 0), 0, 63);
+    dfHoldMin = (uint8_t)constrain((int)(doc["hold"]    | 12), 4, 40);
+    dfInit    = false;
+  }
+
   if (animationName == "starfield") {
     const char* c1 = doc["color1"] | "#FFFFFF";
     const char* c2 = doc["color2"] | "#0064FF";
