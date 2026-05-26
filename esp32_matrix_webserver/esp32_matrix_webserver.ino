@@ -191,6 +191,10 @@ CRGB     starColor2     = CRGB(  0, 100, 255);
 uint8_t  starDensity    = 8;
 bool     starInward     = false;
 
+// ── Dance Floor ───────────────────────────────────────────────────────────────
+uint8_t  dfPalette  =  0;
+uint8_t  dfHoldMin  = 12;
+
 // ── Fireworks 1 ───────────────────────────────────────────────────────────────
 CRGB     fwColor1       = CRGB(255,  50,   0);
 CRGB     fwColor2       = CRGB(255, 200,   0);
@@ -432,6 +436,7 @@ void loop() {
     else if (animationName == "timer_text") stepTimerTextFrame();
     else if (animationName == "clock")      stepClockFrame();
     else if (animationName == "matrix_rain") stepMatrixFrame();
+    else if (animationName == "dancefloor") runDanceFloorFrame();
     else if (animationName == "spiral")    runSpiralFrame();
     else if (animationName == "starfield") runStarfieldFrame();
     else if (animationName == "fireworks")  stepFireworksFrame();
