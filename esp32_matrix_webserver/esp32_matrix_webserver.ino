@@ -219,6 +219,7 @@ CRGB     sunColor4      = CRGB(204,  17,   0);
 // ── Frostbite ─────────────────────────────────────────────────────────────────
 CRGB     fbColor     = CRGB(220, 230, 255);   // cool ice-white default
 uint8_t  fbSparkRate = 20;                    // sparkle spawn probability 0-100
+uint8_t  fbMistMax   = 80;                    // shimmer brightness ceiling 0-255
 
 // ============================================================
 // SECTION 4: COORDINATE MAPPING

@@ -217,6 +217,14 @@
         </div>
       </div>
       <div class="group">
+        <label>Background Intensity — <span id="v-fb-mist">40</span>%</label>
+        <div class="slider-row">
+          <span style="font-size:.7rem;color:#555">Dim</span>
+          <input type="range" id="fb-mist" min="10" max="90" value="40" oninput="document.getElementById('v-fb-mist').textContent=this.value">
+          <span style="font-size:.7rem;color:#555">Bright</span>
+        </div>
+      </div>
+      <div class="group">
         <label>Sparkle Intensity — <span id="v-fb-sparkle">20</span>%</label>
         <div class="slider-row">
           <span style="font-size:.7rem;color:#555">Still</span>
@@ -477,31 +485,41 @@
   }
 
   // Frostbite
-  const FB_BRI = new Uint8Array(64).map(()=>30+Math.floor(Math.random()*60));
-  const FB_DIR = new Int8Array(64).map(()=>Math.random()<0.5?1:-1);
+  const FB_BRI = new Uint8Array(64);
+  const FB_DIR = new Int8Array(64);
   const FB_SPARKS = Array.from({length:8},()=>({idx:0,phase:30,active:false}));
+  let fbPrevInit = false;
   function stepPrevFrostbite() {
+    const mistPct = +(getEl('fb-mist')?.value||40);
+    const mistMax = Math.round(mistPct * 2);          // mirrors firmware: mist * 2
+    const lo = Math.max(8, mistMax >> 1);
+    if (!fbPrevInit) {
+      for (let i=0;i<64;i++) {
+        FB_BRI[i] = lo + Math.floor(Math.random()*(mistMax-lo+1));
+        FB_DIR[i] = Math.random()<0.5 ? 1 : -1;
+      }
+      fbPrevInit = true;
+    }
+    // Shimmer drift
     for (let i=0; i<64; i++) {
       if (Math.random()<0.25) {
         FB_BRI[i] += FB_DIR[i];
-        if (FB_BRI[i]>=90){FB_BRI[i]=90;FB_DIR[i]=-1;}
-        if (FB_BRI[i]<=30){FB_BRI[i]=30;FB_DIR[i]=1;}
+        if (FB_BRI[i]>=mistMax){FB_BRI[i]=mistMax;FB_DIR[i]=-1;}
+        if (FB_BRI[i]<=lo)    {FB_BRI[i]=lo;     FB_DIR[i]=1;}
       }
     }
+    // Mist: fbColor directly, no white blend
     const col = hex2rgb(pickVal('fb-color','#dce8ff'));
-    // mist base: 30% color + 70% white
-    const mr=~~(col.r*0.3+178), mg=~~(col.g*0.3+178), mb=~~(col.b*0.3+178);
     for (let i=0; i<64; i++) {
       const f=FB_BRI[i]/255;
-      prevCells[i]=`rgb(${~~(mr*f)},${~~(mg*f)},${~~(mb*f)})`;
+      prevCells[i]=`rgb(${~~(col.r*f)},${~~(col.g*f)},${~~(col.b*f)})`;
     }
+    // Sparkles
     const rate = +(getEl('fb-sparkle')?.value||20);
     if (Math.random()*100 < rate) {
       const free = FB_SPARKS.find(s=>!s.active);
       if (free) { free.idx=Math.floor(Math.random()*64); free.phase=0; free.active=true; }
     }
-    // sparkle base: 40% color + 60% white
-    const sr=~~(col.r*0.4+153), sg=~~(col.g*0.4+153), sb=~~(col.b*0.4+153);
     FB_SPARKS.forEach(sp => {
       if (!sp.active) return;
       let bri;
@@ -509,7 +527,7 @@
       else if (sp.phase<20) bri=255;
       else                  bri=Math.max(0,(29-sp.phase)*28);
       const f=bri/255;
-      prevCells[sp.idx]=`rgb(${~~Math.min(255,sr*f)},${~~Math.min(255,sg*f)},${~~Math.min(255,sb*f)})`;
+      prevCells[sp.idx]=`rgb(${~~(col.r*f)},${~~(col.g*f)},${~~(col.b*f)})`;
       sp.phase++;
       if (sp.phase>=30) sp.active=false;
     });
@@ -668,6 +686,7 @@
     if (type==='starfield') { sfReady=false; }
     if (type==='fireworks'||type.startsWith('fireworks')) initFWState();
     if (type==='comet') { cmPhase=0; CM_HIST.fill(3.5); cmHistIdx=0; }
+    if (type==='frostbite') { fbPrevInit=false; }
   }
 
   // ── Dance Floor palettes ──────────────────────────────────────────────────────
@@ -860,7 +879,9 @@
       body.color1=getEl('star-c1').value; body.color2=getEl('star-c2').value;
       body.density=+getEl('star-density').value; body.inward=getEl('star-inward').checked;
     } else if (selectedType==='frostbite') {
-      body.color=getEl('fb-color').value; body.sparkle=+getEl('fb-sparkle').value;
+      body.color=getEl('fb-color').value;
+      body.sparkle=+getEl('fb-sparkle').value;
+      body.mist=+getEl('fb-mist').value;
     } else if (selectedType==='fireworks') {
       body.color1=getEl('fw-c1').value; body.color2=getEl('fw-c2').value; body.color3=getEl('fw-c3').value;
     } else if (selectedType==='fireworks2') {
