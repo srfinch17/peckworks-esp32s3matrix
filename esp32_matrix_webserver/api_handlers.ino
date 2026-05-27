@@ -286,6 +286,7 @@ void handleAnimation() {
     const char* c = doc["color"] | "#DCE6FF";
     fbColor     = hexToColor(String(c));
     fbSparkRate = (uint8_t)constrain((int)(doc["sparkle"] | 20), 0, 100);
+    fbMistMax   = (uint8_t)constrain((int)(doc["mist"]    | 40) * 2, 8, 210);
     fbInit      = false;
   }
 
