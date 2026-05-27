@@ -11,7 +11,7 @@
     .back { color: #555; text-decoration: none; font-size: 0.85rem; display: inline-block; margin-bottom: 16px; }
     .back:hover { color: #999; }
     h1 { font-size: 1.3rem; color: #cc88ff; margin-bottom: 24px; }
-    .anim-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 24px; }
+    .anim-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 24px; }
     .anim-card { background: #161616; border: 2px solid #2a2a2a; border-radius: 12px; padding: 14px; cursor: pointer; transition: border-color 0.15s; }
     .anim-card:hover { border-color: #3a3a3a; }
     .anim-card.selected { border-color: #cc88ff; background: #180e28; }
@@ -19,9 +19,10 @@
     .anim-card .name { font-weight: 600; font-size: 0.85rem; margin-bottom: 3px; }
     .anim-card .desc { font-size: 0.68rem; color: #666; line-height: 1.4; }
     .panel { background: #161616; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px; }
-    .panel-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #666; margin-bottom: 16px; }
+    .panel-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #666; margin-bottom: 14px; }
     .group { margin-bottom: 18px; }
     .group label { display: block; font-size: 0.75rem; color: #777; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; }
+    .group-sub { font-size: 0.65rem; color: #444; margin-top: -4px; margin-bottom: 8px; }
     .slider-row { display: flex; align-items: center; gap: 12px; }
     input[type=range] { flex: 1; accent-color: #cc88ff; cursor: pointer; }
     .color-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -33,7 +34,9 @@
     .anim-panel { display: none; }
     .anim-panel.visible { display: block; }
     .presets-label { font-size: 0.68rem; color: #555; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
-    .presets-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 16px; }
+    .presets-grid { display: grid; gap: 6px; margin-bottom: 16px; }
+    .presets-grid.cols5 { grid-template-columns: repeat(5, 1fr); }
+    .presets-grid.cols6 { grid-template-columns: repeat(6, 1fr); }
     .preset-swatch { aspect-ratio: 1; border-radius: 6px; border: 2px solid rgba(255,255,255,0.06); cursor: pointer; transition: transform .1s; }
     .preset-swatch:hover { transform: scale(1.1); }
     .preset-swatch.active { outline: 2px solid #fff; outline-offset: 2px; }
@@ -44,10 +47,16 @@
     .btn-secondary:hover { background: #222; }
     .status { font-size: 0.78rem; margin-top: 14px; min-height: 1.2em; color: #00cc66; }
     .status.err { color: #ff5555; }
+    /* Dance floor palette swatch strip */
     .df-pal-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; margin: 8px 0 4px; }
     .df-swatch { height: 22px; border-radius: 3px; border: 2px solid transparent; cursor: pointer; transition: transform .1s; }
     .df-swatch:hover { transform: scale(1.12); }
     .df-swatch.active { border-color: #fff; }
+    /* Preview canvas */
+    .preview-wrap { margin-bottom: 20px; }
+    #prev { display: block; border-radius: 8px; image-rendering: pixelated; background: #0d0d0d; }
+    .preview-label { font-size: 0.62rem; color: #333; text-transform: uppercase; letter-spacing: .1em; margin-top: 5px; text-align: center; }
+    hr.sep { border: none; border-top: 1px solid #222; margin: 18px 0; }
   </style>
 </head>
 <body>
@@ -85,6 +94,11 @@
       <span class="icon">✨</span>
       <div class="name">Starfield</div>
       <div class="desc">Stars radiate from center</div>
+    </div>
+    <div class="anim-card" data-type="frostbite" onclick="selectAnim(this)">
+      <span class="icon">❄️</span>
+      <div class="name">Frostbite</div>
+      <div class="desc">Shimmering mist with diamond sparkles</div>
     </div>
     <div class="anim-card" data-type="fireworks" onclick="selectAnim(this)">
       <span class="icon">🎆</span>
@@ -126,16 +140,25 @@
   <div class="panel">
     <div class="panel-title">Settings</div>
 
+    <!-- Live preview canvas -->
+    <div class="preview-wrap">
+      <canvas id="prev" width="128" height="128"></canvas>
+      <div class="preview-label">Live preview</div>
+    </div>
+
+    <hr class="sep">
+
     <div class="group">
-      <label>Speed — <span id="v-speed">15</span> fps</label>
+      <label>Frame Rate — <span id="v-speed">15</span> fps</label>
+      <div class="group-sub">How fast each frame renders on the board</div>
       <div class="slider-row">
-        <input type="range" id="speed" min="20" max="200" value="66" oninput="updateSpeed(this.value)">
+        <input type="range" id="speed" min="20" max="200" value="66" oninput="onSpeedChange(this.value)">
       </div>
     </div>
 
     <!-- Panel: rainbow + wave (no color settings) -->
     <div class="anim-panel" id="panel-none">
-      <p style="font-size:0.75rem;color:#555;padding:4px 0 8px">No color settings — use the speed slider above.</p>
+      <p style="font-size:0.75rem;color:#555;padding:4px 0 8px">No color settings — use the Frame Rate slider above.</p>
     </div>
 
     <!-- Panel: breathe + solid -->
@@ -183,6 +206,26 @@
       </div>
     </div>
 
+    <!-- Panel: frostbite -->
+    <div class="anim-panel" id="panel-frostbite">
+      <div class="group">
+        <div class="presets-label">Color Presets</div>
+        <div class="presets-grid cols6" id="fb-presets"></div>
+        <label style="margin-top:4px">Base Hue</label>
+        <div class="color-row" style="margin-top:8px">
+          <input type="color" id="fb-color" value="#dce8ff" oninput="clearFbPreset()">
+        </div>
+      </div>
+      <div class="group">
+        <label>Sparkle Intensity — <span id="v-fb-sparkle">20</span>%</label>
+        <div class="slider-row">
+          <span style="font-size:.7rem;color:#555">Still</span>
+          <input type="range" id="fb-sparkle" min="0" max="80" value="20" oninput="document.getElementById('v-fb-sparkle').textContent=this.value">
+          <span style="font-size:.7rem;color:#555">Dazzle</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Panel: fireworks -->
     <div class="anim-panel" id="panel-fireworks">
       <div class="group">
@@ -223,7 +266,7 @@
     <div class="anim-panel" id="panel-sun">
       <div class="group">
         <div class="presets-label">Color Presets</div>
-        <div class="presets-grid" id="sun-presets"></div>
+        <div class="presets-grid cols5" id="sun-presets"></div>
         <label style="margin-top:12px">Colors</label>
         <div class="color-row" style="margin-top:8px">
           <div class="picker-group"><label>Sun</label><input type="color" id="sun-c1" value="#ffb700" oninput="clearSunPreset()"></div>
@@ -236,16 +279,15 @@
 
     <!-- Panel: dancefloor -->
     <div class="anim-panel" id="panel-dancefloor">
-      <canvas id="df-sim" width="120" height="120" style="border-radius:6px;display:block;margin-bottom:14px;image-rendering:pixelated"></canvas>
       <div class="group">
         <label>Palette — <span id="df-pal-num">0</span> · <span id="df-pal-name">Neon Classic</span></label>
         <div class="df-pal-grid" id="df-pal-grid"></div>
       </div>
       <div class="group">
-        <label>Cycle Speed — <span id="v-df-hold">12</span> frames hold</label>
+        <label>Color Hold — <span id="v-df-hold">12</span> frames <span id="df-cycle-info" style="font-size:.65rem;color:#555;font-weight:400;text-transform:none;letter-spacing:0">(≈ 0.8 sec per color)</span></label>
         <div class="slider-row">
           <span style="font-size:.7rem;color:#555">Fast</span>
-          <input type="range" id="df-hold" min="4" max="40" value="12" oninput="document.getElementById('v-df-hold').textContent=this.value">
+          <input type="range" id="df-hold" min="4" max="40" value="12" oninput="onDfHoldChange(this.value)">
           <span style="font-size:.7rem;color:#555">Slow</span>
         </div>
       </div>
@@ -259,282 +301,609 @@
   </div>
 
   <script>
-    const SUN_PRESETS = [
-      { name: 'Solar',   c1: '#ffb700', c2: '#ff6600', c3: '#ff3300', c4: '#cc1100' },
-      { name: 'Arctic',  c1: '#ffffff', c2: '#88ddff', c3: '#4499ff', c4: '#0055cc' },
-      { name: 'Twilight',c1: '#ff99ff', c2: '#cc44ff', c3: '#9900cc', c4: '#550088' },
-      { name: 'Neon',    c1: '#aaffaa', c2: '#00ff44', c3: '#00cc22', c4: '#005511' },
-      { name: 'Lava',    c1: '#ffff00', c2: '#ff4400', c3: '#cc0000', c4: '#660000' },
-    ];
-
-    const PANEL_MAP = {
-      rainbow: 'panel-none', wave: 'panel-none',
-      breathe: 'panel-color', solid: 'panel-color',
-      spiral: 'panel-spiral', starfield: 'panel-starfield',
-      fireworks: 'panel-fireworks', fireworks2: 'panel-fireworks2',
-      dancefloor: 'panel-dancefloor',
-      comet: 'panel-comet', sun: 'panel-sun',
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+  function hex2rgb(hex) {
+    return {
+      r: parseInt(hex.slice(1,3), 16),
+      g: parseInt(hex.slice(3,5), 16),
+      b: parseInt(hex.slice(5,7), 16)
     };
+  }
+  function lerp(a, b, t) { return a + (b-a)*t; }
+  function lerpc(c1, c2, t) {
+    return `rgb(${~~lerp(c1.r,c2.r,t)},${~~lerp(c1.g,c2.g,t)},${~~lerp(c1.b,c2.b,t)})`;
+  }
+  function getEl(id) { return document.getElementById(id); }
+  function pickVal(id, fallback) { return getEl(id)?.value || fallback; }
 
-    let selectedType = 'rainbow';
+  // ── Preview canvas ────────────────────────────────────────────────────────────
+  const PREV_CELL = 16;
+  const prevCanvas = getEl('prev');
+  const prevCtx    = prevCanvas.getContext('2d');
+  const prevCells  = new Array(64).fill('#111');
+  let   prevType   = 'rainbow';
+  let   prevIval   = null;
 
-    const DF_PAL = [
-      ['Neon Classic',  '#ff00ff','#00ffff','#ffff00','#00ff00'],
-      ['Neon Shifted',  '#ff0080','#00ff80','#8000ff','#ff8000'],
-      ['Neon Soft',     '#ff00c8','#00c8ff','#c8ff00','#ffc800'],
-      ['Primary Neon',  '#ff0050','#5000ff','#00ff50','#ff5000'],
-      ['Electric',      '#dc00ff','#00ffdc','#ffdc00','#00dcff'],
-      ['Pink Purple',   '#ff00ff','#ff0064','#6400ff','#0064ff'],
-      ['Cyan Family',   '#00ffff','#00c8ff','#00ffc8','#0096ff'],
-      ['Yellow Family', '#ffff00','#ffc800','#c8ff00','#ff9600'],
-      ['Fire',          '#ff3200','#ff9600','#ffc800','#ffff32'],
-      ['Red Hot',       '#ff0000','#ff5000','#c80000','#ff2828'],
-      ['Amber',         '#ff6400','#ffc832','#ff3200','#c86400'],
-      ['Ember',         '#ff1400','#ff6400','#ffa000','#ffff64'],
-      ['Lava',          '#ff0032','#ff3200','#c80064','#ff6432'],
-      ['Sunset Warm',   '#ff5050','#ff2800','#c81400','#ffa050'],
-      ['Gold',          '#ffc800','#ff6400','#ff3232','#c8c800'],
-      ['Hot Candy',     '#ff0050','#ff5000','#ffb400','#c80050'],
-      ['Ocean',         '#0064ff','#00c8ff','#00ffc8','#3232c8'],
-      ['Aqua',          '#0096ff','#00ffff','#00c8c8','#64c8ff'],
-      ['Deep Blue',     '#0032c8','#3264ff','#00c8ff','#6432c8'],
-      ['Teal',          '#00c8c8','#0096c8','#32c8ff','#006496'],
-      ['Blue Purple',   '#6400ff','#0064ff','#00c8ff','#3200c8'],
-      ['Ice',           '#00ffff','#00c8ff','#0096ff','#0064c8'],
-      ['Violet',        '#3200c8','#6400ff','#9632ff','#c864ff'],
-      ['Navy',          '#0064c8','#003296','#3296ff','#64c8ff'],
-      ['Forest',        '#00c800','#32ff32','#64ff00','#009632'],
-      ['Lime',          '#00ff00','#64ff00','#00c832','#32ff64'],
-      ['Chartreuse',    '#64ff00','#c8ff00','#32c800','#96ff32'],
-      ['Emerald',       '#009632','#00c864','#32ff96','#006432'],
-      ['Earth',         '#c89632','#966400','#64c832','#c8c864'],
-      ['Autumn',        '#ff9600','#c86400','#64c800','#ffc832'],
-      ['Spring',        '#ff6496','#c8ff64','#64c8ff','#ffc864'],
-      ['Jade',          '#00c896','#009664','#32ffc8','#64ffc8'],
-      ['Pastel Rainbow','#ff96c8','#96c8ff','#c8ff96','#ffff96'],
-      ['Pastel Pink',   '#ff96c8','#ff6496','#c864c8','#ffc8dc'],
-      ['Pastel Blue',   '#96c8ff','#6496ff','#9696ff','#c8dcff'],
-      ['Pastel Green',  '#c8ffc8','#96ff96','#64dc96','#c8ffb4'],
-      ['Pastel Warm',   '#ffc896','#ffdc96','#c89664','#ffe6b4'],
-      ['Pastel Purple', '#c896ff','#dcb4ff','#b464ff','#f0c8ff'],
-      ['Pastel Mint',   '#96fff0','#96dcff','#b4ffdc','#c8ffff'],
-      ['Pastel Yellow', '#ffff96','#fff064','#ffc864','#ffffc8'],
-      ['Red Mono',      '#ff0000','#c80000','#960000','#640000'],
-      ['Orange Mono',   '#ff5000','#c83c00','#962800','#ff7800'],
-      ['Yellow Mono',   '#ffff00','#c8c800','#969600','#ffdc32'],
-      ['Green Mono',    '#00ff00','#00c800','#009600','#32ff32'],
-      ['Blue Mono',     '#0000ff','#0000c8','#0032ff','#3232ff'],
-      ['Purple Mono',   '#9600ff','#6400c8','#c832ff','#5000b4'],
-      ['Pink Mono',     '#ff0096','#c80064','#ff32b4','#960050'],
-      ['Teal Mono',     '#00ffc8','#00c896','#32ffdc','#009678'],
-      ['80s Classic',   '#ff00ff','#00ff00','#ffff00','#0000ff'],
-      ['Miami Vice',    '#ff0064','#00c8ff','#c8ff00','#ff6400'],
-      ['Synthwave',     '#6400ff','#ff00ff','#00c8c8','#ffc800'],
-      ['VHS',           '#ff3296','#9600ff','#00c8ff','#ffc832'],
-      ['Arcade',        '#00ff00','#00c800','#ff0000','#0000ff'],
-      ['Pac-Man',       '#ffc800','#ff6400','#00c800','#c800c8'],
-      ['Pinball',       '#ffff00','#ff0000','#0000ff','#ffffff'],
-      ['Funky',         '#00ff96','#ff0064','#ff9600','#6400ff'],
-      ['Dark Galaxy',   '#640096','#003296','#960064','#006464'],
-      ['Ember Dark',    '#500000','#320032','#000050','#502800'],
-      ['Noir',          '#960032','#640064','#320096','#003264'],
-      ['Deep Forest',   '#006400','#005032','#326400','#003c3c'],
-      ['Rust',          '#643200','#500000','#323200','#3c1e00'],
-      ['Abyss',         '#005064','#003250','#320064','#006450'],
-      ['Dusk',          '#500050','#3c003c','#640032','#320050'],
-      ['Grayscale',     '#323232','#505050','#787878','#1e1e1e'],
-    ];
-
-    let dfPaletteIdx = 0;
-    const dfPalGrid = document.getElementById('df-pal-grid');
-    DF_PAL.forEach(([name, c1, c2, c3, c4], i) => {
-      const el = document.createElement('div');
-      el.className = 'df-swatch' + (i === 0 ? ' active' : '');
-      el.title = `${i}: ${name}`;
-      el.style.background = `linear-gradient(to right,${c1} 25%,${c2} 25% 50%,${c3} 50% 75%,${c4} 75%)`;
-      el.onclick = () => {
-        dfPalGrid.querySelectorAll('.df-swatch').forEach((s, j) => s.classList.toggle('active', j === i));
-        dfPaletteIdx = i;
-        document.getElementById('df-pal-num').textContent = i;
-        document.getElementById('df-pal-name').textContent = name;
-        dfSimReset(i);
-      };
-      dfPalGrid.appendChild(el);
-    });
-
-    // ── Dance Floor Simulation ─────────────────────────────────────────────────
-    const DF_SIM_BLEND = 10;
-    const DF_SIM_HOLD  = 22;
-    const dfSim = {
-      pal: 0,
-      slotCur: [0,1,2,3],
-      slotNxt: [1,2,3,0],
-      blendPos: DF_SIM_BLEND,
-      holdCount: DF_SIM_HOLD,
-    };
-
-    function dfSimShuffle() {
-      const p = [0,1,2,3];
-      for (let i = 3; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [p[i],p[j]]=[p[j],p[i]]; }
-      return p;
-    }
-
-    function dfSimReset(palIdx) {
-      dfSim.pal      = palIdx;
-      dfSim.slotCur  = dfSimShuffle();
-      dfSim.slotNxt  = dfSimShuffle();
-      dfSim.blendPos = DF_SIM_BLEND;
-      dfSim.holdCount= DF_SIM_HOLD;
-      dfSimDraw();
-    }
-
-    function dfSimLerp(h1, h2, t) {
-      const r1=parseInt(h1.slice(1,3),16), g1=parseInt(h1.slice(3,5),16), b1=parseInt(h1.slice(5,7),16);
-      const r2=parseInt(h2.slice(1,3),16), g2=parseInt(h2.slice(3,5),16), b2=parseInt(h2.slice(5,7),16);
-      return `rgb(${Math.round(r1+(r2-r1)*t)},${Math.round(g1+(g2-g1)*t)},${Math.round(b1+(b2-b1)*t)})`;
-    }
-
-    function dfSimDraw() {
-      const canvas = document.getElementById('df-sim');
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-      const W = canvas.width, H = canvas.height;
-      const tw = W / 4, th = H / 4, gap = 2;
-      const t = dfSim.blendPos >= DF_SIM_BLEND ? 1 : dfSim.blendPos / DF_SIM_BLEND;
-      const pal = DF_PAL[dfSim.pal];  // [name, c1, c2, c3, c4]
-      ctx.fillStyle = '#111';
-      ctx.fillRect(0, 0, W, H);
-      for (let i = 0; i < 16; i++) {
-        const tx = i % 4, ty = Math.floor(i / 4);
-        const slot = (tx % 2) + (ty % 2) * 2;
-        const fromC = pal[dfSim.slotCur[slot] + 1];
-        const toC   = pal[dfSim.slotNxt[slot] + 1];
-        ctx.fillStyle = t < 1 ? dfSimLerp(fromC, toC, t) : toC;
-        ctx.fillRect(tx*tw + gap, ty*th + gap, tw - gap*2, th - gap*2);
+  function drawPrevGrid() {
+    prevCtx.fillStyle = '#0d0d0d';
+    prevCtx.fillRect(0, 0, 128, 128);
+    for (let y = 0; y < 8; y++) {
+      for (let x = 0; x < 8; x++) {
+        prevCtx.fillStyle = prevCells[y*8+x];
+        prevCtx.fillRect(x*PREV_CELL+1, y*PREV_CELL+1, PREV_CELL-2, PREV_CELL-2);
       }
     }
+  }
 
-    function dfSimStep() {
-      if (dfSim.blendPos < DF_SIM_BLEND) {
-        dfSim.blendPos++;
-      } else if (dfSim.holdCount > 0) {
-        dfSim.holdCount--;
+  function startPreview(type) {
+    prevType = type;
+    if (prevIval) clearInterval(prevIval);
+    initPrevState(type);
+    prevIval = setInterval(tickPreview, 66);
+    tickPreview();
+  }
+
+  function tickPreview() {
+    stepPreview(prevType);
+    drawPrevGrid();
+  }
+
+  function stepPreview(type) {
+    switch(type) {
+      case 'rainbow':    stepPrevRainbow();        break;
+      case 'breathe':    stepPrevBreathe();        break;
+      case 'wave':       stepPrevWave();           break;
+      case 'solid':      stepPrevSolid();          break;
+      case 'spiral':     stepPrevSpiral();         break;
+      case 'starfield':  stepPrevStarfield();      break;
+      case 'frostbite':  stepPrevFrostbite();      break;
+      case 'fireworks':  stepPrevFW(false);        break;
+      case 'fireworks2': stepPrevFW(true);         break;
+      case 'fireworks3': stepPrevFW(true);         break; // stub: same as fw2
+      case 'fireworks4': stepPrevFW(false);        break; // stub: same as fw1
+      case 'comet':      stepPrevComet();          break;
+      case 'sun':        stepPrevSun();            break;
+      case 'dancefloor': stepPrevDanceFloor();     break;
+    }
+  }
+
+  // ── Per-animation preview step functions ──────────────────────────────────────
+
+  // Rainbow
+  let rnPhase = 0;
+  function stepPrevRainbow() {
+    for (let x = 0; x < 8; x++) {
+      const h = (x*45 + rnPhase) % 360;
+      for (let y = 0; y < 8; y++) prevCells[y*8+x] = `hsl(${h},100%,45%)`;
+    }
+    rnPhase = (rnPhase + 5) % 360;
+  }
+
+  // Breathe
+  let bPhase = 0;
+  function stepPrevBreathe() {
+    const bri = Math.sin(bPhase)*0.45 + 0.5;
+    bPhase += 0.07;
+    const {r,g,b} = hex2rgb(pickVal('color','#0064ff'));
+    const c = `rgb(${~~(r*bri)},${~~(g*bri)},${~~(b*bri)})`;
+    prevCells.fill(c);
+  }
+
+  // Wave
+  let wvPhase = 0;
+  function stepPrevWave() {
+    prevCells.fill('#000');
+    for (let x = 0; x < 8; x++) {
+      const ht = Math.round((Math.sin(wvPhase + x*0.75)*0.5 + 0.5) * 8);
+      for (let y = 7; y >= 8-ht; y--) {
+        const f = (8-y) / 8;
+        prevCells[y*8+x] = `rgb(${~~(f*20)},${~~(f*80)},${~~(f*220)})`;
+      }
+    }
+    wvPhase += 0.12;
+  }
+
+  // Solid
+  function stepPrevSolid() {
+    prevCells.fill(pickVal('color','#0064ff'));
+  }
+
+  // Spiral
+  const SPIRAL_PATH = (() => {
+    const p = [];
+    let top=0,bot=7,left=0,right=7;
+    while(p.length < 64) {
+      for(let x=left;x<=right;x++) p.push([x,top]);  top++;
+      for(let y=top;y<=bot;y++)    p.push([right,y]); right--;
+      for(let x=right;x>=left;x--) p.push([x,bot]);  bot--;
+      for(let y=bot;y>=top;y--)   p.push([left,y]);  left++;
+    }
+    return p;
+  })();
+  let spPhase = 0;
+  function stepPrevSpiral() {
+    const c1 = hex2rgb(pickVal('spiral-c1','#ff0000'));
+    const c2 = hex2rgb(pickVal('spiral-c2','#0000ff'));
+    for (let i = 0; i < 64; i++) {
+      const t = ((i + 64 - spPhase) % 64) / 63;
+      prevCells[SPIRAL_PATH[i][1]*8 + SPIRAL_PATH[i][0]] = lerpc(c1, c2, t);
+    }
+    spPhase = (spPhase+1) % 64;
+  }
+
+  // Starfield
+  let sfStars = [], sfReady = false;
+  function spawnSfStar(s) {
+    const inward = getEl('star-inward')?.checked || false;
+    if (inward) {
+      const edge = Math.floor(Math.random()*4);
+      if      (edge===0) { s.x=Math.random()*7; s.y=0; }
+      else if (edge===1) { s.x=7; s.y=Math.random()*7; }
+      else if (edge===2) { s.x=Math.random()*7; s.y=7; }
+      else               { s.x=0; s.y=Math.random()*7; }
+      const cx=3.5-s.x, cy=3.5-s.y, len=Math.sqrt(cx*cx+cy*cy)||0.1;
+      const spd=0.18+Math.random()*0.12;
+      s.dx=cx/len*spd; s.dy=cy/len*spd;
+    } else {
+      s.x=3.5; s.y=3.5;
+      const a=Math.random()*Math.PI*2, spd=0.15+Math.random()*0.18;
+      s.dx=Math.cos(a)*spd; s.dy=Math.sin(a)*spd;
+    }
+    s.age=Math.floor(Math.random()*8); s.maxAge=25+Math.floor(Math.random()*15);
+    s.bri=100+Math.floor(Math.random()*155); s.active=true;
+  }
+  function initSfStars() {
+    sfStars = Array.from({length:8},()=>({}));
+    sfStars.forEach(spawnSfStar);
+    sfReady = true;
+  }
+  function stepPrevStarfield() {
+    if (!sfReady) initSfStars();
+    prevCells.fill('#000');
+    const n = Math.min(+(getEl('star-density')?.value||8), 8);
+    const c1 = hex2rgb(pickVal('star-c1','#ffffff'));
+    const c2 = hex2rgb(pickVal('star-c2','#0064ff'));
+    for (let i=0; i<n; i++) {
+      const s = sfStars[i];
+      if (!s.active || s.age >= s.maxAge) { spawnSfStar(s); continue; }
+      s.x+=s.dx; s.y+=s.dy; s.age++;
+      if (s.x<-0.5||s.x>7.5||s.y<-0.5||s.y>7.5) { spawnSfStar(s); continue; }
+      const atCenter = getEl('star-inward')?.checked && Math.abs(s.x-3.5)<0.7 && Math.abs(s.y-3.5)<0.7;
+      if (atCenter) { spawnSfStar(s); continue; }
+      const t=s.age/s.maxAge, f=s.bri/255;
+      const r=~~(lerp(c1.r,c2.r,t)*f), g=~~(lerp(c1.g,c2.g,t)*f), b=~~(lerp(c1.b,c2.b,t)*f);
+      prevCells[~~s.y*8+~~s.x] = `rgb(${r},${g},${b})`;
+    }
+  }
+
+  // Frostbite
+  const FB_BRI = new Uint8Array(64).map(()=>30+Math.floor(Math.random()*60));
+  const FB_DIR = new Int8Array(64).map(()=>Math.random()<0.5?1:-1);
+  const FB_SPARKS = Array.from({length:8},()=>({idx:0,phase:30,active:false}));
+  function stepPrevFrostbite() {
+    for (let i=0; i<64; i++) {
+      if (Math.random()<0.25) {
+        FB_BRI[i] += FB_DIR[i];
+        if (FB_BRI[i]>=90){FB_BRI[i]=90;FB_DIR[i]=-1;}
+        if (FB_BRI[i]<=30){FB_BRI[i]=30;FB_DIR[i]=1;}
+      }
+    }
+    const col = hex2rgb(pickVal('fb-color','#dce8ff'));
+    // mist base: 30% color + 70% white
+    const mr=~~(col.r*0.3+178), mg=~~(col.g*0.3+178), mb=~~(col.b*0.3+178);
+    for (let i=0; i<64; i++) {
+      const f=FB_BRI[i]/255;
+      prevCells[i]=`rgb(${~~(mr*f)},${~~(mg*f)},${~~(mb*f)})`;
+    }
+    const rate = +(getEl('fb-sparkle')?.value||20);
+    if (Math.random()*100 < rate) {
+      const free = FB_SPARKS.find(s=>!s.active);
+      if (free) { free.idx=Math.floor(Math.random()*64); free.phase=0; free.active=true; }
+    }
+    // sparkle base: 40% color + 60% white
+    const sr=~~(col.r*0.4+153), sg=~~(col.g*0.4+153), sb=~~(col.b*0.4+153);
+    FB_SPARKS.forEach(sp => {
+      if (!sp.active) return;
+      let bri;
+      if      (sp.phase<8)  bri=sp.phase*32;
+      else if (sp.phase<20) bri=255;
+      else                  bri=Math.max(0,(29-sp.phase)*28);
+      const f=bri/255;
+      prevCells[sp.idx]=`rgb(${~~Math.min(255,sr*f)},${~~Math.min(255,sg*f)},${~~Math.min(255,sb*f)})`;
+      sp.phase++;
+      if (sp.phase>=30) sp.active=false;
+    });
+  }
+
+  // Fireworks
+  let fwState = {};
+  function initFWState() {
+    fwState = { phase:'idle', timer:0, mx:3, my:7, mdx:0, mdy:0, ey:3, tendrils:[] };
+  }
+  function stepPrevFW(comet) {
+    prevCells.fill('#000');
+    if (!fwState.phase) initFWState();
+    if (fwState.phase==='idle') {
+      if (++fwState.timer>10) {
+        fwState.mx=2+Math.floor(Math.random()*4); fwState.my=7;
+        fwState.mdx=(Math.random()-0.5)*0.3; fwState.mdy=-(0.7+Math.random()*0.3);
+        fwState.ey=1+Math.floor(Math.random()*4);
+        fwState.phase='launch'; fwState.timer=0;
+      }
+      return;
+    }
+    if (fwState.phase==='launch') {
+      fwState.mx+=fwState.mdx; fwState.my+=fwState.mdy;
+      if (fwState.my<=fwState.ey) {
+        const colors = comet
+          ? [pickVal('fw2-c1','#ff3200'),pickVal('fw2-c2','#ffc800'),pickVal('fw2-c3','#0064ff')]
+          : [pickVal('fw-c1','#ff3200'),pickVal('fw-c2','#ffc800'),pickVal('fw-c3','#0064ff')];
+        fwState.tendrils = Array.from({length:12},(_,i)=>{
+          const a=i*Math.PI*2/12+Math.random()*0.3;
+          const spd=0.3+Math.random()*0.12;
+          return {x:fwState.mx,y:fwState.my,dx:Math.cos(a)*spd,dy:Math.sin(a)*spd,bri:255,active:true,colors};
+        });
+        prevCells[~~fwState.my*8+~~fwState.mx]='#fff';
+        fwState.phase='fade';
       } else {
-        const perm = dfSimShuffle();
-        dfSim.slotCur = [...dfSim.slotNxt];
-        dfSim.slotNxt = perm;
-        dfSim.blendPos  = 0;
-        dfSim.holdCount = DF_SIM_HOLD;
+        const ix=~~fwState.mx, iy=~~fwState.my;
+        if (ix>=0&&ix<8&&iy>=0&&iy<8) prevCells[iy*8+ix]='#fff';
       }
-      dfSimDraw();
+      return;
     }
-
-    dfSimReset(0);
-    setInterval(dfSimStep, 80);
-
-    const presetsEl = document.getElementById('sun-presets');
-    SUN_PRESETS.forEach((p, i) => {
-      const el = document.createElement('div');
-      el.className = 'preset-swatch' + (i === 0 ? ' active' : '');
-      el.title = p.name;
-      el.style.background = `linear-gradient(135deg, ${p.c1} 40%, ${p.c2} 70%, ${p.c3})`;
-      el.onclick = () => applySunPreset(i);
-      presetsEl.appendChild(el);
+    let any=false;
+    fwState.tendrils.forEach(t=>{
+      if (!t.active) return; any=true;
+      if (comet) {
+        // draw comet tail first (white dimming), then tip
+        for (let j=3;j>=1;j--) {
+          const tx=~~(t.x-j*t.dx), ty=~~(t.y-j*t.dy);
+          if (tx>=0&&tx<8&&ty>=0&&ty<8) {
+            const f=t.bri/255*(4-j)/5;
+            prevCells[ty*8+tx]=`rgb(${~~(220*f)},${~~(220*f)},${~~(255*f)})`;
+          }
+        }
+      }
+      t.x+=t.dx; t.y+=t.dy; t.bri=Math.max(0,t.bri-18);
+      if (t.bri<5||t.x<0||t.x>7.5||t.y<0||t.y>7.5){t.active=false;return;}
+      const f=t.bri/255, [r1,g1,b1]=t.colors[0].slice(1).match(/../g).map(h=>parseInt(h,16));
+      prevCells[~~t.y*8+~~t.x]=`rgb(${~~(r1*f)},${~~(g1*f)},${~~(b1*f)})`;
     });
+    if (!any){fwState.phase='idle';fwState.timer=0;}
+  }
 
-    function applySunPreset(i) {
-      const p = SUN_PRESETS[i];
-      document.getElementById('sun-c1').value = p.c1;
-      document.getElementById('sun-c2').value = p.c2;
-      document.getElementById('sun-c3').value = p.c3;
-      document.getElementById('sun-c4').value = p.c4;
-      presetsEl.querySelectorAll('.preset-swatch').forEach((el, j) =>
-        el.classList.toggle('active', j === i));
-    }
+  // Comet
+  let cmPhase = 0;
+  const CM_HIST = new Array(8).fill(3.5);
+  let cmHistIdx = 0;
+  function stepPrevComet() {
+    prevCells.fill('#000');
+    cmPhase += 0.10;
+    const cy = 3.5 + Math.sin(cmPhase)*2;
+    CM_HIST[cmHistIdx] = cy;
+    cmHistIdx = (cmHistIdx+1) % 8;
+    const histY = n => CM_HIST[(cmHistIdx+16-1-n)%8];
 
-    function clearSunPreset() {
-      presetsEl.querySelectorAll('.preset-swatch').forEach(el => el.classList.remove('active'));
-    }
+    const c1 = hex2rgb(pickVal('comet-c1','#ffc832'));
+    const c2 = hex2rgb(pickVal('comet-c2','#ff6400'));
+    const c3 = hex2rgb(pickVal('comet-c3','#961e00'));
 
-    function selectAnim(card) {
-      document.querySelectorAll('.anim-card').forEach(c => c.classList.remove('selected'));
-      card.classList.add('selected');
-      selectedType = card.dataset.type;
-      document.querySelectorAll('.anim-panel').forEach(p => p.classList.remove('visible'));
-      const panelId = PANEL_MAP[selectedType];
-      if (panelId) document.getElementById(panelId).classList.add('visible');
-    }
-
-    function updateSpeed(val) {
-      document.getElementById('v-speed').textContent = Math.round(1000 / val);
-    }
-
-    function buildPayload() {
-      const speed = +document.getElementById('speed').value;
-      const body  = { type: selectedType, speed };
-      if (selectedType === 'breathe' || selectedType === 'solid') {
-        body.color  = document.getElementById('color').value;
-      } else if (selectedType === 'spiral') {
-        body.color1 = document.getElementById('spiral-c1').value;
-        body.color2 = document.getElementById('spiral-c2').value;
-      } else if (selectedType === 'starfield') {
-        body.color1   = document.getElementById('star-c1').value;
-        body.color2   = document.getElementById('star-c2').value;
-        body.density  = +document.getElementById('star-density').value;
-        body.inward   = document.getElementById('star-inward').checked;
-      } else if (selectedType === 'fireworks') {
-        body.color1 = document.getElementById('fw-c1').value;
-        body.color2 = document.getElementById('fw-c2').value;
-        body.color3 = document.getElementById('fw-c3').value;
-      } else if (selectedType === 'fireworks2') {
-        body.color1 = document.getElementById('fw2-c1').value;
-        body.color2 = document.getElementById('fw2-c2').value;
-        body.color3 = document.getElementById('fw2-c3').value;
-      } else if (selectedType === 'dancefloor') {
-        body.palette = dfPaletteIdx;
-        body.hold    = +document.getElementById('df-hold').value;
-      } else if (selectedType === 'comet') {
-        body.color1 = document.getElementById('comet-c1').value;
-        body.color2 = document.getElementById('comet-c2').value;
-        body.color3 = document.getElementById('comet-c3').value;
-      } else if (selectedType === 'sun') {
-        body.color1 = document.getElementById('sun-c1').value;
-        body.color2 = document.getElementById('sun-c2').value;
-        body.color3 = document.getElementById('sun-c3').value;
-        body.color4 = document.getElementById('sun-c4').value;
+    // tail columns
+    const drawCol = (x, histN, rowOff, rows, col, f) => {
+      const baseY = ~~histY(histN);
+      for (let r=0;r<rows;r++) {
+        const py=baseY+rowOff+r;
+        if (py>=0&&py<8) prevCells[py*8+x]=`rgb(${~~(col.r*f)},${~~(col.g*f)},${~~(col.b*f)})`;
       }
-      return body;
-    }
+    };
+    drawCol(5,1,-1,4,c2,0.75);
+    drawCol(4,2, 0,3,c2,0.55);
+    drawCol(3,3, 0,2,c3,0.40);
+    drawCol(2,4, 1,1,c3,0.25);
 
-    function setStatus(msg, isErr) {
-      const el = document.getElementById('status');
-      el.textContent = msg;
-      el.className = 'status' + (isErr ? ' err' : '');
+    // head
+    for (let dx=0;dx<2;dx++) for(let dy=0;dy<2;dy++) {
+      const py=~~cy+dy;
+      if (py>=0&&py<8) prevCells[py*8+6+dx]=`rgb(${c1.r},${c1.g},${c1.b})`;
     }
+  }
 
-    async function applyAnimation() {
-      try {
-        const r = await fetch('/api/display/animation', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(buildPayload())
-        });
-        setStatus(r.ok ? '✓ Running: ' + selectedType : 'Error: HTTP ' + r.status, !r.ok);
-      } catch {
-        setStatus('Cannot reach board — check WiFi connection.', true);
-      }
+  // Sun
+  const SUN_BX=[3,6,7,6,4,1,0,1], SUN_BY=[0,1,3,6,7,6,4,1];
+  let sunSlot=0;
+  function stepPrevSun() {
+    prevCells.fill('#000');
+    const c1=hex2rgb(pickVal('sun-c1','#ffb700'));
+    const c2=hex2rgb(pickVal('sun-c2','#ff6600'));
+    for (let y=2;y<=5;y++) for (let x=2;x<=5;x++)
+      if (!((x===2||x===5)&&(y===2||y===5)))
+        prevCells[y*8+x]=`rgb(${c1.r},${c1.g},${c1.b})`;
+    for (let i=0;i<8;i++) {
+      const d=(i-sunSlot+8)%8;
+      let f=0;
+      if      (d===0)       f=1.0;
+      else if (d===1||d===7) f=0.5;
+      else if (d===2||d===6) f=0.25;
+      if (f>0) prevCells[SUN_BY[i]*8+SUN_BX[i]]=`rgb(${~~(c2.r*f)},${~~(c2.g*f)},${~~(c2.b*f)})`;
     }
+    sunSlot=(sunSlot+1)%8;
+  }
 
-    async function clearDisplay() {
-      try {
-        const r = await fetch('/api/display/clear', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}'
-        });
-        setStatus(r.ok ? 'Display cleared.' : 'Error: HTTP ' + r.status, !r.ok);
-      } catch {
-        setStatus('Cannot reach board — check WiFi connection.', true);
-      }
+  // Dance Floor
+  const DF_SIM_BLEND = 10;
+  let dfSim = { pal:0, slotCur:[0,1,2,3], slotNxt:[1,2,3,0], blendPos:DF_SIM_BLEND, holdCount:22 };
+
+  function dfSimShuffle() {
+    const p=[0,1,2,3];
+    for (let i=3;i>0;i--){const j=~~(Math.random()*(i+1));[p[i],p[j]]=[p[j],p[i]];}
+    return p;
+  }
+  function dfSimReset(palIdx) {
+    dfSim.pal=palIdx; dfSim.slotCur=dfSimShuffle(); dfSim.slotNxt=dfSimShuffle();
+    dfSim.blendPos=DF_SIM_BLEND; dfSim.holdCount=22;
+  }
+  function stepPrevDanceFloor() {
+    const hold = +(getEl('df-hold')?.value||12);
+    if (dfSim.blendPos < DF_SIM_BLEND) {
+      dfSim.blendPos++;
+    } else if (dfSim.holdCount > 0) {
+      dfSim.holdCount--;
+    } else {
+      dfSim.slotCur=[...dfSim.slotNxt]; dfSim.slotNxt=dfSimShuffle();
+      dfSim.blendPos=0; dfSim.holdCount=hold;
     }
+    const t = dfSim.blendPos >= DF_SIM_BLEND ? 1 : dfSim.blendPos/DF_SIM_BLEND;
+    const pal = DF_PAL[dfSim.pal];
+    for (let ty=0;ty<4;ty++) for (let tx=0;tx<4;tx++) {
+      const slot=(tx%2)+(ty%2)*2;
+      const fromC=hex2rgb(pal[dfSim.slotCur[slot]+1]);
+      const toC  =hex2rgb(pal[dfSim.slotNxt[slot]+1]);
+      const c=lerpc(fromC,toC,t);
+      prevCells[(ty*2)*8+tx*2]=c; prevCells[(ty*2)*8+tx*2+1]=c;
+      prevCells[(ty*2+1)*8+tx*2]=c; prevCells[(ty*2+1)*8+tx*2+1]=c;
+    }
+  }
+
+  function initPrevState(type) {
+    if (type==='starfield') { sfReady=false; }
+    if (type==='fireworks'||type.startsWith('fireworks')) initFWState();
+    if (type==='comet') { cmPhase=0; CM_HIST.fill(3.5); cmHistIdx=0; }
+  }
+
+  // ── Dance Floor palettes ──────────────────────────────────────────────────────
+  const DF_PAL = [
+    ['Neon Classic',  '#ff00ff','#00ffff','#ffff00','#00ff00'],
+    ['Neon Shifted',  '#ff0080','#00ff80','#8000ff','#ff8000'],
+    ['Neon Soft',     '#ff00c8','#00c8ff','#c8ff00','#ffc800'],
+    ['Primary Neon',  '#ff0050','#5000ff','#00ff50','#ff5000'],
+    ['Electric',      '#dc00ff','#00ffdc','#ffdc00','#00dcff'],
+    ['Pink Purple',   '#ff00ff','#ff0064','#6400ff','#0064ff'],
+    ['Cyan Family',   '#00ffff','#00c8ff','#00ffc8','#0096ff'],
+    ['Yellow Family', '#ffff00','#ffc800','#c8ff00','#ff9600'],
+    ['Fire',          '#ff3200','#ff9600','#ffc800','#ffff32'],
+    ['Red Hot',       '#ff0000','#ff5000','#c80000','#ff2828'],
+    ['Amber',         '#ff6400','#ffc832','#ff3200','#c86400'],
+    ['Ember',         '#ff1400','#ff6400','#ffa000','#ffff64'],
+    ['Lava',          '#ff0032','#ff3200','#c80064','#ff6432'],
+    ['Sunset Warm',   '#ff5050','#ff2800','#c81400','#ffa050'],
+    ['Gold',          '#ffc800','#ff6400','#ff3232','#c8c800'],
+    ['Hot Candy',     '#ff0050','#ff5000','#ffb400','#c80050'],
+    ['Ocean',         '#0064ff','#00c8ff','#00ffc8','#3232c8'],
+    ['Aqua',          '#0096ff','#00ffff','#00c8c8','#64c8ff'],
+    ['Deep Blue',     '#0032c8','#3264ff','#00c8ff','#6432c8'],
+    ['Teal',          '#00c8c8','#0096c8','#32c8ff','#006496'],
+    ['Blue Purple',   '#6400ff','#0064ff','#00c8ff','#3200c8'],
+    ['Ice',           '#00ffff','#00c8ff','#0096ff','#0064c8'],
+    ['Violet',        '#3200c8','#6400ff','#9632ff','#c864ff'],
+    ['Navy',          '#0064c8','#003296','#3296ff','#64c8ff'],
+    ['Forest',        '#00c800','#32ff32','#64ff00','#009632'],
+    ['Lime',          '#00ff00','#64ff00','#00c832','#32ff64'],
+    ['Chartreuse',    '#64ff00','#c8ff00','#32c800','#96ff32'],
+    ['Emerald',       '#009632','#00c864','#32ff96','#006432'],
+    ['Earth',         '#c89632','#966400','#64c832','#c8c864'],
+    ['Autumn',        '#ff9600','#c86400','#64c800','#ffc832'],
+    ['Spring',        '#ff6496','#c8ff64','#64c8ff','#ffc864'],
+    ['Jade',          '#00c896','#009664','#32ffc8','#64ffc8'],
+    ['Pastel Rainbow','#ff96c8','#96c8ff','#c8ff96','#ffff96'],
+    ['Pastel Pink',   '#ff96c8','#ff6496','#c864c8','#ffc8dc'],
+    ['Pastel Blue',   '#96c8ff','#6496ff','#9696ff','#c8dcff'],
+    ['Pastel Green',  '#c8ffc8','#96ff96','#64dc96','#c8ffb4'],
+    ['Pastel Warm',   '#ffc896','#ffdc96','#c89664','#ffe6b4'],
+    ['Pastel Purple', '#c896ff','#dcb4ff','#b464ff','#f0c8ff'],
+    ['Pastel Mint',   '#96fff0','#96dcff','#b4ffdc','#c8ffff'],
+    ['Pastel Yellow', '#ffff96','#fff064','#ffc864','#ffffc8'],
+    ['Red Mono',      '#ff0000','#c80000','#960000','#640000'],
+    ['Orange Mono',   '#ff5000','#c83c00','#962800','#ff7800'],
+    ['Yellow Mono',   '#ffff00','#c8c800','#969600','#ffdc32'],
+    ['Green Mono',    '#00ff00','#00c800','#009600','#32ff32'],
+    ['Blue Mono',     '#0000ff','#0000c8','#0032ff','#3232ff'],
+    ['Purple Mono',   '#9600ff','#6400c8','#c832ff','#5000b4'],
+    ['Pink Mono',     '#ff0096','#c80064','#ff32b4','#960050'],
+    ['Teal Mono',     '#00ffc8','#00c896','#32ffdc','#009678'],
+    ['80s Classic',   '#ff00ff','#00ff00','#ffff00','#0000ff'],
+    ['Miami Vice',    '#ff0064','#00c8ff','#c8ff00','#ff6400'],
+    ['Synthwave',     '#6400ff','#ff00ff','#00c8c8','#ffc800'],
+    ['VHS',           '#ff3296','#9600ff','#00c8ff','#ffc832'],
+    ['Arcade',        '#00ff00','#00c800','#ff0000','#0000ff'],
+    ['Pac-Man',       '#ffc800','#ff6400','#00c800','#c800c8'],
+    ['Pinball',       '#ffff00','#ff0000','#0000ff','#ffffff'],
+    ['Funky',         '#00ff96','#ff0064','#ff9600','#6400ff'],
+    ['Dark Galaxy',   '#640096','#003296','#960064','#006464'],
+    ['Ember Dark',    '#500000','#320032','#000050','#502800'],
+    ['Noir',          '#960032','#640064','#320096','#003264'],
+    ['Deep Forest',   '#006400','#005032','#326400','#003c3c'],
+    ['Rust',          '#643200','#500000','#323200','#3c1e00'],
+    ['Abyss',         '#005064','#003250','#320064','#006450'],
+    ['Dusk',          '#500050','#3c003c','#640032','#320050'],
+    ['Grayscale',     '#323232','#505050','#787878','#1e1e1e'],
+  ];
+
+  // ── Dance Floor swatch palette grid ──────────────────────────────────────────
+  let dfPaletteIdx = 0;
+  const dfPalGrid = getEl('df-pal-grid');
+  DF_PAL.forEach(([name,c1,c2,c3,c4],i) => {
+    const el = document.createElement('div');
+    el.className = 'df-swatch' + (i===0?' active':'');
+    el.title = `${i}: ${name}`;
+    el.style.background = `linear-gradient(to right,${c1} 25%,${c2} 25% 50%,${c3} 50% 75%,${c4} 75%)`;
+    el.onclick = () => {
+      dfPalGrid.querySelectorAll('.df-swatch').forEach((s,j)=>s.classList.toggle('active',j===i));
+      dfPaletteIdx=i;
+      getEl('df-pal-num').textContent=i;
+      getEl('df-pal-name').textContent=name;
+      dfSimReset(i);
+    };
+    dfPalGrid.appendChild(el);
+  });
+
+  // ── Frostbite presets ─────────────────────────────────────────────────────────
+  const FB_PRESETS = [
+    { name:'Arctic',   color:'#dce8ff' },
+    { name:'Ice Blue', color:'#4488ff' },
+    { name:'Mint',     color:'#44ffcc' },
+    { name:'Aurora',   color:'#aa44ff' },
+    { name:'Rose Ice', color:'#ff88aa' },
+    { name:'Gold Ice', color:'#ffe8aa' },
+  ];
+  const fbPresetsEl = getEl('fb-presets');
+  FB_PRESETS.forEach((p,i) => {
+    const el = document.createElement('div');
+    el.className = 'preset-swatch' + (i===0?' active':'');
+    el.title = p.name;
+    el.style.background = p.color;
+    el.onclick = () => applyFbPreset(i);
+    fbPresetsEl.appendChild(el);
+  });
+  function applyFbPreset(i) {
+    getEl('fb-color').value = FB_PRESETS[i].color;
+    fbPresetsEl.querySelectorAll('.preset-swatch').forEach((el,j)=>el.classList.toggle('active',j===i));
+  }
+  function clearFbPreset() {
+    fbPresetsEl.querySelectorAll('.preset-swatch').forEach(el=>el.classList.remove('active'));
+  }
+
+  // ── Sun presets ───────────────────────────────────────────────────────────────
+  const SUN_PRESETS = [
+    { name:'Solar',   c1:'#ffb700', c2:'#ff6600', c3:'#ff3300', c4:'#cc1100' },
+    { name:'Arctic',  c1:'#ffffff', c2:'#88ddff', c3:'#4499ff', c4:'#0055cc' },
+    { name:'Twilight',c1:'#ff99ff', c2:'#cc44ff', c3:'#9900cc', c4:'#550088' },
+    { name:'Neon',    c1:'#aaffaa', c2:'#00ff44', c3:'#00cc22', c4:'#005511' },
+    { name:'Lava',    c1:'#ffff00', c2:'#ff4400', c3:'#cc0000', c4:'#660000' },
+  ];
+  const sunPresetsEl = getEl('sun-presets');
+  SUN_PRESETS.forEach((p,i) => {
+    const el = document.createElement('div');
+    el.className = 'preset-swatch' + (i===0?' active':'');
+    el.title = p.name;
+    el.style.background = `linear-gradient(135deg,${p.c1} 40%,${p.c2} 70%,${p.c3})`;
+    el.onclick = () => applySunPreset(i);
+    sunPresetsEl.appendChild(el);
+  });
+  function applySunPreset(i) {
+    const p=SUN_PRESETS[i];
+    getEl('sun-c1').value=p.c1; getEl('sun-c2').value=p.c2;
+    getEl('sun-c3').value=p.c3; getEl('sun-c4').value=p.c4;
+    sunPresetsEl.querySelectorAll('.preset-swatch').forEach((el,j)=>el.classList.toggle('active',j===i));
+  }
+  function clearSunPreset() {
+    sunPresetsEl.querySelectorAll('.preset-swatch').forEach(el=>el.classList.remove('active'));
+  }
+
+  // ── Panel map & animation selection ──────────────────────────────────────────
+  const PANEL_MAP = {
+    rainbow:'panel-none', wave:'panel-none',
+    breathe:'panel-color', solid:'panel-color',
+    spiral:'panel-spiral', starfield:'panel-starfield',
+    frostbite:'panel-frostbite',
+    fireworks:'panel-fireworks', fireworks2:'panel-fireworks2',
+    dancefloor:'panel-dancefloor',
+    comet:'panel-comet', sun:'panel-sun',
+  };
+
+  let selectedType = 'rainbow';
+
+  function selectAnim(card) {
+    document.querySelectorAll('.anim-card').forEach(c=>c.classList.remove('selected'));
+    card.classList.add('selected');
+    selectedType = card.dataset.type;
+    document.querySelectorAll('.anim-panel').forEach(p=>p.classList.remove('visible'));
+    const panelId = PANEL_MAP[selectedType];
+    if (panelId) getEl(panelId).classList.add('visible');
+    startPreview(selectedType);
+  }
+
+  // ── Speed / Frame Rate sliders ────────────────────────────────────────────────
+  function onSpeedChange(val) {
+    getEl('v-speed').textContent = Math.round(1000/val);
+    updateDfCycleInfo();
+  }
+  function onDfHoldChange(val) {
+    getEl('v-df-hold').textContent = val;
+    updateDfCycleInfo();
+  }
+  function updateDfCycleInfo() {
+    const fps = Math.round(1000 / +getEl('speed').value);
+    const hold = +getEl('df-hold').value;
+    const secs = (hold / fps).toFixed(1);
+    getEl('df-cycle-info').textContent = `(≈ ${secs} sec per color)`;
+  }
+
+  // ── Payload builder ───────────────────────────────────────────────────────────
+  function buildPayload() {
+    const speed = +getEl('speed').value;
+    const body  = { type: selectedType, speed };
+    if (selectedType==='breathe'||selectedType==='solid') {
+      body.color = getEl('color').value;
+    } else if (selectedType==='spiral') {
+      body.color1=getEl('spiral-c1').value; body.color2=getEl('spiral-c2').value;
+    } else if (selectedType==='starfield') {
+      body.color1=getEl('star-c1').value; body.color2=getEl('star-c2').value;
+      body.density=+getEl('star-density').value; body.inward=getEl('star-inward').checked;
+    } else if (selectedType==='frostbite') {
+      body.color=getEl('fb-color').value; body.sparkle=+getEl('fb-sparkle').value;
+    } else if (selectedType==='fireworks') {
+      body.color1=getEl('fw-c1').value; body.color2=getEl('fw-c2').value; body.color3=getEl('fw-c3').value;
+    } else if (selectedType==='fireworks2') {
+      body.color1=getEl('fw2-c1').value; body.color2=getEl('fw2-c2').value; body.color3=getEl('fw2-c3').value;
+    } else if (selectedType==='dancefloor') {
+      body.palette=dfPaletteIdx; body.hold=+getEl('df-hold').value;
+    } else if (selectedType==='comet') {
+      body.color1=getEl('comet-c1').value; body.color2=getEl('comet-c2').value; body.color3=getEl('comet-c3').value;
+    } else if (selectedType==='sun') {
+      body.color1=getEl('sun-c1').value; body.color2=getEl('sun-c2').value;
+      body.color3=getEl('sun-c3').value; body.color4=getEl('sun-c4').value;
+    }
+    return body;
+  }
+
+  function setStatus(msg, isErr) {
+    const el=getEl('status'); el.textContent=msg;
+    el.className='status'+(isErr?' err':'');
+  }
+
+  async function applyAnimation() {
+    try {
+      const r=await fetch('/api/display/animation',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(buildPayload())
+      });
+      setStatus(r.ok?'✓ Running: '+selectedType:'Error: HTTP '+r.status,!r.ok);
+    } catch { setStatus('Cannot reach board — check WiFi connection.',true); }
+  }
+
+  async function clearDisplay() {
+    try {
+      const r=await fetch('/api/display/clear',{
+        method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'
+      });
+      setStatus(r.ok?'Display cleared.':'Error: HTTP '+r.status,!r.ok);
+    } catch { setStatus('Cannot reach board — check WiFi connection.',true); }
+  }
+
+  // ── Boot ──────────────────────────────────────────────────────────────────────
+  startPreview('rainbow');
+  updateDfCycleInfo();
+
   </script>
   </div>
 </body>

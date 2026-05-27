@@ -282,6 +282,13 @@ void handleAnimation() {
     sunColor4 = hexToColor(String(c4));
   }
 
+  if (animationName == "frostbite") {
+    const char* c = doc["color"] | "#DCE6FF";
+    fbColor     = hexToColor(String(c));
+    fbSparkRate = (uint8_t)constrain((int)(doc["sparkle"] | 20), 0, 100);
+    fbInit      = false;
+  }
+
   animationActive = true;
   sendJson(200, "{\"status\":\"ok\",\"animation\":\"" + animationName + "\"}");
 }

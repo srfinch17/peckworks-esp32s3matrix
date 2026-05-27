@@ -216,6 +216,10 @@ CRGB     sunColor2      = CRGB(255, 102,   0);
 CRGB     sunColor3      = CRGB(255,  51,   0);
 CRGB     sunColor4      = CRGB(204,  17,   0);
 
+// ── Frostbite ─────────────────────────────────────────────────────────────────
+CRGB     fbColor     = CRGB(220, 230, 255);   // cool ice-white default
+uint8_t  fbSparkRate = 20;                    // sparkle spawn probability 0-100
+
 // ============================================================
 // SECTION 4: COORDINATE MAPPING
 //
@@ -445,6 +449,7 @@ void loop() {
     else if (animationName == "fireworks4") stepFireworks4Frame();
     else if (animationName == "comet")      runCometFrame();
     else if (animationName == "sun")       runSunFrame();
+    else if (animationName == "frostbite") runFrostbiteFrame();
     FastLED.show();
   }
 
