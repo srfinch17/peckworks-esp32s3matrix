@@ -23,14 +23,19 @@
     .mode-btn { flex: 1; background: #1a1a1a; border: 1px solid #333; border-radius: 7px; color: #888; padding: 8px 0; cursor: pointer; font-size: 0.85rem; text-align: center; transition: all 0.12s; user-select: none; }
     .mode-btn.active { background: #0d2a55; border-color: #1a4080; color: #88bbff; }
 
-    /* Two color pickers side by side */
-    .color-pair { display: flex; gap: 16px; }
-    .color-block { flex: 1; }
+    /* Color pickers */
+    .color-quad { display: flex; gap: 12px; flex-wrap: wrap; }
+    .color-block { min-width: 72px; }
     .color-block label { display: block; font-size: 0.72rem; color: #666; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
     .color-block.dim { opacity: 0.35; pointer-events: none; }
-    .color-row { display: flex; align-items: center; gap: 10px; }
-    input[type=color] { width: 48px; height: 36px; border: 1px solid #333; border-radius: 6px; background: none; cursor: pointer; padding: 2px; }
-    .color-hex { font-size: 0.82rem; color: #777; font-family: monospace; }
+    .color-row { display: flex; align-items: center; gap: 8px; }
+    input[type=color] { width: 44px; height: 34px; border: 1px solid #333; border-radius: 6px; background: none; cursor: pointer; padding: 2px; }
+    .color-hex { font-size: 0.78rem; color: #777; font-family: monospace; }
+    /* Palette grid */
+    .df-pal-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; margin: 8px 0 4px; }
+    .df-swatch { height: 22px; border-radius: 3px; border: 2px solid transparent; cursor: pointer; transition: transform .1s; }
+    .df-swatch:hover { transform: scale(1.12); }
+    .df-swatch.active { border-color: #fff; }
 
     .slider-row { display: flex; align-items: center; gap: 12px; }
     input[type=range] { flex: 1; accent-color: #4499ff; cursor: pointer; }
@@ -74,20 +79,39 @@
       </div>
     </div>
 
+    <div class="group" id="gradient-options" style="display:none">
+      <label>Palette — <span id="tx-pal-num">—</span> · <span id="tx-pal-name">Custom</span></label>
+      <div class="df-pal-grid" id="tx-pal-grid"></div>
+    </div>
+
     <div class="group">
-      <div class="color-pair">
+      <div class="color-quad">
         <div class="color-block" id="block1">
           <label id="label1">Color</label>
           <div class="color-row">
-            <input type="color" id="color1" value="#ffffff" oninput="syncHex('color1','hex1')">
+            <input type="color" id="color1" value="#ffffff" oninput="syncHex('color1','hex1'); clearTxPreset()">
             <span class="color-hex" id="hex1">#FFFFFF</span>
           </div>
         </div>
         <div class="color-block dim" id="block2">
-          <label>End Color</label>
+          <label>Color 2</label>
           <div class="color-row">
-            <input type="color" id="color2" value="#ff4400" oninput="syncHex('color2','hex2')">
+            <input type="color" id="color2" value="#ff4400" oninput="syncHex('color2','hex2'); clearTxPreset()">
             <span class="color-hex" id="hex2">#FF4400</span>
+          </div>
+        </div>
+        <div class="color-block dim" id="block3">
+          <label>Color 3</label>
+          <div class="color-row">
+            <input type="color" id="color3" value="#00cc64" oninput="syncHex('color3','hex3'); clearTxPreset()">
+            <span class="color-hex" id="hex3">#00CC64</span>
+          </div>
+        </div>
+        <div class="color-block dim" id="block4">
+          <label>Color 4</label>
+          <div class="color-row">
+            <input type="color" id="color4" value="#0064ff" oninput="syncHex('color4','hex4'); clearTxPreset()">
+            <span class="color-hex" id="hex4">#0064FF</span>
           </div>
         </div>
       </div>
@@ -124,8 +148,10 @@
       gradientMode = (mode === 'gradient');
       document.getElementById('btn-solid').classList.toggle('active', !gradientMode);
       document.getElementById('btn-gradient').classList.toggle('active', gradientMode);
-      document.getElementById('block2').classList.toggle('dim', !gradientMode);
-      document.getElementById('label1').textContent = gradientMode ? 'Start Color' : 'Color';
+      ['block2','block3','block4'].forEach(id =>
+        document.getElementById(id).classList.toggle('dim', !gradientMode));
+      document.getElementById('gradient-options').style.display = gradientMode ? '' : 'none';
+      document.getElementById('label1').textContent = gradientMode ? 'Color 1' : 'Color';
     }
 
     function syncHex(inputId, hexId) {
@@ -145,9 +171,11 @@
     }
 
     async function sendText() {
-      const text  = document.getElementById('text-input').value.trim();
+      const text   = document.getElementById('text-input').value.trim();
       const color  = document.getElementById('color1').value;
       const color2 = document.getElementById('color2').value;
+      const color3 = document.getElementById('color3').value;
+      const color4 = document.getElementById('color4').value;
       const speed  = +document.getElementById('speed').value;
 
       if (!text) { setStatus('Enter some text first.', true); return; }
@@ -156,7 +184,7 @@
         const r = await fetch('/api/display/text', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text, color, color2, gradient: gradientMode, small: sizeMode === 'small', tiny: sizeMode === 'tiny', scroll_speed: speed })
+          body: JSON.stringify({ text, color, color2, color3, color4, gradient: gradientMode, small: sizeMode === 'small', tiny: sizeMode === 'tiny', scroll_speed: speed })
         });
         setStatus(r.ok ? '✓ Scrolling: ' + text.toUpperCase() : 'Error: HTTP ' + r.status, !r.ok);
       } catch {
@@ -175,6 +203,100 @@
       } catch {
         setStatus('Cannot reach board — check WiFi connection.', true);
       }
+    }
+
+    // ── Palette ───────────────────────────────────────────────────────────────────
+    const DF_PAL = [
+      ['Neon Classic',  '#ff00ff','#00ffff','#ffff00','#00ff00'],
+      ['Neon Shifted',  '#ff0080','#00ff80','#8000ff','#ff8000'],
+      ['Neon Soft',     '#ff00c8','#00c8ff','#c8ff00','#ffc800'],
+      ['Primary Neon',  '#ff0050','#5000ff','#00ff50','#ff5000'],
+      ['Electric',      '#dc00ff','#00ffdc','#ffdc00','#00dcff'],
+      ['Pink Purple',   '#ff00ff','#ff0064','#6400ff','#0064ff'],
+      ['Cyan Family',   '#00ffff','#00c8ff','#00ffc8','#0096ff'],
+      ['Yellow Family', '#ffff00','#ffc800','#c8ff00','#ff9600'],
+      ['Fire',          '#ff3200','#ff9600','#ffc800','#ffff32'],
+      ['Red Hot',       '#ff0000','#ff5000','#c80000','#ff2828'],
+      ['Amber',         '#ff6400','#ffc832','#ff3200','#c86400'],
+      ['Ember',         '#ff1400','#ff6400','#ffa000','#ffff64'],
+      ['Lava',          '#ff0032','#ff3200','#c80064','#ff6432'],
+      ['Sunset Warm',   '#ff5050','#ff2800','#c81400','#ffa050'],
+      ['Gold',          '#ffc800','#ff6400','#ff3232','#c8c800'],
+      ['Hot Candy',     '#ff0050','#ff5000','#ffb400','#c80050'],
+      ['Ocean',         '#0064ff','#00c8ff','#00ffc8','#3232c8'],
+      ['Aqua',          '#0096ff','#00ffff','#00c8c8','#64c8ff'],
+      ['Deep Blue',     '#0032c8','#3264ff','#00c8ff','#6432c8'],
+      ['Teal',          '#00c8c8','#0096c8','#32c8ff','#006496'],
+      ['Blue Purple',   '#6400ff','#0064ff','#00c8ff','#3200c8'],
+      ['Ice',           '#00ffff','#00c8ff','#0096ff','#0064c8'],
+      ['Violet',        '#3200c8','#6400ff','#9632ff','#c864ff'],
+      ['Navy',          '#0064c8','#003296','#3296ff','#64c8ff'],
+      ['Forest',        '#00c800','#32ff32','#64ff00','#009632'],
+      ['Lime',          '#00ff00','#64ff00','#00c832','#32ff64'],
+      ['Chartreuse',    '#64ff00','#c8ff00','#32c800','#96ff32'],
+      ['Emerald',       '#009632','#00c864','#32ff96','#006432'],
+      ['Earth',         '#c89632','#966400','#64c832','#c8c864'],
+      ['Autumn',        '#ff9600','#c86400','#64c800','#ffc832'],
+      ['Spring',        '#ff6496','#c8ff64','#64c8ff','#ffc864'],
+      ['Jade',          '#00c896','#009664','#32ffc8','#64ffc8'],
+      ['Pastel Rainbow','#ff96c8','#96c8ff','#c8ff96','#ffff96'],
+      ['Pastel Pink',   '#ff96c8','#ff6496','#c864c8','#ffc8dc'],
+      ['Pastel Blue',   '#96c8ff','#6496ff','#9696ff','#c8dcff'],
+      ['Pastel Green',  '#c8ffc8','#96ff96','#64dc96','#c8ffb4'],
+      ['Pastel Warm',   '#ffc896','#ffdc96','#c89664','#ffe6b4'],
+      ['Pastel Purple', '#c896ff','#dcb4ff','#b464ff','#f0c8ff'],
+      ['Pastel Mint',   '#96fff0','#96dcff','#b4ffdc','#c8ffff'],
+      ['Pastel Yellow', '#ffff96','#fff064','#ffc864','#ffffc8'],
+      ['Red Mono',      '#ff0000','#c80000','#960000','#640000'],
+      ['Orange Mono',   '#ff5000','#c83c00','#962800','#ff7800'],
+      ['Yellow Mono',   '#ffff00','#c8c800','#969600','#ffdc32'],
+      ['Green Mono',    '#00ff00','#00c800','#009600','#32ff32'],
+      ['Blue Mono',     '#0000ff','#0000c8','#0032ff','#3232ff'],
+      ['Purple Mono',   '#9600ff','#6400c8','#c832ff','#5000b4'],
+      ['Pink Mono',     '#ff0096','#c80064','#ff32b4','#960050'],
+      ['Teal Mono',     '#00ffc8','#00c896','#32ffdc','#009678'],
+      ['80s Classic',   '#ff00ff','#00ff00','#ffff00','#0000ff'],
+      ['Miami Vice',    '#ff0064','#00c8ff','#c8ff00','#ff6400'],
+      ['Synthwave',     '#6400ff','#ff00ff','#00c8c8','#ffc800'],
+      ['VHS',           '#ff3296','#9600ff','#00c8ff','#ffc832'],
+      ['Arcade',        '#00ff00','#00c800','#ff0000','#0000ff'],
+      ['Pac-Man',       '#ffc800','#ff6400','#00c800','#c800c8'],
+      ['Pinball',       '#ffff00','#ff0000','#0000ff','#ffffff'],
+      ['Funky',         '#00ff96','#ff0064','#ff9600','#6400ff'],
+      ['Dark Galaxy',   '#640096','#003296','#960064','#006464'],
+      ['Ember Dark',    '#500000','#320032','#000050','#502800'],
+      ['Noir',          '#960032','#640064','#320096','#003264'],
+      ['Deep Forest',   '#006400','#005032','#326400','#003c3c'],
+      ['Rust',          '#643200','#500000','#323200','#3c1e00'],
+      ['Abyss',         '#005064','#003250','#320064','#006450'],
+      ['Dusk',          '#500050','#3c003c','#640032','#320050'],
+      ['Grayscale',     '#323232','#505050','#787878','#1e1e1e'],
+    ];
+
+    let txPalIdx = null;
+    const txPalGrid = document.getElementById('tx-pal-grid');
+    DF_PAL.forEach(([name,c1,c2,c3,c4],i) => {
+      const el = document.createElement('div');
+      el.className = 'df-swatch';
+      el.title = `${i}: ${name}`;
+      el.style.background = `linear-gradient(to right,${c1} 25%,${c2} 25% 50%,${c3} 50% 75%,${c4} 75%)`;
+      el.onclick = () => {
+        txPalGrid.querySelectorAll('.df-swatch').forEach((s,j)=>s.classList.toggle('active',j===i));
+        txPalIdx=i;
+        document.getElementById('tx-pal-num').textContent=i;
+        document.getElementById('tx-pal-name').textContent=name;
+        document.getElementById('color1').value=c1; syncHex('color1','hex1');
+        document.getElementById('color2').value=c2; syncHex('color2','hex2');
+        document.getElementById('color3').value=c3; syncHex('color3','hex3');
+        document.getElementById('color4').value=c4; syncHex('color4','hex4');
+      };
+      txPalGrid.appendChild(el);
+    });
+    function clearTxPreset() {
+      txPalGrid.querySelectorAll('.df-swatch').forEach(el=>el.classList.remove('active'));
+      document.getElementById('tx-pal-num').textContent='—';
+      document.getElementById('tx-pal-name').textContent='Custom';
+      txPalIdx=null;
     }
   </script>
   </div>

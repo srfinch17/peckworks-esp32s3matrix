@@ -103,7 +103,9 @@ CRGB     solidColor      = CRGB(0, 100, 255);   // color used by solid/breathe/w
 bool     textActive         = false;
 String   scrollText         = "";
 CRGB     scrollColor        = CRGB::White;
-CRGB     scrollColor2       = CRGB(255, 68, 0);   // second color for gradient mode
+CRGB     scrollColor2       = CRGB(255,  68,   0);   // gradient colors 2-4
+CRGB     scrollColor3       = CRGB(  0, 204, 100);
+CRGB     scrollColor4       = CRGB(  0, 100, 255);
 bool     scrollGradient     = false;
 bool     scrollSmall        = false;               // use 3×5 font
 bool     scrollTiny         = false;               // use 3×3 font (overrides small)
@@ -205,21 +207,102 @@ CRGB     fw2Color1      = CRGB(255,  50,   0);
 CRGB     fw2Color2      = CRGB(255, 200,   0);
 CRGB     fw2Color3      = CRGB(  0, 100, 255);
 
+// ── Wave ──────────────────────────────────────────────────────────────────────
+CRGB     waveColor1     = CRGB(  0,   0, 255);   // surface color
+CRGB     waveColor2     = CRGB(  0,   0,  40);   // depth color
+
+// ── Rainbow ───────────────────────────────────────────────────────────────────
+bool  rainbowUsePalette   = false;
+CRGB  rainbowPalColors[4] = { CRGB(255,0,0), CRGB(255,200,0), CRGB(0,200,0), CRGB(0,100,255) };
+
 // ── Comet ─────────────────────────────────────────────────────────────────────
+// cometColor3 bumped to R=200 — at nscale8(64) and bri=40 gives effective=8 (was borderline 6)
 CRGB     cometColor1    = CRGB(255, 200,  50);
 CRGB     cometColor2    = CRGB(255, 100,   0);
-CRGB     cometColor3    = CRGB(150,  30,   0);
+CRGB     cometColor3    = CRGB(200,  50,   0);
+CRGB     cometColor4    = CRGB( 80,  10,   0);
 
 // ── Sun ───────────────────────────────────────────────────────────────────────
 CRGB     sunColor1      = CRGB(255, 183,   0);
 CRGB     sunColor2      = CRGB(255, 102,   0);
 CRGB     sunColor3      = CRGB(255,  51,   0);
 CRGB     sunColor4      = CRGB(204,  17,   0);
+CRGB     sunColor5      = CRGB(136,   0,   0);
+uint8_t  sunDiscBri     = 200;   // disc brightness 0-255
+uint8_t  sunRingBri     = 200;   // orbit dot brightness 0-255
 
 // ── Frostbite ─────────────────────────────────────────────────────────────────
 CRGB     fbColor     = CRGB(220, 230, 255);   // cool ice-white default
 uint8_t  fbSparkRate = 20;                    // sparkle spawn probability 0-100
 uint8_t  fbMistMax   = 80;                    // shimmer brightness ceiling 0-255
+
+// ── Grid Test ─────────────────────────────────────────────────────────────────
+// Diagnostic app for establishing per-pixel color/brightness thresholds.
+// "color" mode: 64 pixels with R = (linear index + 1) * 4 (R=4 at [1,1] → R=255 at [8,8])
+// "brightness" mode: all pixels at full red (255,0,0), vary brightness to find cutoff.
+// Static display — no animation loop; leds[] is redrawn only when the endpoint is called.
+String  gridTestMode       = "color";   // "color" or "brightness"
+uint8_t gridTestBrightness = 255;
+
+// ============================================================
+// SECTION 5: LED BRIGHTNESS CALIBRATION REFERENCE
+//
+// Established via grid test on 2026-05-27. Confirmed empirically
+// against this specific Waveshare ESP32-S3-Matrix board.
+//
+// ── FORMULA ──────────────────────────────────────────────────
+//   FastLED's nscale8x3 (used internally by FastLED.setBrightness)
+//   applies the following to every channel before writing to the strip:
+//
+//       effective = (channel × (brightness + 1)) >> 8
+//
+//   The LED is physically ON  when effective >= 1.
+//   The LED is physically OFF when effective == 0.
+//
+// ── MINIMUM VISIBLE CHANNEL VALUE ────────────────────────────
+//   min_visible = ceil(256 / (brightness + 1))
+//
+//   brightness = 255 → min = 1    (anything non-zero is visible)
+//   brightness = 100 → min = 3
+//   brightness =  40 → min = 7
+//   brightness =  20 → min = 13
+//   brightness =  10 → min = 24
+//   brightness =   5 → min = 43
+//   brightness =   3 → min = 64
+//
+//   Any channel (R, G, or B) below min_visible is physically dark
+//   regardless of what color you set.
+//
+// ── DESIGN RULES FOR APP DEVELOPMENT ────────────────────────
+//   1. Before using a color in an app, verify every channel
+//      satisfies: channel × (brightness + 1) >= 256.
+//      If not, that channel contributes nothing to the output.
+//
+//   2. For gradient/fade effects (trails, halos, backgrounds):
+//      The dimmest step MUST still clear the threshold.
+//      e.g. a 5-step trail at bri=40 whose dimmest step = 20:
+//        20 × 41 / 256 = 3.2 → 3.  OK (visible), but barely.
+//      At bri=10 the same step: 20 × 11 / 256 = 0.86 → 0. GONE.
+//
+//   3. Subtle color differences (e.g. R=50 vs R=60) may be
+//      indistinguishable at low brightness because both map to
+//      the same small effective integer.
+//
+//   4. In JS previews, use this exact formula:
+//         Math.floor(channel * (brightness + 1) / 256)
+//      NOT  channel * brightness / 255  — that formula is wrong
+//      and was the reason previews did not match the board.
+//
+// ── BRIGHTNESS SWEEP OBSERVATIONS ────────────────────────────
+//   brightness = 0  → all LEDs off (FastLED special-cases 0).
+//   brightness = 1  → full red (255,0,0) barely visible; effective = 1.
+//   brightness 1→255 → visibly and smoothly increases.
+//
+// ── RELIABILITY NOTE ─────────────────────────────────────────
+//   The formula is reliable for brightness >= 3. At brightness 1-2,
+//   individual LED variation on this board makes the threshold
+//   slightly inconsistent from pixel to pixel. Design for >= 3.
+// ============================================================
 
 // ============================================================
 // SECTION 4: COORDINATE MAPPING
@@ -385,6 +468,7 @@ void setup() {
   server.on("/api/sensors/weather",       HTTP_GET,  handleSensorWeather);
   server.on("/api/weather/mode",          HTTP_POST, handleWeatherMode);
   server.on("/api/status",               HTTP_GET,  handleStatus);
+  server.on("/api/grid-test/set",        HTTP_POST, handleGridTest);
   server.onNotFound([]() {
     String path = server.uri();
     if (LittleFS.exists(path)) {
@@ -424,8 +508,14 @@ void loop() {
 
   uint32_t now = millis();   // snapshot the clock once per loop iteration
 
-  // Animation frame tick: only draw when animationSpeed ms have elapsed
-  if (animationActive && (now - lastFrameMs >= animationSpeed)) {
+  // Rainbow always at 66ms. Frostbite capped at 66ms minimum — shimmer and sine sparkles
+  // need at least 15fps to look smooth; faster is fine, slower creates visible stepping.
+  uint32_t effectiveRate = (animationName == "rainbow") ? 66u :
+                           (animationName == "frostbite") ? min(animationSpeed, (uint32_t)66) :
+                           animationSpeed;
+
+  // Animation frame tick: only draw when enough time has elapsed
+  if (animationActive && (now - lastFrameMs >= effectiveRate)) {
     lastFrameMs = now;
     if      (animationName == "fire")       stepFireFrame();
     else if (animationName == "rainbow")    runRainbowFrame();

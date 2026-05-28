@@ -51,15 +51,11 @@ void runCometFrame() {
   setPixel(6, iy,   cometColor1); setPixel(7, iy,   cometColor1);
   setPixel(6, iy+1, cometColor1); setPixel(7, iy+1, cometColor1);
 
-  // Tail columns, each using progressively older Y history
-  // x=5: 4 rows (-1 to +2 relative to histY), color2 75%
+  // Tail columns: uniform 4 rows each (-1 to +2 relative to histY), color transitions outward
   drawCometCol(5, 1, -1, 4, cometColor2, 192);
-  // x=4: 3 rows (0 to +2), color2 55%
-  drawCometCol(4, 2,  0, 3, cometColor2, 140);
-  // x=3: 2 rows (0 to +1), color3 40%
-  drawCometCol(3, 3,  0, 2, cometColor3, 102);
-  // x=2: 1 row (+1 = heart center row), color3 25%
-  drawCometCol(2, 4,  1, 1, cometColor3,  64);
+  drawCometCol(4, 2, -1, 4, cometColor3, 140);
+  drawCometCol(3, 3, -1, 4, cometColor3, 102);
+  drawCometCol(2, 4, -1, 4, cometColor4,  64);
 
   // Sparks: ~5% chance per frame
   if (random(20) == 0) {
