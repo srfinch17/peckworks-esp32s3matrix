@@ -62,6 +62,12 @@
     .mode-btn { background: #1a1a1a; color: #666; border: 1px solid #2a2a2a; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-size: 0.78rem; transition: all 0.12s; }
     .mode-btn:hover { background: #222; color: #aaa; }
     .mode-btn.active { background: #270a44; color: #cc88ff; border-color: #4a1a77; }
+    /* Link-out app cards in the grid */
+    .section-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: #444; margin: 8px 0 6px; grid-column: 1 / -1; }
+    .anim-card-link { text-decoration: none; color: inherit; }
+    .anim-card-link .anim-card { border-style: dashed; }
+    .anim-card-link .anim-card:hover { border-color: #cc88ff; }
+    .anim-card-link .open-hint { font-size: 0.6rem; color: #555; margin-top: 4px; }
   </style>
 </head>
 <body>
@@ -130,6 +136,31 @@
       <div class="name">Sun</div>
       <div class="desc">4 dots orbit a glowing disc</div>
     </div>
+    <div class="section-label">Full-featured apps</div>
+    <a href="/fire.html" class="anim-card-link">
+      <div class="anim-card">
+        <span class="icon">🔥</span>
+        <div class="name">Fire</div>
+        <div class="desc">Palette, intensity, tendrils, sparks</div>
+        <div class="open-hint">opens full controls →</div>
+      </div>
+    </a>
+    <a href="/liquid.html" class="anim-card-link">
+      <div class="anim-card">
+        <span class="icon">💧</span>
+        <div class="name">Liquid</div>
+        <div class="desc">Tilt-reactive fluid via accelerometer</div>
+        <div class="open-hint">opens full controls →</div>
+      </div>
+    </a>
+    <a href="/matrix_rain.html" class="anim-card-link">
+      <div class="anim-card">
+        <span class="icon">🖥️</span>
+        <div class="name">Matrix Rain</div>
+        <div class="desc">Digital rain with color themes</div>
+        <div class="open-hint">opens full controls →</div>
+      </div>
+    </a>
   </div>
 
   <div class="panel">
