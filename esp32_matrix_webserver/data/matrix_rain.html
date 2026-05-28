@@ -63,9 +63,21 @@
       <div class="group">
         <label>Speed — <span id="v-speed">12</span> fps</label>
         <div class="slider-row">
-          <input type="range" id="speed" min="30" max="200" value="80">
+          <span style="font-size:.68rem;color:#555">Slow</span>
+          <input type="range" id="speed" min="5" max="33" value="12">
+          <span style="font-size:.68rem;color:#555">Fast</span>
         </div>
         <div class="hint">Higher fps = drops fall faster overall. Individual drops also vary randomly.</div>
+      </div>
+
+      <div class="group">
+        <label>Brightness — <span id="v-bri">40</span></label>
+        <div class="slider-row">
+          <span style="font-size:.68rem;color:#555">Off</span>
+          <input type="range" id="bri" min="0" max="255" value="40" oninput="updateBrightness(this.value)">
+          <span style="font-size:.68rem;color:#555">Full</span>
+        </div>
+        <div class="hint">Preview applies the same dimming math as the board — what you see here is what the LEDs will show.</div>
       </div>
 
       <div class="actions">
@@ -87,8 +99,12 @@
       purple:  { trail: [160, 0, 220],  head: [230, 200, 255] }
     };
 
-    let theme   = 'classic';
-    let speedMs = 80;
+    let theme      = 'classic';
+    let speedMs    = Math.round(1000 / 12);
+    let previewBri = 40;   // mirrors board brightness; applied to preview colors
+
+    // FastLED nscale8x3: (channel * (brightness + 1)) >> 8
+    function dim(v) { return (v * (previewBri + 1) / 256) | 0; }
 
     // One drop per column, matching the firmware MatrixDrop struct exactly
     const drops = Array.from({ length: W }, (_, col) => ({
@@ -122,18 +138,18 @@
       const t = THEMES[theme];
 
       for (const d of drops) {
-        // White (or tinted) head
+        // Head — dimmed by current brightness
         if (d.headY >= 0 && d.headY < H) {
-          ctx.fillStyle = `rgb(${t.head[0]},${t.head[1]},${t.head[2]})`;
+          ctx.fillStyle = `rgb(${dim(t.head[0])},${dim(t.head[1])},${dim(t.head[2])})`;
           ctx.fillRect(d.col * CELL, d.headY * CELL, CELL, CELL);
         }
 
-        // Fading trail above the head
+        // Fading trail — fade applied first, then brightness scaling
         for (let i = 1; i <= TRAIL_LEN; i++) {
           const ty = d.headY - i;
           if (ty < 0 || ty >= H) continue;
           const fade = 1 - i / (TRAIL_LEN + 1);
-          ctx.fillStyle = `rgb(${(t.trail[0] * fade) | 0},${(t.trail[1] * fade) | 0},${(t.trail[2] * fade) | 0})`;
+          ctx.fillStyle = `rgb(${dim((t.trail[0] * fade) | 0)},${dim((t.trail[1] * fade) | 0)},${dim((t.trail[2] * fade) | 0)})`;
           ctx.fillRect(d.col * CELL, ty * CELL, CELL, CELL);
         }
       }
@@ -149,6 +165,34 @@
       requestAnimationFrame(animate);
     }
     requestAnimationFrame(animate);
+
+    // ── Brightness ────────────────────────────────────────────
+
+    let briTimer;
+    (function initBri() {
+      const saved = localStorage.getItem('matrix_brightness');
+      if (saved !== null) {
+        previewBri = +saved;
+        document.getElementById('bri').value = previewBri;
+        document.getElementById('v-bri').textContent = previewBri;
+      }
+    })();
+
+    function updateBrightness(val) {
+      previewBri = +val;
+      document.getElementById('v-bri').textContent = val;
+      localStorage.setItem('matrix_brightness', String(val));
+      clearTimeout(briTimer);
+      briTimer = setTimeout(async () => {
+        try {
+          await fetch('/api/brightness', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ level: previewBri })
+          });
+        } catch {}
+      }, 200);
+    }
 
     // ── UI wiring ─────────────────────────────────────────────
 
@@ -167,8 +211,8 @@
     });
 
     document.getElementById('speed').addEventListener('input', e => {
-      speedMs = +e.target.value;
-      document.getElementById('v-speed').textContent = Math.round(1000 / speedMs);
+      speedMs = Math.round(1000 / +e.target.value);
+      document.getElementById('v-speed').textContent = e.target.value;
     });
 
     async function applyToDisplay() {

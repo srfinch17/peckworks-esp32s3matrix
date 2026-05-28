@@ -18,13 +18,24 @@ static uint8_t breathePhase = 0;   // drives the sine wave phase for the pulse
 static uint8_t waveOffset   = 0;   // shifts the wave left/right each frame
 
 // ── Rainbow ───────────────────────────────────────────────────
-// fill_rainbow() is a FastLED built-in. It sets each LED to a
-// different hue, distributed evenly across the hue wheel (0-255).
-// The third arg (7) is the hue step between adjacent LEDs.
-// Incrementing rainbowHue each frame rotates the entire spectrum.
+// Full-spectrum mode: 8 vertical hue stripes cycling through the FastLED hue wheel.
+// Palette mode: same structure but blends through 4 user-chosen colors instead of hues.
+
+// Blends through rainbowPalColors[4] across 256 steps (64 steps per colour segment).
+static CRGB blendRainbowPal(uint8_t t) {
+  uint8_t seg  = t >> 6;           // 0-3: which of the 4 colour segments
+  uint8_t frac = (t & 63) << 2;    // 0-252: blend fraction within segment
+  return blend(rainbowPalColors[seg], rainbowPalColors[(seg + 1) & 3], frac);
+}
+
 void runRainbowFrame() {
-  fill_rainbow(leds, NUM_LEDS, rainbowHue, 7);
-  rainbowHue += 3;   // higher = faster spin
+  uint8_t advance = (uint8_t)max(1, min(10, (int)(400 / max(animationSpeed, (uint32_t)66))));
+  rainbowHue += advance;
+  for (int x = 0; x < MATRIX_W; x++) {
+    uint8_t hue = rainbowHue + (uint8_t)(x * 32);
+    CRGB c = rainbowUsePalette ? blendRainbowPal(hue) : CHSV(hue, 255, 200);
+    for (int y = 0; y < MATRIX_H; y++) setPixel(x, y, c);
+  }
 }
 
 // ── Breathe ───────────────────────────────────────────────────
@@ -46,29 +57,18 @@ void runBreatheFrame() {
 }
 
 // ── Wave ──────────────────────────────────────────────────────
-// Simulates a blue wave rolling across the matrix.
-//
-// For each column x, beatsin8() returns a wave height waveH
-// (0-7) that is phase-shifted by the column's position so
-// adjacent columns peak at different times — this is what
-// creates the "wave moving across" look rather than all columns
-// bobbing in sync.
-//
-// The waveOffset term (incremented each frame) shifts the
-// phase of the entire pattern, making the wave travel.
-//
-// Pixels at or below the wave surface get a blue shade that
-// gets darker as depth increases (map() from 255 at the surface
-// down to 60 at the bottom). Pixels above the surface are black.
+// Rolling wave using waveColor1 (surface) and waveColor2 (depth).
+// Each column gets a phase-shifted beatsin8() wave height so adjacent
+// columns peak at different times. waveOffset shifts the whole pattern.
 void runWaveFrame() {
   for (int x = 0; x < MATRIX_W; x++) {
-    // waveH: how many rows from the bottom are "underwater"
-    uint8_t waveH = beatsin8(20, 0, MATRIX_H - 1, 0, x * 32 + waveOffset);
+    uint8_t waveH   = beatsin8(20, 0, MATRIX_H - 1, 0, x * 32 + waveOffset);
+    int     surface = MATRIX_H - 1 - (int)waveH;
     for (int y = 0; y < MATRIX_H; y++) {
-      if (y >= MATRIX_H - 1 - waveH) {
-        // brighter at the surface (low y index = near bottom of wave), darker toward top
-        uint8_t b = map(y, 0, MATRIX_H - 1, 255, 60);
-        setPixel(x, y, CRGB(0, 0, b));
+      if (y >= surface) {
+        // t=0 at wave surface → waveColor1 (bright); t=255 at deepest → waveColor2 (dim)
+        uint8_t t = (waveH == 0) ? 0 : (uint8_t)(((uint16_t)(y - surface) * 255) / waveH);
+        setPixel(x, y, blend(waveColor1, waveColor2, t));
       } else {
         setPixel(x, y, CRGB::Black);
       }

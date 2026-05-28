@@ -57,6 +57,11 @@
     #prev { display: block; border-radius: 8px; image-rendering: pixelated; background: #0d0d0d; }
     .preview-label { font-size: 0.62rem; color: #333; text-transform: uppercase; letter-spacing: .1em; margin-top: 5px; text-align: center; }
     hr.sep { border: none; border-top: 1px solid #222; margin: 18px 0; }
+    /* Mode toggle */
+    .mode-row { display: flex; gap: 8px; margin-bottom: 4px; }
+    .mode-btn { background: #1a1a1a; color: #666; border: 1px solid #2a2a2a; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-size: 0.78rem; transition: all 0.12s; }
+    .mode-btn:hover { background: #222; color: #aaa; }
+    .mode-btn.active { background: #270a44; color: #cc88ff; border-color: #4a1a77; }
   </style>
 </head>
 <body>
@@ -133,7 +138,7 @@
     <div class="anim-card" data-type="sun" onclick="selectAnim(this)">
       <span class="icon">☀️</span>
       <div class="name">Sun</div>
-      <div class="desc">Spinning gradient ring</div>
+      <div class="desc">4 dots orbit a glowing disc</div>
     </div>
   </div>
 
@@ -149,16 +154,51 @@
     <hr class="sep">
 
     <div class="group">
-      <label>Frame Rate — <span id="v-speed">15</span> fps</label>
+      <label>Frame Rate — <span id="v-speed">5</span> fps</label>
       <div class="group-sub">How fast each frame renders on the board</div>
       <div class="slider-row">
-        <input type="range" id="speed" min="20" max="200" value="66" oninput="onSpeedChange(this.value)">
+        <span style="font-size:.7rem;color:#555">Slow</span>
+        <input type="range" id="speed" min="1" max="50" value="5" oninput="onSpeedChange(this.value)">
+        <span style="font-size:.7rem;color:#555">Fast</span>
       </div>
     </div>
 
-    <!-- Panel: rainbow + wave (no color settings) -->
+    <!-- Panel: wave (no color settings) -->
     <div class="anim-panel" id="panel-none">
       <p style="font-size:0.75rem;color:#555;padding:4px 0 8px">No color settings — use the Frame Rate slider above.</p>
+    </div>
+
+    <!-- Panel: wave -->
+    <div class="anim-panel" id="panel-wave">
+      <div class="group">
+        <label>Palette — <span id="wv-pal-num">—</span> · <span id="wv-pal-name">Custom</span></label>
+        <div class="df-pal-grid" id="wv-pal-grid"></div>
+      </div>
+      <hr class="sep" style="margin:10px 0">
+      <div class="group">
+        <label>Colors</label>
+        <div class="color-row">
+          <div class="picker-group"><label>Surface</label><input type="color" id="wave-c1" value="#0000ff" oninput="clearWavePreset()"></div>
+          <div class="picker-group"><label>Depth</label><input type="color" id="wave-c2" value="#000028" oninput="clearWavePreset()"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel: rainbow -->
+    <div class="anim-panel" id="panel-rainbow">
+      <div class="group">
+        <label>Mode</label>
+        <div class="mode-row">
+          <button class="mode-btn active" id="rn-mode-rainbow" onclick="setRainbowMode('rainbow')">Full Rainbow</button>
+          <button class="mode-btn"        id="rn-mode-palette" onclick="setRainbowMode('palette')">Palette</button>
+        </div>
+      </div>
+      <div id="rn-palette-section" style="display:none">
+        <div class="group">
+          <label>Palette — <span id="rn-pal-num">0</span> · <span id="rn-pal-name">Neon Classic</span></label>
+          <div class="df-pal-grid" id="rn-pal-grid"></div>
+        </div>
+      </div>
     </div>
 
     <!-- Panel: breathe + solid -->
@@ -174,10 +214,15 @@
     <!-- Panel: spiral -->
     <div class="anim-panel" id="panel-spiral">
       <div class="group">
+        <label>Palette — <span id="sp-pal-num">—</span> · <span id="sp-pal-name">Custom</span></label>
+        <div class="df-pal-grid" id="sp-pal-grid"></div>
+      </div>
+      <hr class="sep" style="margin:10px 0">
+      <div class="group">
         <label>Colors</label>
         <div class="color-row">
-          <div class="picker-group"><label>Start</label><input type="color" id="spiral-c1" value="#ff0000"></div>
-          <div class="picker-group"><label>End</label><input type="color" id="spiral-c2" value="#0000ff"></div>
+          <div class="picker-group"><label>Start</label><input type="color" id="spiral-c1" value="#ff0000" oninput="clearSpiralPreset()"></div>
+          <div class="picker-group"><label>End</label><input type="color" id="spiral-c2" value="#0000ff" oninput="clearSpiralPreset()"></div>
         </div>
       </div>
     </div>
@@ -261,11 +306,17 @@
     <!-- Panel: comet -->
     <div class="anim-panel" id="panel-comet">
       <div class="group">
+        <label>Palette — <span id="cm-pal-num">—</span> · <span id="cm-pal-name">Custom</span></label>
+        <div class="df-pal-grid" id="cm-pal-grid"></div>
+      </div>
+      <hr class="sep" style="margin:10px 0">
+      <div class="group">
         <label>Colors</label>
         <div class="color-row">
-          <div class="picker-group"><label>Heart</label><input type="color" id="comet-c1" value="#ffc832"></div>
-          <div class="picker-group"><label>Shell</label><input type="color" id="comet-c2" value="#ff6400"></div>
-          <div class="picker-group"><label>Tail</label><input type="color" id="comet-c3" value="#961e00"></div>
+          <div class="picker-group"><label>Heart</label><input type="color" id="comet-c1" value="#ffc832" oninput="clearCometPreset()"></div>
+          <div class="picker-group"><label>Shell</label><input type="color" id="comet-c2" value="#ff6400" oninput="clearCometPreset()"></div>
+          <div class="picker-group"><label>Tail</label><input type="color" id="comet-c3" value="#c83200" oninput="clearCometPreset()"></div>
+          <div class="picker-group"><label>Far</label><input type="color" id="comet-c4" value="#500a00" oninput="clearCometPreset()"></div>
         </div>
       </div>
     </div>
@@ -281,7 +332,33 @@
           <div class="picker-group"><label>Ring 1</label><input type="color" id="sun-c2" value="#ff6600" oninput="clearSunPreset()"></div>
           <div class="picker-group"><label>Ring 2</label><input type="color" id="sun-c3" value="#ff3300" oninput="clearSunPreset()"></div>
           <div class="picker-group"><label>Ring 3</label><input type="color" id="sun-c4" value="#cc1100" oninput="clearSunPreset()"></div>
+          <div class="picker-group"><label>Ring 4</label><input type="color" id="sun-c5" value="#880000" oninput="clearSunPreset()"></div>
         </div>
+      </div>
+      <div class="group">
+        <label>Sun Intensity — <span id="v-sun-disc">78</span>%</label>
+        <div class="slider-row">
+          <span style="font-size:.7rem;color:#555">Dim</span>
+          <input type="range" id="sun-disc" min="0" max="100" value="78" oninput="document.getElementById('v-sun-disc').textContent=this.value">
+          <span style="font-size:.7rem;color:#555">Bright</span>
+        </div>
+      </div>
+      <div class="group">
+        <label>Orbit Intensity — <span id="v-sun-ring">78</span>%</label>
+        <div class="slider-row">
+          <span style="font-size:.7rem;color:#555">Dim</span>
+          <input type="range" id="sun-ring" min="0" max="100" value="78" oninput="document.getElementById('v-sun-ring').textContent=this.value">
+          <span style="font-size:.7rem;color:#555">Bright</span>
+        </div>
+      </div>
+      <div class="group">
+        <label>Preview Brightness — <span id="v-sun-bri">40</span></label>
+        <div class="slider-row">
+          <span style="font-size:.7rem;color:#555">Off</span>
+          <input type="range" id="sun-bri" min="0" max="255" value="40" oninput="updateSunBrightness(this.value)">
+          <span style="font-size:.7rem;color:#555">Full</span>
+        </div>
+        <div class="hint">Preview applies the same brightness math as the board — what you see here is what the LEDs will show.</div>
       </div>
     </div>
 
@@ -323,6 +400,8 @@
   }
   function getEl(id) { return document.getElementById(id); }
   function pickVal(id, fallback) { return getEl(id)?.value || fallback; }
+  // Matches FastLED scale8: (channel * (scale+1)) >> 8
+  function sc8(ch, scale) { return (ch * (scale + 1)) >> 8; }
 
   // ── Preview canvas ────────────────────────────────────────────────────────────
   const PREV_CELL = 16;
@@ -378,13 +457,39 @@
   // ── Per-animation preview step functions ──────────────────────────────────────
 
   // Rainbow
-  let rnPhase = 0;
+  let rnPhase   = 0;  // 0-255, matches firmware uint8_t rainbowHue
+  let rnPalMode = 'rainbow';
+  let rnPalIdx  = 0;
+
+  function rnPalAt(t) {  // t: 0-255, returns lerped colour from DF_PAL[rnPalIdx]
+    const pal = DF_PAL[rnPalIdx];
+    const seg  = (t >> 6) & 3;
+    const frac = (t & 63) / 63;
+    return lerpc(hex2rgb(pal[seg + 1]), hex2rgb(pal[((seg + 1) % 4) + 1]), frac);
+  }
+
   function stepPrevRainbow() {
     for (let x = 0; x < 8; x++) {
-      const h = (x*45 + rnPhase) % 360;
-      for (let y = 0; y < 8; y++) prevCells[y*8+x] = `hsl(${h},100%,45%)`;
+      const hue8 = (rnPhase + x * 32) & 255;
+      let color;
+      if (rnPalMode === 'palette') {
+        color = rnPalAt(hue8);
+      } else {
+        const h = (hue8 * 360 / 256) | 0;
+        const sinVal = Math.sin((hue8 / 256) * Math.PI * 2);
+        const lum = 34 + sinVal * 11;
+        color = `hsl(${h},100%,${lum.toFixed(1)}%)`;
+      }
+      for (let y = 0; y < 8; y++) prevCells[y*8+x] = color;
     }
-    rnPhase = (rnPhase + 5) % 360;
+    rnPhase = (rnPhase + 5) & 255;
+  }
+
+  function setRainbowMode(mode) {
+    rnPalMode = mode;
+    getEl('rn-mode-rainbow').classList.toggle('active', mode === 'rainbow');
+    getEl('rn-mode-palette').classList.toggle('active', mode === 'palette');
+    getEl('rn-palette-section').style.display = mode === 'palette' ? '' : 'none';
   }
 
   // Breathe
@@ -401,11 +506,14 @@
   let wvPhase = 0;
   function stepPrevWave() {
     prevCells.fill('#000');
+    const c1 = hex2rgb(pickVal('wave-c1', '#0000ff'));
+    const c2 = hex2rgb(pickVal('wave-c2', '#000028'));
     for (let x = 0; x < 8; x++) {
       const ht = Math.round((Math.sin(wvPhase + x*0.75)*0.5 + 0.5) * 8);
-      for (let y = 7; y >= 8-ht; y--) {
-        const f = (8-y) / 8;
-        prevCells[y*8+x] = `rgb(${~~(f*20)},${~~(f*80)},${~~(f*220)})`;
+      const surface = 8 - ht;
+      for (let y = surface; y < 8; y++) {
+        const t = ht <= 1 ? 0 : (y - surface) / Math.max(1, 7 - surface);
+        prevCells[y*8+x] = lerpc(c1, c2, t);
       }
     }
     wvPhase += 0.12;
@@ -487,11 +595,11 @@
   // Frostbite
   const FB_BRI = new Uint8Array(64);
   const FB_DIR = new Int8Array(64);
-  const FB_SPARKS = Array.from({length:8},()=>({idx:0,phase:30,active:false}));
+  const FB_SPARKS = Array.from({length:8},()=>({idx:0,phase:40,active:false}));
   let fbPrevInit = false;
   function stepPrevFrostbite() {
     const mistPct = +(getEl('fb-mist')?.value||40);
-    const mistMax = Math.round(mistPct * 2);          // mirrors firmware: mist * 2
+    const mistMax = Math.round(mistPct * 2);
     const lo = Math.max(8, mistMax >> 1);
     if (!fbPrevInit) {
       for (let i=0;i<64;i++) {
@@ -500,21 +608,21 @@
       }
       fbPrevInit = true;
     }
-    // Shimmer drift
+    // Shimmer: every pixel drifts every frame; ~3% random direction flip keeps it organic
     for (let i=0; i<64; i++) {
-      if (Math.random()<0.25) {
-        FB_BRI[i] += FB_DIR[i];
-        if (FB_BRI[i]>=mistMax){FB_BRI[i]=mistMax;FB_DIR[i]=-1;}
-        if (FB_BRI[i]<=lo)    {FB_BRI[i]=lo;     FB_DIR[i]=1;}
-      }
+      if (Math.random() < 0.033) FB_DIR[i] = -FB_DIR[i];
+      let next = FB_BRI[i] + FB_DIR[i];
+      if (next >= mistMax) { FB_BRI[i] = mistMax; FB_DIR[i] = -1; }
+      else if (next <= lo) { FB_BRI[i] = lo;      FB_DIR[i] =  1; }
+      else                 { FB_BRI[i] = next; }
     }
-    // Mist: fbColor directly, no white blend
+    // Mist
     const col = hex2rgb(pickVal('fb-color','#dce8ff'));
     for (let i=0; i<64; i++) {
-      const f=FB_BRI[i]/255;
-      prevCells[i]=`rgb(${~~(col.r*f)},${~~(col.g*f)},${~~(col.b*f)})`;
+      const f = FB_BRI[i] / 255;
+      prevCells[i] = `rgb(${~~(col.r*f)},${~~(col.g*f)},${~~(col.b*f)})`;
     }
-    // Sparkles
+    // Sparkles: smooth sine bell over 40 phases (was 30 linear steps)
     const rate = +(getEl('fb-sparkle')?.value||20);
     if (Math.random()*100 < rate) {
       const free = FB_SPARKS.find(s=>!s.active);
@@ -522,14 +630,13 @@
     }
     FB_SPARKS.forEach(sp => {
       if (!sp.active) return;
-      let bri;
-      if      (sp.phase<8)  bri=sp.phase*32;
-      else if (sp.phase<20) bri=255;
-      else                  bri=Math.max(0,(29-sp.phase)*28);
-      const f=bri/255;
-      prevCells[sp.idx]=`rgb(${~~(col.r*f)},${~~(col.g*f)},${~~(col.b*f)})`;
+      const bri = (Math.sin(sp.phase * Math.PI / 39) * 255) | 0;
+      if (bri > 0) {
+        const f = bri / 255;
+        prevCells[sp.idx] = `rgb(${~~(col.r*f)},${~~(col.g*f)},${~~(col.b*f)})`;
+      }
       sp.phase++;
-      if (sp.phase>=30) sp.active=false;
+      if (sp.phase >= 40) sp.active = false;
     });
   }
 
@@ -604,20 +711,21 @@
 
     const c1 = hex2rgb(pickVal('comet-c1','#ffc832'));
     const c2 = hex2rgb(pickVal('comet-c2','#ff6400'));
-    const c3 = hex2rgb(pickVal('comet-c3','#961e00'));
+    const c3 = hex2rgb(pickVal('comet-c3','#c83200'));
+    const c4 = hex2rgb(pickVal('comet-c4','#500a00'));
 
-    // tail columns
-    const drawCol = (x, histN, rowOff, rows, col, f) => {
+    // tail columns: uniform 4 rows each, color transitions outward
+    const drawCol = (x, histN, rowOff, rows, col, scale) => {
       const baseY = ~~histY(histN);
       for (let r=0;r<rows;r++) {
         const py=baseY+rowOff+r;
-        if (py>=0&&py<8) prevCells[py*8+x]=`rgb(${~~(col.r*f)},${~~(col.g*f)},${~~(col.b*f)})`;
+        if (py>=0&&py<8) prevCells[py*8+x]=`rgb(${sc8(col.r,scale)},${sc8(col.g,scale)},${sc8(col.b,scale)})`;
       }
     };
-    drawCol(5,1,-1,4,c2,0.75);
-    drawCol(4,2, 0,3,c2,0.55);
-    drawCol(3,3, 0,2,c3,0.40);
-    drawCol(2,4, 1,1,c3,0.25);
+    drawCol(5,1,-1,4,c2,192);
+    drawCol(4,2,-1,4,c3,140);
+    drawCol(3,3,-1,4,c3,102);
+    drawCol(2,4,-1,4,c4, 64);
 
     // head
     for (let dx=0;dx<2;dx++) for(let dy=0;dy<2;dy++) {
@@ -629,22 +737,51 @@
   // Sun
   const SUN_BX=[3,6,7,6,4,1,0,1], SUN_BY=[0,1,3,6,7,6,4,1];
   let sunSlot=0;
+  let sunPrevBri=40;
+  let sunBriTimer;
+
   function stepPrevSun() {
     prevCells.fill('#000');
+    const discPct = +(getEl('sun-disc')?.value||78);   // 0-100%
+    const ringPct = +(getEl('sun-ring')?.value||78);
+    const bri     = sunPrevBri;                        // 0-255 global brightness
+    // Apply disc/ring intensity (nscale8) then global brightness (nscale8) — exact firmware math
+    function sunCh(ch, pct) {
+      const s1 = (pct / 100 * 255) | 0;
+      return sc8(sc8(ch, s1), bri);
+    }
     const c1=hex2rgb(pickVal('sun-c1','#ffb700'));
     const c2=hex2rgb(pickVal('sun-c2','#ff6600'));
+    const c3=hex2rgb(pickVal('sun-c3','#ff3300'));
+    const c4=hex2rgb(pickVal('sun-c4','#cc1100'));
+    const c5=hex2rgb(pickVal('sun-c5','#880000'));
+    // Disc
     for (let y=2;y<=5;y++) for (let x=2;x<=5;x++)
       if (!((x===2||x===5)&&(y===2||y===5)))
-        prevCells[y*8+x]=`rgb(${c1.r},${c1.g},${c1.b})`;
-    for (let i=0;i<8;i++) {
-      const d=(i-sunSlot+8)%8;
-      let f=0;
-      if      (d===0)       f=1.0;
-      else if (d===1||d===7) f=0.5;
-      else if (d===2||d===6) f=0.25;
-      if (f>0) prevCells[SUN_BY[i]*8+SUN_BX[i]]=`rgb(${~~(c2.r*f)},${~~(c2.g*f)},${~~(c2.b*f)})`;
+        prevCells[y*8+x]=`rgb(${sunCh(c1.r,discPct)},${sunCh(c1.g,discPct)},${sunCh(c1.b,discPct)})`;
+    // 4 orbiting dots
+    const dotColors=[c2,c3,c4,c5];
+    for (let d=0;d<4;d++) {
+      const pos=(sunSlot+d*2)%8;
+      const col=dotColors[d];
+      prevCells[SUN_BY[pos]*8+SUN_BX[pos]]=`rgb(${sunCh(col.r,ringPct)},${sunCh(col.g,ringPct)},${sunCh(col.b,ringPct)})`;
     }
     sunSlot=(sunSlot+1)%8;
+  }
+
+  function updateSunBrightness(val) {
+    sunPrevBri = +val;
+    getEl('v-sun-bri').textContent = val;
+    localStorage.setItem('sun_brightness', String(val));
+    clearTimeout(sunBriTimer);
+    sunBriTimer = setTimeout(async () => {
+      try {
+        await fetch('/api/brightness', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ level: sunPrevBri })
+        });
+      } catch {}
+    }, 200);
   }
 
   // Dance Floor
@@ -683,10 +820,12 @@
   }
 
   function initPrevState(type) {
+    if (type==='rainbow')  { rnPhase=0; }
     if (type==='starfield') { sfReady=false; }
     if (type==='fireworks'||type.startsWith('fireworks')) initFWState();
     if (type==='comet') { cmPhase=0; CM_HIST.fill(3.5); cmHistIdx=0; }
     if (type==='frostbite') { fbPrevInit=false; }
+    if (type==='sun') { sunSlot=0; }
   }
 
   // ── Dance Floor palettes ──────────────────────────────────────────────────────
@@ -775,6 +914,109 @@
     dfPalGrid.appendChild(el);
   });
 
+  // ── Rainbow palette grid ──────────────────────────────────────────────────────
+  const rnPalGrid = getEl('rn-pal-grid');
+  DF_PAL.forEach(([name,c1,c2,c3,c4],i) => {
+    const el = document.createElement('div');
+    el.className = 'df-swatch' + (i===0?' active':'');
+    el.title = `${i}: ${name}`;
+    el.style.background = `linear-gradient(to right,${c1} 25%,${c2} 25% 50%,${c3} 50% 75%,${c4} 75%)`;
+    el.onclick = () => {
+      rnPalGrid.querySelectorAll('.df-swatch').forEach((s,j)=>s.classList.toggle('active',j===i));
+      rnPalIdx=i;
+      getEl('rn-pal-num').textContent=i;
+      getEl('rn-pal-name').textContent=name;
+    };
+    rnPalGrid.appendChild(el);
+  });
+
+  // ── Comet palette grid ────────────────────────────────────────────────────────
+  let cometPalIdx = null;
+  const cmPalGrid = getEl('cm-pal-grid');
+  DF_PAL.forEach(([name,c1,c2,c3,c4],i) => {
+    const el = document.createElement('div');
+    el.className = 'df-swatch';
+    el.title = `${i}: ${name}`;
+    el.style.background = `linear-gradient(to right,${c1} 25%,${c2} 25% 50%,${c3} 50% 75%,${c4} 75%)`;
+    el.onclick = () => {
+      cmPalGrid.querySelectorAll('.df-swatch').forEach((s,j)=>s.classList.toggle('active',j===i));
+      cometPalIdx=i;
+      getEl('cm-pal-num').textContent=i;
+      getEl('cm-pal-name').textContent=name;
+      getEl('comet-c1').value=c1;
+      getEl('comet-c2').value=c2;
+      getEl('comet-c3').value=c3;
+      getEl('comet-c4').value=c4;
+    };
+    cmPalGrid.appendChild(el);
+  });
+  function clearCometPreset() {
+    cmPalGrid.querySelectorAll('.df-swatch').forEach(el=>el.classList.remove('active'));
+    getEl('cm-pal-num').textContent='—';
+    getEl('cm-pal-name').textContent='Custom';
+    cometPalIdx=null;
+  }
+
+  // ── Wave palette grid ─────────────────────────────────────────────────────────
+  let wavePalIdx = null;
+  const wvPalGrid = getEl('wv-pal-grid');
+  DF_PAL.forEach(([name,c1,c2,c3,c4],i) => {
+    const el = document.createElement('div');
+    el.className = 'df-swatch';
+    el.title = `${i}: ${name}`;
+    el.style.background = `linear-gradient(to right,${c1} 25%,${c2} 25% 50%,${c3} 50% 75%,${c4} 75%)`;
+    el.onclick = () => {
+      wvPalGrid.querySelectorAll('.df-swatch').forEach((s,j)=>s.classList.toggle('active',j===i));
+      wavePalIdx=i;
+      getEl('wv-pal-num').textContent=i;
+      getEl('wv-pal-name').textContent=name;
+      getEl('wave-c1').value=c1;
+      getEl('wave-c2').value=c3;
+    };
+    wvPalGrid.appendChild(el);
+  });
+  function clearWavePreset() {
+    wvPalGrid.querySelectorAll('.df-swatch').forEach(el=>el.classList.remove('active'));
+    getEl('wv-pal-num').textContent='—';
+    getEl('wv-pal-name').textContent='Custom';
+    wavePalIdx=null;
+  }
+
+  // ── Spiral palette grid ───────────────────────────────────────────────────────
+  let spiralPalIdx = null;
+  const spPalGrid = getEl('sp-pal-grid');
+  DF_PAL.forEach(([name,c1,c2,c3,c4],i) => {
+    const el = document.createElement('div');
+    el.className = 'df-swatch';
+    el.title = `${i}: ${name}`;
+    el.style.background = `linear-gradient(to right,${c1} 25%,${c2} 25% 50%,${c3} 50% 75%,${c4} 75%)`;
+    el.onclick = () => {
+      spPalGrid.querySelectorAll('.df-swatch').forEach((s,j)=>s.classList.toggle('active',j===i));
+      spiralPalIdx=i;
+      getEl('sp-pal-num').textContent=i;
+      getEl('sp-pal-name').textContent=name;
+      getEl('spiral-c1').value=c1;
+      getEl('spiral-c2').value=c3;
+    };
+    spPalGrid.appendChild(el);
+  });
+  function clearSpiralPreset() {
+    spPalGrid.querySelectorAll('.df-swatch').forEach(el=>el.classList.remove('active'));
+    getEl('sp-pal-num').textContent='—';
+    getEl('sp-pal-name').textContent='Custom';
+    spiralPalIdx=null;
+  }
+
+  // ── Sun brightness init ───────────────────────────────────────────────────────
+  (function initSunBri() {
+    const saved = localStorage.getItem('sun_brightness');
+    if (saved !== null) {
+      sunPrevBri = +saved;
+      const el = getEl('sun-bri');
+      if (el) { el.value = sunPrevBri; getEl('v-sun-bri').textContent = sunPrevBri; }
+    }
+  })();
+
   // ── Frostbite presets ─────────────────────────────────────────────────────────
   const FB_PRESETS = [
     { name:'Arctic',   color:'#dce8ff' },
@@ -803,11 +1045,11 @@
 
   // ── Sun presets ───────────────────────────────────────────────────────────────
   const SUN_PRESETS = [
-    { name:'Solar',   c1:'#ffb700', c2:'#ff6600', c3:'#ff3300', c4:'#cc1100' },
-    { name:'Arctic',  c1:'#ffffff', c2:'#88ddff', c3:'#4499ff', c4:'#0055cc' },
-    { name:'Twilight',c1:'#ff99ff', c2:'#cc44ff', c3:'#9900cc', c4:'#550088' },
-    { name:'Neon',    c1:'#aaffaa', c2:'#00ff44', c3:'#00cc22', c4:'#005511' },
-    { name:'Lava',    c1:'#ffff00', c2:'#ff4400', c3:'#cc0000', c4:'#660000' },
+    { name:'Solar',   c1:'#ffb700', c2:'#ff6600', c3:'#ff3300', c4:'#cc1100', c5:'#660000' },
+    { name:'Arctic',  c1:'#ffffff', c2:'#88ddff', c3:'#4499ff', c4:'#0055cc', c5:'#002288' },
+    { name:'Twilight',c1:'#ff99ff', c2:'#cc44ff', c3:'#9900cc', c4:'#550088', c5:'#220044' },
+    { name:'Neon',    c1:'#aaffaa', c2:'#00ff44', c3:'#00cc22', c4:'#005511', c5:'#002208' },
+    { name:'Lava',    c1:'#ffff00', c2:'#ff4400', c3:'#cc0000', c4:'#660000', c5:'#220000' },
   ];
   const sunPresetsEl = getEl('sun-presets');
   SUN_PRESETS.forEach((p,i) => {
@@ -821,7 +1063,7 @@
   function applySunPreset(i) {
     const p=SUN_PRESETS[i];
     getEl('sun-c1').value=p.c1; getEl('sun-c2').value=p.c2;
-    getEl('sun-c3').value=p.c3; getEl('sun-c4').value=p.c4;
+    getEl('sun-c3').value=p.c3; getEl('sun-c4').value=p.c4; getEl('sun-c5').value=p.c5;
     sunPresetsEl.querySelectorAll('.preset-swatch').forEach((el,j)=>el.classList.toggle('active',j===i));
   }
   function clearSunPreset() {
@@ -830,7 +1072,7 @@
 
   // ── Panel map & animation selection ──────────────────────────────────────────
   const PANEL_MAP = {
-    rainbow:'panel-none', wave:'panel-none',
+    rainbow:'panel-rainbow', wave:'panel-wave',
     breathe:'panel-color', solid:'panel-color',
     spiral:'panel-spiral', starfield:'panel-starfield',
     frostbite:'panel-frostbite',
@@ -853,7 +1095,7 @@
 
   // ── Speed / Frame Rate sliders ────────────────────────────────────────────────
   function onSpeedChange(val) {
-    getEl('v-speed').textContent = Math.round(1000/val);
+    getEl('v-speed').textContent = val;
     updateDfCycleInfo();
   }
   function onDfHoldChange(val) {
@@ -861,7 +1103,7 @@
     updateDfCycleInfo();
   }
   function updateDfCycleInfo() {
-    const fps = Math.round(1000 / +getEl('speed').value);
+    const fps = +getEl('speed').value;
     const hold = +getEl('df-hold').value;
     const secs = (hold / fps).toFixed(1);
     getEl('df-cycle-info').textContent = `(≈ ${secs} sec per color)`;
@@ -869,9 +1111,13 @@
 
   // ── Payload builder ───────────────────────────────────────────────────────────
   function buildPayload() {
-    const speed = +getEl('speed').value;
+    const speed = Math.round(1000 / +getEl('speed').value);  // fps → ms for firmware
     const body  = { type: selectedType, speed };
-    if (selectedType==='breathe'||selectedType==='solid') {
+    if (selectedType==='rainbow' && rnPalMode==='palette') {
+      const pal = DF_PAL[rnPalIdx];
+      body.usePalette = true;
+      body.color1 = pal[1]; body.color2 = pal[2]; body.color3 = pal[3]; body.color4 = pal[4];
+    } else if (selectedType==='breathe'||selectedType==='solid') {
       body.color = getEl('color').value;
     } else if (selectedType==='spiral') {
       body.color1=getEl('spiral-c1').value; body.color2=getEl('spiral-c2').value;
@@ -888,11 +1134,16 @@
       body.color1=getEl('fw2-c1').value; body.color2=getEl('fw2-c2').value; body.color3=getEl('fw2-c3').value;
     } else if (selectedType==='dancefloor') {
       body.palette=dfPaletteIdx; body.hold=+getEl('df-hold').value;
+    } else if (selectedType==='wave') {
+      body.color1=getEl('wave-c1').value; body.color2=getEl('wave-c2').value;
     } else if (selectedType==='comet') {
-      body.color1=getEl('comet-c1').value; body.color2=getEl('comet-c2').value; body.color3=getEl('comet-c3').value;
+      body.color1=getEl('comet-c1').value; body.color2=getEl('comet-c2').value;
+      body.color3=getEl('comet-c3').value; body.color4=getEl('comet-c4').value;
     } else if (selectedType==='sun') {
       body.color1=getEl('sun-c1').value; body.color2=getEl('sun-c2').value;
-      body.color3=getEl('sun-c3').value; body.color4=getEl('sun-c4').value;
+      body.color3=getEl('sun-c3').value; body.color4=getEl('sun-c4').value; body.color5=getEl('sun-c5').value;
+      body.discBri=+getEl('sun-disc').value;
+      body.ringBri=+getEl('sun-ring').value;
     }
     return body;
   }
@@ -922,6 +1173,7 @@
   }
 
   // ── Boot ──────────────────────────────────────────────────────────────────────
+  getEl('panel-rainbow').classList.add('visible');  // show rainbow panel on load
   startPreview('rainbow');
   updateDfCycleInfo();
 

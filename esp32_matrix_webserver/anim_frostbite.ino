@@ -7,7 +7,7 @@
 
 struct FbSpark {
   uint8_t pixIdx;  // logical row-major index 0-63
-  uint8_t phase;   // 0-29: ramp up 0-7, hold 8-19, ramp down 20-29
+  uint8_t phase;   // 0-39: sine bell fade-in/out over 40 frames
   bool    active;
 };
 
@@ -28,17 +28,17 @@ void runFrostbiteFrame() {
     fbInit = true;
   }
 
-  // Shimmer: drift each pixel's brightness between lo and fbMistMax
+  // Shimmer: every pixel drifts every frame — no skipping, so motion is continuous.
+  // Rare random direction flip (~3%) keeps pixels from moving in lockstep.
   for (int i = 0; i < 64; i++) {
-    if (random(4) == 0) {
-      fbBri[i] += fbDir[i];
-      if (fbBri[i] >= fbMistMax) { fbBri[i] = fbMistMax; fbDir[i] = -1; }
-      if (fbBri[i] <= lo)        { fbBri[i] = lo;        fbDir[i] =  1; }
-    }
+    if (random(30) == 0) fbDir[i] = -fbDir[i];
+    int next = (int)fbBri[i] + fbDir[i];
+    if (next >= (int)fbMistMax) { fbBri[i] = fbMistMax; fbDir[i] = -1; }
+    else if (next <= (int)lo)   { fbBri[i] = lo;        fbDir[i] =  1; }
+    else                        { fbBri[i] = (uint8_t)next; }
   }
 
-  // Draw mist: fbColor directly, scaled by shimmer brightness
-  // No white blend — lets the actual hue show through clearly
+  // Draw mist: fbColor scaled by per-pixel shimmer brightness
   for (int y = 0; y < 8; y++) {
     for (int x = 0; x < 8; x++) {
       CRGB c = fbColor;
@@ -59,21 +59,20 @@ void runFrostbiteFrame() {
     }
   }
 
-  // Draw sparkles: fbColor at full LED brightness — clearly above the mist
+  // Draw sparkles: smooth sine bell fade-in/out over 40 phases (was 30 linear steps).
+  // Sine curve eliminates the visible brightness-step "chunking" of the old linear ramp.
   for (int s = 0; s < 8; s++) {
     FbSpark& sp = fbSparks[s];
     if (!sp.active) continue;
 
-    uint8_t bri;
-    if      (sp.phase < 8)  bri = sp.phase * 32;
-    else if (sp.phase < 20) bri = 255;
-    else                    bri = (uint8_t)((29 - sp.phase) * 28);
-
-    CRGB c = fbColor;
-    c.nscale8(bri);
-    setPixel(sp.pixIdx % 8, sp.pixIdx / 8, c);
+    uint8_t bri = (uint8_t)(sinf(sp.phase * 3.14159265f / 39.0f) * 255.0f);
+    if (bri > 0) {
+      CRGB c = fbColor;
+      c.nscale8(bri);
+      setPixel(sp.pixIdx % 8, sp.pixIdx / 8, c);
+    }
 
     sp.phase++;
-    if (sp.phase >= 30) sp.active = false;
+    if (sp.phase >= 40) sp.active = false;
   }
 }

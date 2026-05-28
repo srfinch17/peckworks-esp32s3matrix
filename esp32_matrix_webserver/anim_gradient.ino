@@ -106,11 +106,11 @@ void runStarfieldFrame() {
 }
 
 // ── Sun ───────────────────────────────────────────────────────
-// Core shape matches drawSunIcon() in weather.ino exactly.
-// sunColor1 = core disc. sunColor2/3/4 = spinning ring arc (head → tail).
-// Ring uses the same 8 ray positions as the weather sun animation.
+// Glowing 4x4 disc (sunColor1) with 4 colored dots orbiting the 8 ray positions.
+// Each dot keeps its own color (sunColor2-5, light to dark) as they revolve together.
+// Frame rate slider controls orbit speed.
 
-static uint8_t sunRingSlot = 0;   // active (brightest) ray index, advances each frame
+static uint8_t sunRingSlot = 0;
 
 static const int8_t SUN_BX[8] = {3, 6, 7, 6, 4, 1, 0, 1};
 static const int8_t SUN_BY[8] = {0, 1, 3, 6, 7, 6, 4, 1};
@@ -118,21 +118,22 @@ static const int8_t SUN_BY[8] = {0, 1, 3, 6, 7, 6, 4, 1};
 void runSunFrame() {
   fill_solid(leds, NUM_LEDS, CRGB::Black);
 
-  // Core disc: 4×4 minus corners
+  // Disc: 4x4 minus 4 corners, scaled by sunDiscBri
+  CRGB discC = sunColor1;
+  discC.nscale8(sunDiscBri);
   for (int y = 2; y <= 5; y++)
     for (int x = 2; x <= 5; x++)
-      setPixel(x, y, sunColor1);
+      setPixel(x, y, discC);
   setPixel(2, 2, CRGB::Black); setPixel(5, 2, CRGB::Black);
   setPixel(2, 5, CRGB::Black); setPixel(5, 5, CRGB::Black);
 
-  // Spinning arc: head=color2, mid=color3, tail=color4
-  for (int i = 0; i < 8; i++) {
-    int d = (i - (int)sunRingSlot + 8) % 8;
-    if      (d == 0)             setPixel(SUN_BX[i], SUN_BY[i], sunColor2);
-    else if (d == 1 || d == 7)   setPixel(SUN_BX[i], SUN_BY[i], sunColor3);
-    else if (d == 2 || d == 6)   { CRGB c = sunColor4; c.nscale8(120); setPixel(SUN_BX[i], SUN_BY[i], c); }
-    // d 3,4,5 → off
+  // 4 orbiting dots, evenly spaced (every 2 ring positions), each keeps its own color
+  const CRGB dotColors[4] = { sunColor2, sunColor3, sunColor4, sunColor5 };
+  for (int d = 0; d < 4; d++) {
+    uint8_t pos = (sunRingSlot + d * 2) % 8;
+    CRGB c = dotColors[d];
+    c.nscale8(sunRingBri);
+    setPixel(SUN_BX[pos], SUN_BY[pos], c);
   }
-
   sunRingSlot = (sunRingSlot + 1) % 8;
 }

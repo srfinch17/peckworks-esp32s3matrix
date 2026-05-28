@@ -57,6 +57,8 @@ void handleText() {
   scrollText.toUpperCase();   // font only has uppercase glyphs
   scrollColor    = hexToColor(String(doc["color"]  | "#FFFFFF"));
   scrollColor2   = hexToColor(String(doc["color2"] | "#FF4400"));
+  scrollColor3   = hexToColor(String(doc["color3"] | "#00CC64"));
+  scrollColor4   = hexToColor(String(doc["color4"] | "#0064FF"));
   scrollGradient = (bool)(doc["gradient"] | false);
   scrollSmall    = (bool)(doc["small"]    | false);
   scrollTiny     = (bool)(doc["tiny"]     | false);
@@ -209,6 +211,16 @@ void handleAnimation() {
     }
   }
 
+  if (animationName == "rainbow") {
+    rainbowUsePalette = (bool)(doc["usePalette"] | false);
+    if (rainbowUsePalette) {
+      rainbowPalColors[0] = hexToColor(String(doc["color1"] | "#FF0000"));
+      rainbowPalColors[1] = hexToColor(String(doc["color2"] | "#FFC800"));
+      rainbowPalColors[2] = hexToColor(String(doc["color3"] | "#00C800"));
+      rainbowPalColors[3] = hexToColor(String(doc["color4"] | "#0064FF"));
+    }
+  }
+
   if (animationName == "spiral") {
     const char* c1 = doc["color1"] | "#FF0000";
     const char* c2 = doc["color2"] | "#0000FF";
@@ -262,13 +274,22 @@ void handleAnimation() {
     fwIdleStartMs = 0;
   }
 
+  if (animationName == "wave") {
+    const char* c1 = doc["color1"] | "#0000FF";
+    const char* c2 = doc["color2"] | "#000028";
+    waveColor1 = hexToColor(String(c1));
+    waveColor2 = hexToColor(String(c2));
+  }
+
   if (animationName == "comet") {
     const char* c1 = doc["color1"] | "#FFC832";
     const char* c2 = doc["color2"] | "#FF6400";
-    const char* c3 = doc["color3"] | "#961E00";
+    const char* c3 = doc["color3"] | "#C83200";
+    const char* c4 = doc["color4"] | "#500A00";
     cometColor1 = hexToColor(String(c1));
     cometColor2 = hexToColor(String(c2));
     cometColor3 = hexToColor(String(c3));
+    cometColor4 = hexToColor(String(c4));
   }
 
   if (animationName == "sun") {
@@ -276,10 +297,14 @@ void handleAnimation() {
     const char* c2 = doc["color2"] | "#FF6600";
     const char* c3 = doc["color3"] | "#FF3300";
     const char* c4 = doc["color4"] | "#CC1100";
+    const char* c5 = doc["color5"] | "#880000";
     sunColor1 = hexToColor(String(c1));
     sunColor2 = hexToColor(String(c2));
     sunColor3 = hexToColor(String(c3));
     sunColor4 = hexToColor(String(c4));
+    sunColor5 = hexToColor(String(c5));
+    sunDiscBri = (uint8_t)constrain((int)(doc["discBri"] | 78) * 255 / 100, 0, 255);
+    sunRingBri = (uint8_t)constrain((int)(doc["ringBri"] | 78) * 255 / 100, 0, 255);
   }
 
   if (animationName == "frostbite") {
@@ -475,4 +500,50 @@ void handleStatus() {
 
   json += "}";
   sendJson(200, json);
+}
+
+// POST /api/grid-test/set — body: {"mode": "color"|"brightness", "brightness": 0-255}
+//
+// Diagnostic app. Two static test patterns to calibrate what the board can display.
+//
+// "color" mode: fills 64 pixels with R = (linear_index + 1) * 4, capped at 255.
+//   Pixel [row, col] (1-indexed, left=1, top=1):
+//     linear_index = (row-1)*8 + (col-1)
+//     [1,1]=R4  [1,2]=R8 ... [1,8]=R32
+//     [2,1]=R36 ...          [2,8]=R64
+//     ...
+//     [8,8]=R255
+//   Run at full brightness (255) to find the minimum R value that lights the LED.
+//
+// "brightness" mode: all 64 pixels = (255,0,0). Drag the brightness slider to find
+//   the global brightness threshold below which LEDs go dark.
+//
+// Static display — no animation loop. Changing brightness via /api/brightness
+// re-renders whatever is already in leds[] at the new brightness level.
+void handleGridTest() {
+  JsonDocument doc;
+  if (deserializeJson(doc, server.arg("plain")) != DeserializationError::Ok) {
+    sendJson(400, "{\"error\":\"Invalid JSON\"}");
+    return;
+  }
+
+  stopAll();
+
+  gridTestMode       = String(doc["mode"] | "color");
+  gridTestBrightness = (uint8_t)constrain((int)(doc["brightness"] | 255), 0, 255);
+  brightness         = gridTestBrightness;
+
+  FastLED.setBrightness(brightness);
+
+  if (gridTestMode == "color") {
+    for (int i = 0; i < NUM_LEDS; i++) {
+      uint8_t r = (uint8_t)constrain((i + 1) * 4, 0, 255);
+      leds[i] = CRGB(r, 0, 0);
+    }
+  } else {
+    fill_solid(leds, NUM_LEDS, CRGB(255, 0, 0));
+  }
+
+  FastLED.show();
+  sendJson(200, "{\"status\":\"ok\",\"mode\":\"" + gridTestMode + "\",\"brightness\":" + String(brightness) + "}");
 }

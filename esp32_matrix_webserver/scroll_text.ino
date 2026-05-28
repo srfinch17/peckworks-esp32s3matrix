@@ -248,14 +248,19 @@ void renderScrollFrame() {
     char c = toupper(scrollText.charAt(charIdx));
     int fontIdx = (int)c - 32;   // convert ASCII code to font array index
 
-    // Choose color: flat or gradient
+    // Choose color: flat or 4-color gradient across 3 equal segments
     CRGB col = scrollColor;
     if (scrollGradient && scrollPixelLen > 1) {
       float t = constrain((float)textPixelX / (float)(scrollPixelLen - 1), 0.0f, 1.0f);
+      float seg;
+      CRGB  from, to;
+      if (t < 0.333f)      { seg = t * 3.0f;             from = scrollColor;  to = scrollColor2; }
+      else if (t < 0.667f) { seg = (t - 0.333f) * 3.0f;  from = scrollColor2; to = scrollColor3; }
+      else                 { seg = (t - 0.667f) * 3.0f;  from = scrollColor3; to = scrollColor4; }
       col = CRGB(
-        (uint8_t)(scrollColor.r + (int16_t)(scrollColor2.r - scrollColor.r) * t),
-        (uint8_t)(scrollColor.g + (int16_t)(scrollColor2.g - scrollColor.g) * t),
-        (uint8_t)(scrollColor.b + (int16_t)(scrollColor2.b - scrollColor.b) * t)
+        (uint8_t)(from.r + (int16_t)(to.r - from.r) * seg),
+        (uint8_t)(from.g + (int16_t)(to.g - from.g) * seg),
+        (uint8_t)(from.b + (int16_t)(to.b - from.b) * seg)
       );
     }
 

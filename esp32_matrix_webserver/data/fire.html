@@ -84,7 +84,9 @@
       <div class="group">
         <label>Speed — <span id="v-speed">15</span> fps</label>
         <div class="slider-row">
-          <input type="range" id="speed" min="30" max="200" value="66">
+          <span style="font-size:.68rem;color:#555">Slow</span>
+          <input type="range" id="speed" min="5" max="33" value="15">
+          <span style="font-size:.68rem;color:#555">Fast</span>
         </div>
       </div>
 
@@ -140,7 +142,7 @@
     let theme         = 'classic';
     let intensity     = 6;
     let tendrils      = 0;
-    let speedMs       = 66;
+    let speedMs       = Math.round(1000 / 15);  // 15fps default
     let autoSync      = false;
     let sparkRate = 0; // 0 = off, 1–10 = spawn frequency
 
@@ -317,10 +319,9 @@
       if (autoSync) applyToDisplay();
     });
 
-    // Speed slider stores delay in ms; display the inverse (fps) to the user
     document.getElementById('speed').addEventListener('input', e => {
-      speedMs = +e.target.value;
-      document.getElementById('v-speed').textContent = Math.round(1000 / speedMs);
+      speedMs = Math.round(1000 / +e.target.value);
+      document.getElementById('v-speed').textContent = e.target.value;
       if (autoSync) applyToDisplay();
     });
 
