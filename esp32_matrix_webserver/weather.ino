@@ -315,6 +315,8 @@ void fetchWeather() {
   // All values arrive as strings — use atoi() to convert. Null-check first.
   int tF = tf ? atoi(tf) : 0;
   int tC = tc ? atoi(tc) : 0;
+  weatherTempF    = tF;
+  weatherTempC    = tC;
   weatherTempVal  = (weatherUnit == "F") ? tF : tC;
   weatherCode     = wc ? atoi(wc) : 113;
   weatherHumidity = hu ? atoi(hu) : 0;
@@ -592,4 +594,210 @@ void stepWeatherFrame() {
       drawValueOverlay(weatherPressure / 10,  CHSV(192, 200, 110), CHSV(212, 185, 110));
     }
   }
+}
+
+// ============================================================
+// WEATHER 2 — Icon (rows 0-3) + Temp (rows 5-7) simultaneously
+// ============================================================
+
+// ── Sparkle structures ────────────────────────────────────────
+struct W2Ray {
+  uint8_t row, col;
+  uint8_t phase;   // 1-39 = active sparkle; 0 = waiting
+  uint8_t delay;   // countdown frames before next sparkle
+};
+
+struct W2Precip {
+  uint8_t col;
+  uint8_t phase;
+  uint8_t delay;
+};
+
+static W2Ray    w2Rays[5] = {
+  {2, 0, 0,  2},
+  {2, 7, 0, 10},
+  {3, 2, 0,  5},
+  {3, 4, 0, 18},
+  {3, 6, 0, 13},
+};
+static W2Precip w2Precip[4] = {
+  {0, 0,  0},
+  {0, 0,  3},
+  {0, 0,  5},
+  {0, 0,  1},
+};
+
+// ── Shared cloud shape ────────────────────────────────────────
+// Poofy bottom: narrow top (cols 2-5), body (cols 1-6), bottom (cols 1-6)
+void drawW2Cloud(CRGB c) {
+  for (int x = 2; x <= 5; x++) setPixel(x, 0, c);
+  for (int x = 1; x <= 6; x++) setPixel(x, 1, c);
+  for (int x = 1; x <= 6; x++) setPixel(x, 2, c);
+}
+
+// ── Temp + degree dot ─────────────────────────────────────────
+void drawW2Digit(int digit, int startCol, CRGB color) {
+  int idx = 26 + (digit % 10);
+  for (int c = 0; c < 3; c++) {
+    uint8_t bits = pgm_read_byte(&FONT_3X3[idx][c]);
+    for (int r = 0; r < 3; r++)
+      if ((bits >> r) & 1) setPixel(startCol + c, r + 5, color);
+  }
+}
+
+void drawWeather2Temp() {
+  setPixel(7, 4, CRGB(0, 200, 255));   // degree dot — always cyan
+
+  int val    = (weather2Unit == "F") ? weatherTempF : weatherTempC;
+  int absVal = abs(val);
+
+  if (absVal >= 100) {
+    for (int r = 5; r <= 7; r++) setPixel(0, r, weather2Color1);  // thin "1" bar
+    drawW2Digit((absVal / 10) % 10, 2, weather2Color1);
+    drawW2Digit(absVal % 10,        5, weather2Color2);
+  } else if (absVal >= 10) {
+    drawW2Digit(absVal / 10, 0, weather2Color1);
+    drawW2Digit(absVal % 10, 4, weather2Color2);
+  } else {
+    drawW2Digit(absVal, 3, weather2Color2);
+  }
+}
+
+// ── Icon: Sunny ───────────────────────────────────────────────
+void drawSunnyIcon2() {
+  CRGB core = CRGB(255, 220, 0);
+  CRGB tip  = CRGB(255, 192, 0);
+  CRGB ray  = CRGB(255, 120, 0);
+
+  for (int x = 0; x < 8; x++) setPixel(x, 0, core);
+  for (int x = 1; x <= 6; x++) setPixel(x, 1, core);
+  for (int x = 2; x <= 5; x++) setPixel(x, 2, tip);
+
+  for (int i = 0; i < 5; i++) {
+    W2Ray& r = w2Rays[i];
+    if (r.phase > 0) {
+      uint8_t bri = (uint8_t)(sinf(r.phase * 3.14159f / 39.0f) * 255.0f);
+      CRGB c = ray;
+      c.nscale8(max(bri, (uint8_t)1));
+      setPixel(r.col, r.row, c);
+      if (++r.phase >= 40) { r.phase = 0; r.delay = 15 + (uint8_t)random(30); }
+    } else if (r.delay > 0) {
+      r.delay--;
+    } else {
+      r.phase = 1;
+    }
+  }
+}
+
+// ── Icon: Partly Cloudy ───────────────────────────────────────
+void drawPartlyCloudyIcon2() {
+  CRGB core  = CRGB(255, 220, 0);
+  CRGB tip   = CRGB(255, 192, 0);
+  CRGB ray   = CRGB(255, 120, 0);
+  CRGB cloud = CRGB(216, 228, 240);
+
+  // Sun dome
+  for (int x = 0; x < 8; x++) setPixel(x, 0, core);
+  for (int x = 1; x <= 6; x++) setPixel(x, 1, core);
+  for (int x = 2; x <= 5; x++) setPixel(x, 2, tip);
+
+  // Cloud overwrites right side
+  for (int x = 5; x <= 7; x++) setPixel(x, 1, cloud);
+  for (int x = 4; x <= 7; x++) setPixel(x, 2, cloud);
+
+  // Only left-side rays (indices 0,2 — positions (2,0) and (3,2))
+  for (int i : {0, 2}) {
+    W2Ray& r = w2Rays[i];
+    if (r.phase > 0) {
+      uint8_t bri = (uint8_t)(sinf(r.phase * 3.14159f / 39.0f) * 255.0f);
+      CRGB c = ray; c.nscale8(max(bri, (uint8_t)1));
+      setPixel(r.col, r.row, c);
+      if (++r.phase >= 40) { r.phase = 0; r.delay = 15 + (uint8_t)random(30); }
+    } else if (r.delay > 0) { r.delay--;
+    } else { r.phase = 1; }
+  }
+}
+
+// ── Icon: Cloudy ──────────────────────────────────────────────
+void drawCloudyIcon2(uint8_t f) {
+  uint8_t br = 120 + sin8(f * 3) / 5;
+  drawW2Cloud(CRGB(br, br, (uint8_t)(br + 15)));
+}
+
+// ── Icon: Fog ─────────────────────────────────────────────────
+void drawFogIcon2(uint8_t f) {
+  for (int y = 0; y < 4; y++) {
+    uint8_t br = 30 + sin8(f * 2 + (uint8_t)(y * 35)) / 6;
+    CRGB c = CRGB(br, br, (uint8_t)(br + 10));
+    for (int x = 0; x < 8; x++) setPixel(x, y, c);
+  }
+}
+
+// ── Icon: Rain ────────────────────────────────────────────────
+void drawRainIcon2() {
+  static const uint8_t RCOLS[4] = {1, 3, 5, 6};
+  drawW2Cloud(CRGB(216, 228, 240));
+
+  CRGB bright = CRGB(0, 85, 238);
+  for (int i = 0; i < 4; i++) {
+    W2Precip& p = w2Precip[i];
+    p.col = RCOLS[i];
+    if (p.phase > 0) {
+      uint8_t bri = (uint8_t)(sinf(p.phase * 3.14159f / 5.0f) * 255.0f);
+      CRGB c = bright; c.nscale8(max(bri, (uint8_t)1));
+      setPixel(p.col, 3, c);
+      if (++p.phase >= 6) { p.phase = 0; p.delay = 2 + (uint8_t)random(6); }
+    } else if (p.delay > 0) { p.delay--;
+    } else { p.phase = 1; }
+  }
+}
+
+// ── Icon: Snow ────────────────────────────────────────────────
+void drawSnowIcon2() {
+  static const uint8_t SCOLS[3] = {2, 4, 6};
+  drawW2Cloud(CRGB(216, 228, 240));
+
+  CRGB bright = CRGB(136, 200, 255);
+  for (int i = 0; i < 3; i++) {
+    W2Precip& p = w2Precip[i];
+    p.col = SCOLS[i];
+    if (p.phase > 0) {
+      uint8_t bri = (uint8_t)(sinf(p.phase * 3.14159f / 9.0f) * 255.0f);
+      CRGB c = bright; c.nscale8(max(bri, (uint8_t)1));
+      setPixel(p.col, 3, c);
+      if (++p.phase >= 10) { p.phase = 0; p.delay = 8 + (uint8_t)random(15); }
+    } else if (p.delay > 0) { p.delay--;
+    } else { p.phase = 1; }
+  }
+}
+
+// ── Icon: Thunder ─────────────────────────────────────────────
+void drawThunderIcon2(uint8_t f) {
+  drawW2Cloud(CRGB(70, 70, 95));
+  if ((f % 25) < 2) {
+    setPixel(4, 3, CRGB(255, 255, 180));
+    setPixel(5, 3, CRGB(255, 255, 180));
+  }
+}
+
+// ── stepWeather2Frame ─────────────────────────────────────────
+void stepWeather2Frame() {
+  static uint8_t w2f = 0;
+  if ((millis() - lastWeatherFetch) >= 600000UL) fetchWeather();
+
+  w2f++;
+  fill_solid(leds, NUM_LEDS, CRGB::Black);
+
+  switch (weatherCategory(weatherCode)) {
+    case 0:  drawSunnyIcon2();           break;
+    case 1:  drawPartlyCloudyIcon2();    break;
+    case 2:  drawCloudyIcon2(w2f);       break;
+    case 3:  drawFogIcon2(w2f);          break;
+    case 4:  drawRainIcon2();            break;
+    case 5:  drawSnowIcon2();            break;
+    case 6:  drawThunderIcon2(w2f);      break;
+    default: drawSunnyIcon2();           break;
+  }
+
+  drawWeather2Temp();
 }

@@ -164,6 +164,16 @@ void handleAnimation() {
     fetchWeather();   // fetch immediately; loop will re-fetch every 10 minutes
   }
 
+  if (animationName == "weather2") {
+    weatherZip    = String(doc["zipcode"] | "85013");
+    weather2Unit  = String(doc["units"]   | "F");
+    const char* c1 = doc["color1"] | "#FFA500";
+    const char* c2 = doc["color2"] | "#FFDC50";
+    weather2Color1 = hexToColor(String(c1));
+    weather2Color2 = hexToColor(String(c2));
+    fetchWeather();
+  }
+
   if (animationName == "timer_fill" || animationName == "timer_snow" || animationName == "timer_text") {
     uint32_t dur  = (uint32_t)(doc["duration"] | 300);   // default 5 minutes
     timerTotalMs  = dur * 1000UL;
