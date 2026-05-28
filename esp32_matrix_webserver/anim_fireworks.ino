@@ -1,8 +1,7 @@
 // ============================================================
-// SECTION: FIREWORKS ANIMATIONS (1, 2, 3, 4)
+// SECTION: FIREWORKS ANIMATIONS (1 + 2)
 // FW1: white mortar → colorful radial burst → fade.
 // FW2: same launch, brighter bloom burst, colored tip + white comet tail per tendril.
-// FW3/FW4: stubs — delegate to FW2/FW1 until implemented.
 // ============================================================
 
 enum FwPhase : uint8_t { FW_IDLE, FW_LAUNCH, FW_EXPLODE, FW_FADE };
@@ -180,6 +179,3 @@ void stepFireworks2Frame() {
   }
 }
 
-// Fireworks 3 + 4 — stubs, not yet designed
-void stepFireworks3Frame() { stepFireworks2Frame(); }
-void stepFireworks4Frame() { stepFireworksFrame();  }

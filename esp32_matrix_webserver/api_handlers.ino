@@ -274,16 +274,6 @@ void handleAnimation() {
     fw2IdleStartMs = 0;
   }
 
-  if (animationName == "fireworks3") {
-    fw2Phase       = FW_IDLE;
-    fw2IdleStartMs = 0;
-  }
-
-  if (animationName == "fireworks4") {
-    fwPhase       = FW_IDLE;
-    fwIdleStartMs = 0;
-  }
-
   if (animationName == "wave") {
     const char* c1 = doc["color1"] | "#0000FF";
     const char* c2 = doc["color2"] | "#000028";
