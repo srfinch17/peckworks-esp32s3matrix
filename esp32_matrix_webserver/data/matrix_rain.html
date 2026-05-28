@@ -77,7 +77,7 @@
           <input type="range" id="bri" min="0" max="255" value="40" oninput="updateBrightness(this.value)">
           <span style="font-size:.68rem;color:#555">Full</span>
         </div>
-        <div class="hint">Preview applies the same dimming math as the board — what you see here is what the LEDs will show.</div>
+        <div class="hint">Controls board brightness — the preview above always renders at full brightness.</div>
       </div>
 
       <div class="actions">
@@ -138,18 +138,18 @@
       const t = THEMES[theme];
 
       for (const d of drops) {
-        // Head — dimmed by current brightness
+        // Head at full brightness — board brightness only affects the LEDs, not this canvas
         if (d.headY >= 0 && d.headY < H) {
-          ctx.fillStyle = `rgb(${dim(t.head[0])},${dim(t.head[1])},${dim(t.head[2])})`;
+          ctx.fillStyle = `rgb(${t.head[0]},${t.head[1]},${t.head[2]})`;
           ctx.fillRect(d.col * CELL, d.headY * CELL, CELL, CELL);
         }
 
-        // Fading trail — fade applied first, then brightness scaling
+        // Fading trail
         for (let i = 1; i <= TRAIL_LEN; i++) {
           const ty = d.headY - i;
           if (ty < 0 || ty >= H) continue;
           const fade = 1 - i / (TRAIL_LEN + 1);
-          ctx.fillStyle = `rgb(${dim((t.trail[0] * fade) | 0)},${dim((t.trail[1] * fade) | 0)},${dim((t.trail[2] * fade) | 0)})`;
+          ctx.fillStyle = `rgb(${(t.trail[0] * fade) | 0},${(t.trail[1] * fade) | 0},${(t.trail[2] * fade) | 0})`;
           ctx.fillRect(d.col * CELL, ty * CELL, CELL, CELL);
         }
       }
