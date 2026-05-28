@@ -11,9 +11,10 @@
 //     [Claude] → [MCP Server on PC] → [HTTP] → [This firmware] → [LEDs]
 //
 // LIBRARIES — install via Arduino IDE → Tools → Manage Libraries:
-//   - FastLED    by Daniel Garcia   (version 3.6 or later)
-//   - ArduinoJson by Benoit Blanchon (version 7.x)
-//   - PNGdec     by Larry Bank      (any recent version) — for remote weather icon
+//   - FastLED      by Daniel Garcia   (version 3.6 or later)
+//   - ArduinoJson  by Benoit Blanchon (version 7.x)
+//   - PNGdec       by Larry Bank      (any recent version) — for remote weather icon
+//   - WiFiManager  by tzapu           (any recent version) — captive-portal WiFi setup
 //   WiFi, WebServer, and WiFiClientSecure are built into the ESP32 Arduino core.
 //
 // ARDUINO IDE BOARD SETTINGS (Tools menu):
@@ -39,6 +40,7 @@
 // ============================================================
 
 #include <WiFi.h>
+#include <WiFiManager.h>
 #include <ESPmDNS.h>
 #include <WebServer.h>
 #include <FastLED.h>
@@ -67,13 +69,15 @@
 #define QMI8658_ADDR 0x6B
 
 // ============================================================
-// SECTION 2: WIFI CREDENTIALS
+// SECTION 2: WIFI SETUP
 // ============================================================
-// Credentials live in secrets.h — copy secrets.h.example to
-// secrets.h and fill in your network name and password.
-// secrets.h is gitignored and never committed to the repo.
-
-#include "secrets.h"
+// WiFi credentials are configured at runtime via a captive portal —
+// no hardcoded passwords, no recompiling. On first boot (or when saved
+// credentials fail) the board starts a hotspot named "ESP32-Matrix-Setup".
+// Connect to that network on any phone or laptop, enter your home WiFi
+// name + password, and the board saves them to flash and reboots.
+// From then on it connects automatically. To reconfigure, hold the BOOT
+// button for 3 seconds while powering on (see setup() below).
 
 // ============================================================
 // SECTION 3: GLOBAL STATE
@@ -419,28 +423,40 @@ void setup() {
   FastLED.show();
   Serial.println("LEDs initialized.");
 
-  Serial.print("Connecting to: ");
-  Serial.println(WIFI_SSID);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-
-  // Connection progress animation: each LED lights blue briefly as
-  // we wait for WiFi. The dot counter sweeps left-to-right, top-to-bottom.
-  // delay() is safe here because we're still in setup() — the web server
-  // isn't running yet so there's nothing to be non-blocking about.
-  int dot = 0;
-  while (WiFi.status() != WL_CONNECTED) {
-    int idx = XY(dot % MATRIX_W, (dot / MATRIX_W) % MATRIX_H);
-    if (idx >= 0) {
-      leds[idx] = CRGB::Blue;
-      FastLED.show();
-      delay(80);
-      leds[idx] = CRGB::Black;
-    }
-    dot++;
-    if (dot % 16 == 0) Serial.print(".");
+  // Hold BOOT (GPIO 0) during power-on to wipe saved credentials and force
+  // the config portal — useful if you're moving the board to a new network.
+  pinMode(0, INPUT_PULLUP);
+  if (digitalRead(0) == LOW) {
+    Serial.println("BOOT held — clearing saved WiFi credentials.");
+    WiFiManager wm;
+    wm.resetSettings();
   }
 
-  Serial.println("\nWiFi connected!");
+  // Blue = trying to connect (or waiting for portal input)
+  fill_solid(leds, NUM_LEDS, CRGB::Blue);
+  FastLED.show();
+
+  WiFiManager wm;
+  wm.setConnectTimeout(10);  // give up on saved credentials after 10 s
+
+  // Amber = config portal is open; user needs to connect to "ESP32-Matrix-Setup"
+  wm.setAPCallback([](WiFiManager*) {
+    Serial.println("No saved WiFi found — config portal open.");
+    Serial.println("Connect to hotspot: ESP32-Matrix-Setup");
+    Serial.println("Then open 192.168.4.1 in your browser.");
+    fill_solid(leds, NUM_LEDS, CRGB(255, 80, 0));
+    FastLED.show();
+  });
+
+  // autoConnect() tries saved credentials first. If that fails it starts the
+  // "ESP32-Matrix-Setup" AP and blocks here until the user configures WiFi.
+  if (!wm.autoConnect("ESP32-Matrix-Setup")) {
+    Serial.println("WiFi setup failed — restarting in 5 s...");
+    delay(5000);
+    ESP.restart();
+  }
+
+  Serial.println("WiFi connected!");
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
 
