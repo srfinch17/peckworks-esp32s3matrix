@@ -544,8 +544,6 @@ void loop() {
     else if (animationName == "starfield") runStarfieldFrame();
     else if (animationName == "fireworks")  stepFireworksFrame();
     else if (animationName == "fireworks2") stepFireworks2Frame();
-    else if (animationName == "fireworks3") stepFireworks3Frame();
-    else if (animationName == "fireworks4") stepFireworks4Frame();
     else if (animationName == "comet")      runCometFrame();
     else if (animationName == "sun")       runSunFrame();
     else if (animationName == "frostbite") runFrostbiteFrame();

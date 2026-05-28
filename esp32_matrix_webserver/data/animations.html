@@ -115,16 +115,6 @@
       <div class="name">Fireworks 2</div>
       <div class="desc">Comet tails — colored tip, white trail</div>
     </div>
-    <div class="anim-card" data-type="fireworks3" onclick="selectAnim(this)">
-      <span class="icon">✦</span>
-      <div class="name">Fireworks 3</div>
-      <div class="desc">Coming soon</div>
-    </div>
-    <div class="anim-card" data-type="fireworks4" onclick="selectAnim(this)">
-      <span class="icon">✧</span>
-      <div class="name">Fireworks 4</div>
-      <div class="desc">Coming soon</div>
-    </div>
     <div class="anim-card" data-type="dancefloor" onclick="selectAnim(this)">
       <span class="icon">🪩</span>
       <div class="name">Dance Floor</div>
@@ -446,8 +436,6 @@
       case 'frostbite':  stepPrevFrostbite();      break;
       case 'fireworks':  stepPrevFW(false);        break;
       case 'fireworks2': stepPrevFW(true);         break;
-      case 'fireworks3': stepPrevFW(true);         break; // stub: same as fw2
-      case 'fireworks4': stepPrevFW(false);        break; // stub: same as fw1
       case 'comet':      stepPrevComet();          break;
       case 'sun':        stepPrevSun();            break;
       case 'dancefloor': stepPrevDanceFloor();     break;
