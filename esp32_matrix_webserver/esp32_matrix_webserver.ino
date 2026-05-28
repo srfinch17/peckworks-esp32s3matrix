@@ -145,6 +145,13 @@ bool     weatherShowIcon   = false;     // true = showing icon, false = showing 
 CRGB     weatherIconBuf[64];            // decoded remote PNG icon, scaled to 8×8
 bool     weatherHasIcon    = false;     // true once the remote icon has been fetched
 
+// ── Weather 2 state ───────────────────────────────────────────
+String   weather2Unit    = "F";
+CRGB     weather2Color1  = CRGB(255, 165,   0);  // temp tens digit (amber)
+CRGB     weather2Color2  = CRGB(255, 220,  80);  // temp units digit (gold)
+int      weatherTempF    = 0;   // raw °F — stored separately so W1/W2 can use independent units
+int      weatherTempC    = 0;   // raw °C
+
 // ── Clock state ───────────────────────────────────────────────
 CRGB     clockColorHours = CRGB(255,  51,   0);  // hours digit color    (#FF3300)
 CRGB     clockColorColon = CRGB(255, 255, 255);  // colon dot color      (#FFFFFF)
@@ -526,6 +533,7 @@ void loop() {
     else if (animationName == "imu")        stepImuFrame();
     else if (animationName == "chiptemp")   stepChipTempFrame();
     else if (animationName == "weather")    stepWeatherFrame();
+    else if (animationName == "weather2")   stepWeather2Frame();
     else if (animationName == "timer_fill") stepTimerFillFrame();
     else if (animationName == "timer_snow") stepTimerSnowFrame();
     else if (animationName == "timer_text") stepTimerTextFrame();
