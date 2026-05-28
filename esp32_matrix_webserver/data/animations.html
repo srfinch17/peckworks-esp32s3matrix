@@ -373,13 +373,13 @@
         </div>
       </div>
       <div class="group">
-        <label>Preview Brightness — <span id="v-sun-bri">40</span></label>
+        <label>Board Brightness — <span id="v-sun-bri">40</span></label>
         <div class="slider-row">
           <span style="font-size:.7rem;color:#555">Off</span>
           <input type="range" id="sun-bri" min="0" max="255" value="40" oninput="updateSunBrightness(this.value)">
           <span style="font-size:.7rem;color:#555">Full</span>
         </div>
-        <div class="hint">Preview applies the same brightness math as the board — what you see here is what the LEDs will show.</div>
+        <div class="hint">Controls board brightness — the preview above always renders at full brightness.</div>
       </div>
     </div>
 
@@ -763,11 +763,10 @@
     prevCells.fill('#000');
     const discPct = +(getEl('sun-disc')?.value||78);   // 0-100%
     const ringPct = +(getEl('sun-ring')?.value||78);
-    const bri     = sunPrevBri;                        // 0-255 global brightness
-    // Apply disc/ring intensity (nscale8) then global brightness (nscale8) — exact firmware math
+    // Apply disc/ring intensity only — board brightness is not applied to the canvas
     function sunCh(ch, pct) {
       const s1 = (pct / 100 * 255) | 0;
-      return sc8(sc8(ch, s1), bri);
+      return sc8(ch, s1);
     }
     const c1=hex2rgb(pickVal('sun-c1','#ffb700'));
     const c2=hex2rgb(pickVal('sun-c2','#ff6600'));
