@@ -1101,14 +1101,22 @@
 
   let selectedType = 'rainbow';
 
-  function selectAnim(card) {
+  // Show one animation's settings panel + preview (no navigation).
+  function showAnim(type) {
     document.querySelectorAll('.anim-card').forEach(c=>c.classList.remove('selected'));
-    card.classList.add('selected');
-    selectedType = card.dataset.type;
+    const card = document.querySelector('.anim-card[data-type="'+type+'"]');
+    if (card) card.classList.add('selected');
+    selectedType = type;
     document.querySelectorAll('.anim-panel').forEach(p=>p.classList.remove('visible'));
-    const panelId = PANEL_MAP[selectedType];
+    const panelId = PANEL_MAP[type];
     if (panelId) getEl(panelId).classList.add('visible');
-    startPreview(selectedType);
+    startPreview(type);
+  }
+
+  // Clicking a card opens that animation as its own dedicated page (?type=X),
+  // so its settings land at the top with no chooser grid to scroll past.
+  function selectAnim(card) {
+    location.search = '?type=' + card.dataset.type;
   }
 
   // ── Speed / Frame Rate sliders ────────────────────────────────────────────────
@@ -1191,9 +1199,21 @@
   }
 
   // ── Boot ──────────────────────────────────────────────────────────────────────
-  getEl('panel-rainbow').classList.add('visible');  // show rainbow panel on load
-  startPreview('rainbow');
-  updateDfCycleInfo();
+  // ?type=X → dedicated single-animation page: hide the chooser grid so the
+  // settings sit at the top (no scrolling), exactly like the Fire/Liquid pages.
+  (function boot() {
+    const type = new URLSearchParams(location.search).get('type');
+    const card = type && document.querySelector('.anim-card[data-type="'+type+'"]');
+    if (card) {
+      document.querySelector('.anim-grid').style.display = 'none';
+      const back = document.querySelector('.back');
+      if (back) { back.setAttribute('href', '/animations.html'); back.textContent = '← All animations'; }
+      showAnim(type);
+    } else {
+      showAnim('rainbow');   // hub default
+    }
+    updateDfCycleInfo();
+  })();
 
   </script>
   </div>
