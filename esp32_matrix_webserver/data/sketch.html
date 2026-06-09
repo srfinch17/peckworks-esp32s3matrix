@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sketch — ESP32 Matrix</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; padding: 20px; }
+    .wrap { max-width: 760px; margin: 0 auto; }
+    .back { color: #555; text-decoration: none; font-size: 0.85rem; display: inline-block; margin-bottom: 16px; }
+    .back:hover { color: #999; }
+    h1 { font-size: 1.3rem; color: #ff9ed8; margin-bottom: 20px; }
+    .panel { background: #161616; border: 1px solid #2a2a2a; border-radius: 12px; padding: 22px; }
+    .editor { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+    /* 8×8 paint grid */
+    .grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; width: 320px; max-width: 80vw; aspect-ratio: 1; background: #050505; padding: 3px; border-radius: 8px; touch-action: none; user-select: none; }
+    .cell { border-radius: 3px; background: #000; cursor: crosshair; }
+    .cell:hover { outline: 1px solid #444; }
+    /* board preview */
+    .preview-col { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    #preview { image-rendering: pixelated; border-radius: 8px; background: #050505; width: 144px; height: 144px; }
+    .preview-label { font-size: 0.62rem; color: #555; text-transform: uppercase; letter-spacing: .08em; text-align: center; }
+    /* tools */
+    .tools { margin-top: 20px; }
+    .tool-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+    .tool-row label { font-size: 0.78rem; color: #888; }
+    input[type=color] { width: 46px; height: 34px; border: 1px solid #333; border-radius: 6px; background: none; cursor: pointer; padding: 2px; }
+    .swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+    .swatch { width: 26px; height: 26px; border-radius: 6px; border: 2px solid #2a2a2a; cursor: pointer; transition: transform .1s; }
+    .swatch:hover { transform: scale(1.12); }
+    .swatch.active { border-color: #fff; }
+    button { background: #1e1e1e; color: #ccc; border: 1px solid #333; border-radius: 7px; padding: 9px 16px; cursor: pointer; font-size: 0.85rem; transition: background 0.12s; }
+    button:hover { background: #272727; }
+    .btn-send { background: #3a1230; color: #ff9ed8; border-color: #6a2057; font-weight: 600; }
+    .btn-send:hover { background: #4a1840; }
+    .btn-eraser.active { background: #333; color: #fff; border-color: #666; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+    .status { font-size: 0.78rem; margin-top: 14px; min-height: 1.2em; color: #00cc66; }
+    .status.err { color: #ff5555; }
+    hr.sep { border: none; border-top: 1px solid #222; margin: 20px 0; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a href="/" class="back">← Home</a>
+    <h1>🎨 Sketch</h1>
+
+    <div class="panel">
+      <div class="editor">
+        <div class="grid" id="grid"></div>
+        <div class="preview-col">
+          <canvas id="preview" width="8" height="8"></canvas>
+          <div class="preview-label">Board preview<br>(at current brightness)</div>
+        </div>
+      </div>
+
+      <hr class="sep">
+
+      <div class="tools">
+        <div class="tool-row">
+          <label>Color</label>
+          <input type="color" id="picker" value="#ff3030">
+          <div class="swatches" id="swatches"></div>
+          <button class="btn-eraser" id="eraser" onclick="toggleEraser()">Eraser</button>
+        </div>
+        <div class="actions">
+          <button class="btn-send" onclick="sendToBoard()">Send to Board</button>
+          <button onclick="fillAll()">Fill</button>
+          <button onclick="clearGrid()">Clear</button>
+        </div>
+      </div>
+
+      <div class="status" id="status"></div>
+    </div>
+  </div>
+
+  <script src="ledsim.js"></script>
+  <script src="bright.js" data-auto></script>
+  <script>
+    const N = 8, OFF = '#000000';
+    const SWATCHES = ['#ffffff','#ff3030','#ff8800','#ffe000','#22cc44','#00cccc','#2060ff','#8000ff','#ff30c0','#000000'];
+
+    let cells = new Array(N * N).fill(OFF);
+    let curColor = document.getElementById('picker').value;
+    let erasing = false;
+    let painting = false;
+
+    const gridEl = document.getElementById('grid');
+    const cellEls = [];
+    const prev = document.getElementById('preview');
+    const pctx = prev.getContext('2d');
+
+    function setStatus(msg, isErr) {
+      const el = document.getElementById('status');
+      el.textContent = msg; el.className = 'status' + (isErr ? ' err' : '');
+    }
+
+    // ── Build the grid ──────────────────────────────────────────
+    for (let i = 0; i < N * N; i++) {
+      const c = document.createElement('div');
+      c.className = 'cell';
+      c.dataset.i = i;
+      gridEl.appendChild(c);
+      cellEls.push(c);
+    }
+
+    function paintCell(i) {
+      const color = erasing ? OFF : curColor;
+      if (cells[i] === color) return;
+      cells[i] = color;
+      cellEls[i].style.background = color;
+      save();
+      drawPreview();
+    }
+
+    // Mouse: click + drag to paint.
+    gridEl.addEventListener('mousedown', e => {
+      if (!e.target.dataset.i) return;
+      painting = true; paintCell(+e.target.dataset.i); e.preventDefault();
+    });
+    gridEl.addEventListener('mouseover', e => {
+      if (painting && e.target.dataset.i) paintCell(+e.target.dataset.i);
+    });
+    window.addEventListener('mouseup', () => { painting = false; });
+
+    // Touch: drag paints whatever cell is under the finger.
+    gridEl.addEventListener('touchstart', onTouch, { passive: false });
+    gridEl.addEventListener('touchmove', onTouch, { passive: false });
+    function onTouch(e) {
+      e.preventDefault();
+      const t = e.touches[0];
+      const el = document.elementFromPoint(t.clientX, t.clientY);
+      if (el && el.dataset && el.dataset.i) paintCell(+el.dataset.i);
+    }
+
+    // ── Board preview via LedSim (true appearance at current brightness) ──
+    function drawPreview() {
+      const bri = (window.LedSim ? LedSim.bri() : 255);
+      for (let i = 0; i < N * N; i++) {
+        pctx.fillStyle = window.LedSim ? LedSim.previewColor(cells[i], bri) : cells[i];
+        pctx.fillRect(i % N, (i / N) | 0, 1, 1);
+      }
+    }
+    if (window.LedSim) LedSim.onChange(drawPreview);
+
+    // ── Swatches ────────────────────────────────────────────────
+    const swEl = document.getElementById('swatches');
+    SWATCHES.forEach(hex => {
+      const s = document.createElement('div');
+      s.className = 'swatch'; s.style.background = hex; s.title = hex;
+      s.onclick = () => {
+        erasing = false; document.getElementById('eraser').classList.remove('active');
+        curColor = hex; document.getElementById('picker').value = hex;
+        markSwatch();
+      };
+      swEl.appendChild(s);
+    });
+    function markSwatch() {
+      [...swEl.children].forEach(s => s.classList.toggle('active', s.style.background && rgbToHex(s.style.background) === curColor.toLowerCase()));
+    }
+    function rgbToHex(rgb) {
+      const m = rgb.match(/\d+/g); if (!m) return rgb;
+      return '#' + m.slice(0,3).map(v => (+v).toString(16).padStart(2,'0')).join('');
+    }
+
+    document.getElementById('picker').addEventListener('input', e => {
+      erasing = false; document.getElementById('eraser').classList.remove('active');
+      curColor = e.target.value; markSwatch();
+    });
+
+    function toggleEraser() {
+      erasing = !erasing;
+      document.getElementById('eraser').classList.toggle('active', erasing);
+    }
+
+    // ── Actions ─────────────────────────────────────────────────
+    function fillAll() {
+      const color = erasing ? OFF : curColor;
+      cells = new Array(N * N).fill(color);
+      cellEls.forEach(c => c.style.background = color);
+      save(); drawPreview();
+    }
+    function clearGrid() {
+      cells = new Array(N * N).fill(OFF);
+      cellEls.forEach(c => c.style.background = OFF);
+      save(); drawPreview();
+    }
+    async function sendToBoard() {
+      const matrix = [];
+      for (let y = 0; y < N; y++) matrix.push(cells.slice(y * N, y * N + N));
+      try {
+        const r = await fetch('/api/display/matrix', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ matrix })
+        });
+        setStatus(r.ok ? '✓ Sent to board.' : 'Error: HTTP ' + r.status, !r.ok);
+      } catch {
+        setStatus('Cannot reach board — check WiFi.', true);
+      }
+    }
+
+    // ── Persistence ─────────────────────────────────────────────
+    function save() { try { localStorage.setItem('sketch_grid', JSON.stringify(cells)); } catch (e) {} }
+    function load() {
+      try {
+        const saved = JSON.parse(localStorage.getItem('sketch_grid'));
+        if (Array.isArray(saved) && saved.length === N * N) cells = saved;
+      } catch (e) {}
+      cellEls.forEach((c, i) => c.style.background = cells[i]);
+    }
+
+    load();
+    markSwatch();
+    drawPreview();
+  </script>
+</body>
+</html>
