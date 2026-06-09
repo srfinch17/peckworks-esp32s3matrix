@@ -58,31 +58,18 @@
 
     <div class="footer-row">
       <select id="timezone">
-        <option value="-12">UTC-12</option>
-        <option value="-11">UTC-11</option>
-        <option value="-10">UTC-10</option>
-        <option value="-9">UTC-9</option>
-        <option value="-8">UTC-8 (Pacific)</option>
-        <option value="-7" selected>UTC-7 (Mountain / Phoenix)</option>
-        <option value="-6">UTC-6 (Central)</option>
-        <option value="-5">UTC-5 (Eastern)</option>
-        <option value="-4">UTC-4</option>
-        <option value="-3">UTC-3</option>
-        <option value="-2">UTC-2</option>
-        <option value="-1">UTC-1</option>
-        <option value="0">UTC+0</option>
-        <option value="1">UTC+1</option>
-        <option value="2">UTC+2</option>
-        <option value="3">UTC+3</option>
-        <option value="4">UTC+4</option>
-        <option value="5">UTC+5</option>
-        <option value="6">UTC+6</option>
-        <option value="7">UTC+7</option>
-        <option value="8">UTC+8</option>
-        <option value="9">UTC+9</option>
-        <option value="10">UTC+10</option>
-        <option value="11">UTC+11</option>
-        <option value="12">UTC+12</option>
+        <option value="MST7" selected>Phoenix — MST (no DST)</option>
+        <option value="PST8PDT,M3.2.0,M11.1.0">US Pacific</option>
+        <option value="MST7MDT,M3.2.0,M11.1.0">US Mountain</option>
+        <option value="CST6CDT,M3.2.0,M11.1.0">US Central</option>
+        <option value="EST5EDT,M3.2.0,M11.1.0">US Eastern</option>
+        <option value="AKST9AKDT,M3.2.0,M11.1.0">US Alaska</option>
+        <option value="HST10">US Hawaii (no DST)</option>
+        <option value="UTC0">UTC</option>
+        <option value="GMT0BST,M3.5.0/1,M10.5.0">UK — London</option>
+        <option value="CET-1CEST,M3.5.0,M10.5.0/3">Central Europe</option>
+        <option value="JST-9">Japan</option>
+        <option value="AEST-10AEDT,M10.1.0,M4.1.0/3">Sydney</option>
       </select>
       <button class="primary" onclick="startClock()">Start Clock</button>
       <button class="danger" onclick="stopClock()">Stop</button>
@@ -191,11 +178,11 @@
     async function startClock() {
       const c = pal.get();   // [hours, minutes, colon]
       const ok = await post('/api/display/animation', {
-        type:     'clock',
-        color1:   c[0],   // hours
-        color2:   c[1],   // minutes
-        color3:   c[2],   // colon
-        timezone: parseInt(document.getElementById('timezone').value, 10)
+        type:   'clock',
+        color1: c[0],   // hours
+        color2: c[1],   // minutes
+        color3: c[2],   // colon
+        tz:     document.getElementById('timezone').value   // POSIX TZ string (DST-aware)
       });
       setStatus(ok ? 'Clock started. NTP sync may take a few seconds…' : 'Error — is the board reachable?', !ok);
     }

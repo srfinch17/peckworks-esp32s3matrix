@@ -52,6 +52,7 @@
 #include <WiFiClientSecure.h>
 #include <PNGdec.h>
 #include <time.h>
+#include <Preferences.h>   // NVS key/value store — used for auto-resume
 
 // ============================================================
 // SECTION 1: HARDWARE CONFIGURATION
@@ -94,6 +95,10 @@ CRGB     leds[NUM_LEDS];
 
 // Built-in Arduino WebServer — handles HTTP on port 80.
 WebServer server(80);
+
+// NVS (non-volatile storage) — remembers the last display + brightness so the
+// board resumes itself after a power cycle (see setup() and the API handlers).
+Preferences prefs;
 
 // ── Animation control ────────────────────────────────────────
 uint8_t  brightness      = 40;      // global FastLED brightness (0-255)
@@ -161,6 +166,7 @@ CRGB     clockColorHours = CRGB(255,  51,   0);  // hours digit color    (#FF330
 CRGB     clockColorColon = CRGB(255, 255, 255);  // colon dot color      (#FFFFFF)
 CRGB     clockColorMins  = CRGB(  0, 204, 255);  // minutes digit color  (#00CCFF)
 int      clockTimezone   = -7;                   // UTC offset in hours (e.g. -7 = Arizona MST)
+String   clockTZ         = "";                    // POSIX TZ string (DST-aware, e.g. "MST7MDT,M3.2.0,M11.1.0"); empty = use offset
 bool     ntpSynced       = false;
 int      clockPrevHour   = -1;                   // used to skip redraws when nothing changed
 int      clockPrevMin    = -1;
@@ -434,10 +440,14 @@ void handleRoot() {
 // SECTION 11: SETUP — runs once on boot
 // ============================================================
 
+bool applyAnimationBody(const String& body);   // defined in api_handlers.ino (used by auto-resume)
+
 void setup() {
   Serial.begin(115200);
   delay(500);
   Serial.println("\n=== ESP32-S3 Matrix Web Server ===");
+
+  prefs.begin("matrix", false);   // open NVS (read/write) for auto-resume state
 
   initIMU();
 
@@ -534,6 +544,18 @@ void setup() {
   server.begin();
   Serial.println("HTTP server started on port 80.");
   Serial.println("Test it: open http://" + WiFi.localIP().toString() + " in your browser.");
+
+  // ── Auto-resume: restore the last display + brightness from NVS ──────────────
+  // WiFi is already up (autoConnect blocks above), so clock/calendar NTP works.
+  brightness = prefs.getUChar("bri", brightness);
+  FastLED.setBrightness(brightness);
+  if (prefs.getString("kind", "") == "anim") {
+    String body = prefs.getString("animbody", "");
+    if (body.length()) {
+      Serial.println("Auto-resume: restoring last animation.");
+      applyAnimationBody(body);   // defined in api_handlers.ino
+    }
+  }
 }
 
 // ============================================================
