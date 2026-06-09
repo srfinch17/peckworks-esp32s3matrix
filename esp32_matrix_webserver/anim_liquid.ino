@@ -97,10 +97,11 @@ void stepLiquidFrame() {
   else          { ax = 0.0f; ay = 0.0f; az = 1.0f; }   // flat fallback if IMU failed
 
   // ── In-plane gravity direction ──────────────────────────────
-  // VERIFY ON HARDWARE: if the fluid pools toward the WRONG edge when you tilt,
-  // flip a sign or swap ax/ay here. This is the expected first-flash calibration.
-  float gxRaw = ay;   // → matrix +x (right)
-  float gyRaw = ax;   // → matrix +y (down)
+  // IMU axis mapping — CALIBRATED ON HARDWARE 2026-06-08.
+  // gxRaw is negated: tip the board right (clockwise) → fluid pools right.
+  // If up/down ever reads reversed, negate gyRaw the same way.
+  float gxRaw = -ay;  // → matrix +x (right)
+  float gyRaw =  ax;  // → matrix +y (down)
 
   float mag = sqrtf(gxRaw * gxRaw + gyRaw * gyRaw);
   if (mag > 0.08f) {                         // board is tilted enough to have an in-plane direction
