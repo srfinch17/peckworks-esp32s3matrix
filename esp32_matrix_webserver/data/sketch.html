@@ -39,6 +39,9 @@
     .status { font-size: 0.78rem; margin-top: 14px; min-height: 1.2em; color: #00cc66; }
     .status.err { color: #ff5555; }
     hr.sep { border: none; border-top: 1px solid #222; margin: 20px 0; }
+    .gallery { display: flex; gap: 6px; flex-wrap: wrap; }
+    .thumb { width: 36px; height: 36px; image-rendering: pixelated; border-radius: 5px; border: 2px solid #2a2a2a; background: #0a0a0a; cursor: pointer; transition: transform .1s, border-color .12s; }
+    .thumb:hover { transform: scale(1.14); border-color: #ff9ed8; }
   </style>
 </head>
 <body>
@@ -69,6 +72,12 @@
           <button onclick="fillAll()">Fill</button>
           <button onclick="clearGrid()">Clear</button>
         </div>
+      </div>
+
+      <hr class="sep">
+      <div class="tools">
+        <div class="tool-row"><label>Starter images — click one to load, then edit</label></div>
+        <div class="gallery" id="gallery"></div>
       </div>
 
       <div class="status" id="status"></div>
@@ -210,9 +219,79 @@
       cellEls.forEach((c, i) => c.style.background = cells[i]);
     }
 
+    // ── Starter images ──────────────────────────────────────────
+    // Pixel art as 8 rows of 8 chars; KEY maps each char to a hex color.
+    const KEY = {
+      '.': '#000000', 'W': '#ffffff', 's': '#c8d0d8', 'k': '#555560', 'd': '#2a2a32',
+      'R': '#ff2828', 'r': '#9a0c0c', 'o': '#ff7b00', 'f': '#ffb030', 'y': '#ffd000', 'Y': '#fff3a0',
+      'g': '#22cc44', 'G': '#0a7a22', 'm': '#50ffd0',
+      'c': '#30e0ff', 'C': '#bdf4ff', 'b': '#2060ff', 'B': '#0a2a90',
+      'p': '#b050ff', 'u': '#5010a0', 'P': '#ff5ad0', 'n': '#8a5a2a'
+    };
+    // Faceted gem template — E=body, e=edge, #=sparkle. Keeps the gems cohesive.
+    const GEM = ["..eeee..", ".eEEEEe.", "eEE#EEEe", "eEEEEEEe", ".eEEEEe.", ".eEEEEe.", "..eEEe..", "...ee..."];
+    const sub = (rows, map) => rows.map(r => r.split('').map(ch => map[ch] || ch).join(''));
+    const gem  = (E, e, s) => sub(GEM, { E, e, '#': s });
+    // 4/5-point star template — E=body, #=sparkle core.
+    const STAR = ["...E....", "..EEE...", "E.EEE.E.", "EEEEEEEE", ".EE#EE..", "..EEE...", ".EE.EE..", "E......E"];
+    const star = (E, s) => sub(STAR, { E, '#': s });
+
+    const STARTERS = [
+      { name: 'Rocket',   rows: ["...RR...", "..RWWR..", "..WCCW..", "..WWWW..", "..WWWW..", ".RWWWWR.", "R..WW..R", "...ff..."] },
+      { name: 'Star',     rows: star('y', 'Y') },
+      { name: 'Heart',    rows: ["........", ".RR..RR.", "RRRRRRRR", "RRRRRRRR", ".RRRRRR.", "..RRRR..", "...RR...", "........"] },
+      { name: 'Smiley',   rows: ["..yyyy..", ".yyyyyy.", "yyyyyyyy", "yydyydyy", "yyyyyyyy", "yyyyyyyy", ".yddddy.", "..yyyy.."] },
+      { name: 'Invader',  rows: ["..g..g..", ".gggggg.", "gg.gg.gg", "gggggggg", ".g.gg.g.", "g.g..g.g", ".g....g.", "g......g"] },
+      { name: 'Mushroom', rows: ["..RRRR..", ".RRWRRR.", "RWRRRRWR", "RRRRRRRR", "..YYYY..", "..YYYY..", "..YYYY..", "..YYYY.."] },
+      { name: 'Bolt',     rows: ["...yyy..", "..yyy...", ".yyy....", "yyyyyy..", "...yyy..", "..yyy...", ".yy.....", "yy......"] },
+      { name: 'Skull',    rows: [".WWWWWW.", "WWWWWWWW", "WWdWWdWW", "WWdWWdWW", "WWWWWWWW", "WWWddWWW", ".WWWWWW.", ".W.W.W.W"] },
+      { name: 'Ghost',    rows: ["..WWWW..", ".WWWWWW.", "WWWWWWWW", "WWdWWdWW", "WWWWWWWW", "WWWWWWWW", "WWWWWWWW", "W.WW.WW."] },
+      { name: 'Flower',   rows: ["..P..P..", ".PPPPPP.", ".PPyyPP.", ".PPyyPP.", ".PPPPPP.", "...GG...", "..G.GG..", "...GG..."] },
+      { name: 'Diamond',  rows: gem('C', 'c', 'W') },
+      { name: 'Ruby',     rows: gem('R', 'r', 'W') },
+      { name: 'Emerald',  rows: gem('g', 'G', 'W') },
+      { name: 'Sapphire', rows: gem('b', 'B', 'C') },
+      { name: 'Amethyst', rows: gem('p', 'u', 'W') },
+      { name: 'Topaz',    rows: gem('o', 'n', 'Y') },
+      { name: 'Life Crystal',  rows: ["........", ".rR..Rr.", "rRWRRWRr", "rRRRRRRr", ".rRRRRr.", "..rRRr..", "...rr...", "........"] },
+      { name: 'Mana Star',     rows: star('b', 'C') },
+      { name: 'Fallen Star',   rows: ["...y....", "...y....", "Y..y..Y.", "yyyWyyyy", "Y..y..Y.", "...y....", "...y....", "........"] },
+      { name: 'Glow Shroom',   rows: ["..mmmm..", ".mmCmmm.", "mCmmmmCm", "mmmmmmmm", "..bbbb..", "..bccb..", "..bbbb..", "..bbbb.."] }
+    ];
+
+    function expand(rows) {
+      const out = [];
+      for (let y = 0; y < N; y++) {
+        const r = rows[y] || '';
+        for (let x = 0; x < N; x++) out.push(KEY[r[x]] || OFF);
+      }
+      return out;
+    }
+
+    function loadImage(m) {
+      cells = m.slice();
+      cellEls.forEach((c, i) => c.style.background = cells[i]);
+      save(); drawPreview();
+      setStatus('Loaded starter — edit it or hit Send to Board.');
+    }
+
+    function renderGallery() {
+      const gal = document.getElementById('gallery');
+      STARTERS.forEach(s => {
+        const m = expand(s.rows);
+        const cv = document.createElement('canvas');
+        cv.width = cv.height = N; cv.className = 'thumb'; cv.title = s.name;
+        const cx = cv.getContext('2d');
+        m.forEach((hex, i) => { cx.fillStyle = (hex === OFF) ? '#0a0a0a' : hex; cx.fillRect(i % N, (i / N) | 0, 1, 1); });
+        cv.addEventListener('click', () => loadImage(m));
+        gal.appendChild(cv);
+      });
+    }
+
     load();
     markSwatch();
     drawPreview();
+    renderGallery();
   </script>
 </body>
 </html>
