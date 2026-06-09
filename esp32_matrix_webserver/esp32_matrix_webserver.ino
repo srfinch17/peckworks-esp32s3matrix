@@ -495,6 +495,22 @@ void setup() {
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
 
+  // Keep WiFi alive. The firmware previously connected once and never recovered
+  // if the link dropped (so any glitch = permanently offline until reflash).
+  //   - setAutoReconnect: STA auto-reconnects on disconnect
+  //   - setSleep(false):  disable modem power-save (a common silent-drop cause)
+  //   - onEvent loggers:  print the disconnect REASON code so we can see WHY,
+  //     and re-announce mDNS after a reconnect.
+  WiFi.setAutoReconnect(true);
+  WiFi.setSleep(false);
+  WiFi.onEvent([](WiFiEvent_t, WiFiEventInfo_t info) {
+    Serial.printf("WiFi DISCONNECTED, reason=%d — retrying\n", info.wifi_sta_disconnected.reason);
+  }, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+  WiFi.onEvent([](WiFiEvent_t, WiFiEventInfo_t) {
+    Serial.print("WiFi reconnected, IP "); Serial.println(WiFi.localIP());
+    MDNS.end(); MDNS.begin("esp32matrix");
+  }, ARDUINO_EVENT_WIFI_STA_GOT_IP);
+
   if (MDNS.begin("esp32matrix")) {
     Serial.println("mDNS started — board reachable at http://esp32matrix.local");
   } else {
@@ -575,6 +591,18 @@ void setup() {
 
 void loop() {
   server.handleClient();   // process any pending HTTP requests first
+
+  // WiFi self-heal backstop: if the link is down for a few seconds (and the
+  // built-in auto-reconnect hasn't recovered it), force a reconnect. Keeps the
+  // board from being stranded offline while it keeps animating.
+  static uint32_t lastWifiCheck = 0;
+  if (millis() - lastWifiCheck >= 5000) {
+    lastWifiCheck = millis();
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("WiFi down — forcing reconnect.");
+      WiFi.reconnect();
+    }
+  }
 
   uint32_t now = millis();   // snapshot the clock once per loop iteration
 
