@@ -79,23 +79,7 @@
       <div class="preview-label">Live 8×8 preview — updates every second</div>
     </div>
 
-    <div class="pickers">
-      <div class="picker-group">
-        <label for="cHours">Hours</label>
-        <input type="color" id="cHours" value="#ff3300" oninput="updatePreview()">
-      </div>
-      <div class="picker-group">
-        <label for="cColon">Colon</label>
-        <input type="color" id="cColon" value="#ffffff" oninput="updatePreview()">
-      </div>
-      <div class="picker-group">
-        <label for="cMins">Minutes</label>
-        <input type="color" id="cMins" value="#00ccff" oninput="updatePreview()">
-      </div>
-    </div>
-
-    <div class="presets-label">Color Presets</div>
-    <div class="presets-grid" id="presetsGrid"></div>
+    <div id="palSlot" style="margin-bottom:16px"></div>
 
     <div class="footer-row">
       <select id="timezone">
@@ -131,6 +115,7 @@
     <div class="status" id="status"></div>
   </div>
 
+  <script src="palette.js"></script>
   <script>
     // FONT_3X3 digits 0–9 (indices 26–35 from fonts.ino)
     // [col0, col1, col2] — bit0 = top row, bit2 = bottom row
@@ -196,51 +181,17 @@
       const now = new Date();
       const h = now.getHours() % 12 || 12;
       const m = now.getMinutes();
-      renderClock(h, m,
-        document.getElementById('cHours').value,
-        document.getElementById('cColon').value,
-        document.getElementById('cMins').value
-      );
+      const c = pal.get();                 // [hours, minutes, colon]
+      renderClock(h, m, c[0], c[2], c[1]);  // renderClock(h, m, cHours, cColon, cMinutes)
     }
 
-    function hslToHex(h, s, l) {
-      s /= 100; l /= 100;
-      const k = n => (n + h / 30) % 12;
-      const a = s * Math.min(l, 1 - l);
-      const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
-      return '#' + [f(0),f(8),f(4)].map(x => Math.round(x*255).toString(16).padStart(2,'0')).join('');
-    }
-
-    const presetsGrid = document.getElementById('presetsGrid');
-    let activePreset = null;
-
-    for (let i = 0; i < 32; i++) {
-      const hue = Math.round(i * 360 / 32);
-      const hoursHex = hslToHex(hue, 100, 50);
-      const minsHex  = hslToHex((hue + 180) % 360, 100, 50);
-
-      const wrap = document.createElement('div');
-      wrap.className = 'preset';
-      wrap.style.background = hoursHex;
-      wrap.title = `Hours: ${hoursHex}  Colon: #ffffff  Minutes: ${minsHex}`;
-
-      const strip = document.createElement('div');
-      strip.className = 'comp-strip';
-      strip.style.background = minsHex;
-      wrap.appendChild(strip);
-
-      wrap.addEventListener('click', () => {
-        if (activePreset) activePreset.classList.remove('active');
-        wrap.classList.add('active');
-        activePreset = wrap;
-        document.getElementById('cHours').value = hoursHex;
-        document.getElementById('cColon').value = '#ffffff';
-        document.getElementById('cMins').value  = minsHex;
-        updatePreview();
-      });
-
-      presetsGrid.appendChild(wrap);
-    }
+    // Shared palette component (S2). Order = [Hours, Minutes, Colon] → color1/2/3.
+    const pal = Palette.mount('#palSlot', {
+      count: 3,
+      labels: ['Hours', 'Minutes', 'Colon'],
+      defaults: ['#ff3300', '#00ccff', '#ffffff'],
+      onChange: updatePreview
+    });
 
     updatePreview();
     setInterval(updatePreview, 1000);
@@ -263,12 +214,13 @@
     }
 
     async function startClock() {
+      const c = pal.get();   // [hours, minutes, colon]
       const ok = await post('/api/display/animation', {
-        type:         'clock',
-        colorHours:   document.getElementById('cHours').value,
-        colorColon:   document.getElementById('cColon').value,
-        colorMinutes: document.getElementById('cMins').value,
-        timezone:     parseInt(document.getElementById('timezone').value, 10)
+        type:     'clock',
+        color1:   c[0],   // hours
+        color2:   c[1],   // minutes
+        color3:   c[2],   // colon
+        timezone: parseInt(document.getElementById('timezone').value, 10)
       });
       setStatus(ok ? 'Clock started. NTP sync may take a few seconds…' : 'Error — is the board reachable?', !ok);
     }
