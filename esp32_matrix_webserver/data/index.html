@@ -103,18 +103,7 @@
 
   <div class="panel">
     <div class="panel-title">Quick Controls</div>
-    <div class="row">
-      <label>Brightness: <strong id="bval" style="display:inline-block;min-width:3ch;text-align:right">10</strong></label>
-      <input type="range" id="brightness" min="0" max="255" value="10" oninput="updateBrightness(this.value)">
-    </div>
-    <div class="heat-track"><div class="heat-lock-line"></div></div>
-    <div class="heat-labels">
-      <span>0</span><span class="safe">safe</span><span>100</span><span class="hot">&#x26A0; hot</span><span>255</span>
-    </div>
-    <div class="warn-row">
-      <input type="checkbox" id="cbHighBright" onchange="onHighBrightToggle()">
-      <label for="cbHighBright" class="warn-text"><strong>&#x26A0; Heat warning:</strong> above 100 risks overheating. Check to unlock.</label>
-    </div>
+    <div id="brightnessSlot"></div>
     <div class="row">
       <button class="danger" onclick="clearDisplay()">Clear Display</button>
     </div>
@@ -124,6 +113,7 @@
   <footer>Board IP: <span id="ip">…</span></footer>
   </div>
 
+  <script src="bright.js"></script>
   <script>
     document.getElementById('ip').textContent = window.location.hostname;
 
@@ -149,56 +139,8 @@
       setStatus(ok ? 'Display cleared.' : 'Error — is the board reachable?', !ok);
     }
 
-    // ── Brightness ──────────────────────────────────────────────────────────
-
-    let brightTimer;
-
-    (function initBrightness() {
-      const storedVal = localStorage.getItem('matrix_brightness');
-      const highUnlocked = localStorage.getItem('matrix_highbright') === '1';
-      let val = storedVal !== null ? +storedVal : 10;
-      if (!highUnlocked && val > 100) val = 100;
-      document.getElementById('brightness').value = val;
-      document.getElementById('bval').textContent = val;
-      document.getElementById('cbHighBright').checked = highUnlocked;
-      post('/api/brightness', { level: val }).then(ok => {
-        if (!ok) setStatus('Board unreachable — brightness not synced.', true);
-      });
-    })();
-
-    function onHighBrightToggle() {
-      const unlocked = document.getElementById('cbHighBright').checked;
-      localStorage.setItem('matrix_highbright', unlocked ? '1' : '0');
-      if (!unlocked) {
-        const slider = document.getElementById('brightness');
-        if (+slider.value > 100) {
-          slider.value = 100;
-          document.getElementById('bval').textContent = 100;
-          localStorage.setItem('matrix_brightness', '100');
-          clearTimeout(brightTimer);
-          brightTimer = setTimeout(async () => {
-            const ok = await post('/api/brightness', { level: 100 });
-            setStatus(ok ? 'Brightness updated.' : 'Error updating brightness.', !ok);
-          }, 250);
-        }
-      }
-    }
-
-    function updateBrightness(rawVal) {
-      let val = +rawVal;
-      const unlocked = document.getElementById('cbHighBright').checked;
-      if (!unlocked && val > 100) {
-        val = 100;
-        document.getElementById('brightness').value = 100;
-      }
-      document.getElementById('bval').textContent = val;
-      localStorage.setItem('matrix_brightness', String(val));
-      clearTimeout(brightTimer);
-      brightTimer = setTimeout(async () => {
-        const ok = await post('/api/brightness', { level: val });
-        setStatus(ok ? 'Brightness updated.' : 'Error updating brightness.', !ok);
-      }, 250);
-    }
+    // Brightness — shared widget (bright.js). One global value across all pages.
+    MatrixBright.mount('#brightnessSlot', { onStatus: setStatus });
   </script>
 </body>
 </html>
