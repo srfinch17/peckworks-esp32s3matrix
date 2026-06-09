@@ -233,7 +233,7 @@
     const sub = (rows, map) => rows.map(r => r.split('').map(ch => map[ch] || ch).join(''));
     const gem  = (E, e, s) => sub(GEM, { E, e, '#': s });
     // 4/5-point star template — E=body, #=sparkle core.
-    const STAR = ["...E....", "..EEE...", "E.EEE.E.", "EEEEEEEE", ".EE#EE..", "..EEE...", ".EE.EE..", "E......E"];
+    const STAR = ["...EE...", "...EE...", "EEEEEEEE", ".EEEEEE.", "..E##E..", "..EEEE..", ".EE..EE.", "EE....EE"];
     const star = (E, s) => sub(STAR, { E, '#': s });
 
     const STARTERS = [
@@ -255,7 +255,7 @@
       { name: 'Topaz',    rows: gem('o', 'n', 'Y') },
       { name: 'Life Crystal',  rows: ["........", ".rR..Rr.", "rRWRRWRr", "rRRRRRRr", ".rRRRRr.", "..rRRr..", "...rr...", "........"] },
       { name: 'Mana Star',     rows: star('b', 'C') },
-      { name: 'Fallen Star',   rows: ["...y....", "...y....", "Y..y..Y.", "yyyWyyyy", "Y..y..Y.", "...y....", "...y....", "........"] },
+      { name: 'Fallen Star',   rows: ["...y....", "..yyy...", ".yyyyy..", "yyYWYyy.", ".yyyyy..", "..yyy...", "...y....", "........"] },
       { name: 'Glow Shroom',   rows: ["..mmmm..", ".mmCmmm.", "mCmmmmCm", "mmmmmmmm", "..bbbb..", "..bccb..", "..bbbb..", "..bbbb.."] }
     ];
 
