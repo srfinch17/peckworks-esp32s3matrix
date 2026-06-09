@@ -150,9 +150,11 @@ void handleAnimation() {
 
   if (animationName == "clock") {
     clockTimezone    = (int)(doc["timezone"] | -7);
-    clockColorHours  = hexToColor(String(doc["colorHours"]   | "#FF3300"));
-    clockColorColon  = hexToColor(String(doc["colorColon"]   | "#FFFFFF"));
-    clockColorMins   = hexToColor(String(doc["colorMinutes"] | "#00CCFF"));
+    // Accept color1/2/3 (the shared MCP convention) as aliases for the named
+    // keys the web clock page sends. color1=hours, color2=minutes, color3=colon.
+    clockColorHours  = hexToColor(String(doc["colorHours"]   | (doc["color1"] | "#FF3300")));
+    clockColorColon  = hexToColor(String(doc["colorColon"]   | (doc["color3"] | "#FFFFFF")));
+    clockColorMins   = hexToColor(String(doc["colorMinutes"] | (doc["color2"] | "#00CCFF")));
     clockPrevHour    = -1;
     clockPrevMin     = -1;
     ntpSynced        = false;

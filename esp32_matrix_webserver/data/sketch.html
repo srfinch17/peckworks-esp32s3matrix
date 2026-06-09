@@ -135,8 +135,8 @@
     }
 
     // ── Board preview via LedSim (true appearance at current brightness) ──
-    function drawPreview() {
-      const bri = (window.LedSim ? LedSim.bri() : 255);
+    function drawPreview(b) {
+      const bri = (typeof b === 'number') ? b : (window.LedSim ? LedSim.bri() : 255);
       for (let i = 0; i < N * N; i++) {
         pctx.fillStyle = window.LedSim ? LedSim.previewColor(cells[i], bri) : cells[i];
         pctx.fillRect(i % N, (i / N) | 0, 1, 1);
