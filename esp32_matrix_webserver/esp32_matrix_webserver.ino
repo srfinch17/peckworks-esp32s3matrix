@@ -55,6 +55,16 @@
 #include <Preferences.h>   // NVS key/value store — used for auto-resume
 #include <esp_wifi.h>      // esp_wifi_get_config — read stored SSID/password for explicit connect
 
+// Optional hardcoded-WiFi override (diagnostic / escape hatch). Put in
+// esp32_matrix_webserver/secrets.h (gitignored):
+//   #define WIFI_SSID     "YourNetwork"
+//   #define WIFI_PASSWORD "YourPassword"
+// If defined, the firmware connects with these directly and NEVER touches the
+// WiFiManager portal — useful to bypass portal credential handling entirely.
+#if __has_include("secrets.h")
+  #include "secrets.h"
+#endif
+
 // ============================================================
 // SECTION 1: HARDWARE CONFIGURATION
 // ============================================================
@@ -451,6 +461,22 @@ void handleRoot() {
 
 bool applyAnimationBody(const String& body);   // defined in api_handlers.ino (used by auto-resume)
 
+// Wait up to timeoutMs for WiFi to come up, pulsing blue and logging the live
+// status code every 2s so connect problems are visible in the Serial Monitor.
+static void waitForWiFiConnect(uint32_t timeoutMs) {
+  uint32_t start = millis(), lastStat = 0;
+  while (WiFi.status() != WL_CONNECTED && millis() - start < timeoutMs) {
+    if (millis() - lastStat >= 2000) {
+      lastStat = millis();
+      Serial.printf("  connecting... status=%d\n", (int)WiFi.status());
+    }
+    bool on = ((millis() - start) / 400) % 2;   // pulse blue while connecting
+    fill_solid(leds, NUM_LEDS, on ? CRGB::Blue : CRGB::Black);
+    FastLED.show();
+    delay(200);
+  }
+}
+
 void setup() {
   Serial.begin(115200);
   delay(500);
@@ -499,6 +525,17 @@ void setup() {
 
   WiFi.mode(WIFI_STA);   // init the WiFi driver so the stored config is readable
 
+#ifdef WIFI_SSID
+  // Hardcoded override from secrets.h — bypasses the portal and its credential
+  // handling entirely. Connect and keep retrying; never open the portal.
+  Serial.println("secrets.h credentials found — connecting directly (portal bypassed).");
+  WiFi.setAutoReconnect(true);
+  WiFi.setSleep(false);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  waitForWiFiConnect(25000);
+  if (WiFi.status() != WL_CONNECTED)
+    Serial.println("Hardcoded WiFi not up yet — running anyway; watchdog keeps retrying.");
+#else
   WiFiManager wm;
   if (wm.getWiFiIsSaved()) {
     // We HAVE saved WiFi credentials → connect to that network and KEEP TRYING.
@@ -517,17 +554,7 @@ void setup() {
     // start no attempt (no disconnect events at all). Passing the stored
     // SSID/password removes that ambiguity.
     WiFi.begin((const char*)conf.sta.ssid, (const char*)conf.sta.password);
-    uint32_t start = millis(), lastStat = 0;
-    while (WiFi.status() != WL_CONNECTED && millis() - start < 25000) {
-      if (millis() - lastStat >= 2000) {   // live status code while we wait
-        lastStat = millis();
-        Serial.printf("  connecting... status=%d\n", (int)WiFi.status());
-      }
-      bool on = ((millis() - start) / 400) % 2;   // pulse blue while connecting
-      fill_solid(leds, NUM_LEDS, on ? CRGB::Blue : CRGB::Black);
-      FastLED.show();
-      delay(200);
-    }
+    waitForWiFiConnect(25000);
     if (WiFi.status() != WL_CONNECTED)
       Serial.println("Saved WiFi not up yet — running anyway; watchdog keeps retrying in the background.");
   } else {
@@ -543,6 +570,7 @@ void setup() {
     WiFi.setAutoReconnect(true);
     WiFi.setSleep(false);
   }
+#endif  // WIFI_SSID
 
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("WiFi connected!");
