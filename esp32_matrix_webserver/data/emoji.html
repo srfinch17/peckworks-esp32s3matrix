@@ -172,6 +172,14 @@
     </div>
     <div class="bri-hint" id="bri-hint">Preview shows exact board output at this brightness. Higher brightness = more visible color detail.</div>
 
+    <!-- Vibrance: punch saturation so colors survive the shrink to 8×8 -->
+    <div class="bri-row">
+      <label>Vibrance — <span id="v-vib">60</span></label>
+      <input type="range" id="vib-slider" min="0" max="100" value="60" oninput="onVibrance(this.value)">
+      <span class="bri-val">color punch</span>
+    </div>
+    <div class="bri-hint">Higher = bolder, fewer colors (reads better at 8×8). Lower = truer to the original.</div>
+
     <div class="actions">
       <button class="send" onclick="sendToBoard()">Send to Board</button>
     </div>
@@ -189,6 +197,7 @@
     // Board matrix — normalized to full 0-255 range, sent to the board
     let boardMatrix = null;
     let currentBri  = 80;
+    let vibrance    = 60;   // color punch %, 0 = raw averaged colors
 
     // ── Brightness formula (matches FastLED nscale8x3 exactly) ──────────────────
     // LED is ON when result >= 1, OFF when result == 0.
@@ -229,6 +238,49 @@
     function previewColor(hex, bri) {
       const [r,g,b] = parseHex(hex);
       return `rgb(${ledToDisplay(effective(r,bri))},${ledToDisplay(effective(g,bri))},${ledToDisplay(effective(b,bri))})`;
+    }
+
+    // ── Vibrance / color punch ─────────────────────────────────────────────────────
+    // Averaging an emoji down to 8×8 muddies and desaturates colors, so they read
+    // as gray-ish soup. Punch saturation (and lift dim cells) so each cell reads as
+    // its dominant hue — "fewer, bolder colors," which survive the shrink far better.
+    function rgb2hsv(r, g, b) {
+      r/=255; g/=255; b/=255;
+      const mx=Math.max(r,g,b), mn=Math.min(r,g,b), d=mx-mn;
+      let h=0;
+      if (d) { if (mx===r) h=((g-b)/d)%6; else if (mx===g) h=(b-r)/d+2; else h=(r-g)/d+4; h*=60; if (h<0) h+=360; }
+      return [h, mx===0?0:d/mx, mx];
+    }
+    function hsv2rgb(h, s, v) {
+      const c=v*s, x=c*(1-Math.abs((h/60)%2-1)), m=v-c;
+      let r,g,b;
+      if (h<60){r=c;g=x;b=0;} else if (h<120){r=x;g=c;b=0;} else if (h<180){r=0;g=c;b=x;}
+      else if (h<240){r=0;g=x;b=c;} else if (h<300){r=x;g=0;b=c;} else {r=c;g=0;b=x;}
+      return [(r+m)*255, (g+m)*255, (b+m)*255];
+    }
+    function punchColors(matrix, amount) {
+      const k = amount / 100;                       // 0 = none, 1 = full punch
+      return matrix.map(row => row.map(hex => {
+        const [r,g,b] = parseHex(hex);
+        if (r===0 && g===0 && b===0) return '#000000';
+        let [h,s,v] = rgb2hsv(r,g,b);
+        s = Math.min(1, s + (1 - s) * k);           // push toward vivid
+        v = Math.min(1, v + (1 - v) * k * 0.45);    // lift muddy/dark cells a touch
+        const [nr,ng,nb] = hsv2rgb(h,s,v);
+        return toHex(nr,ng,nb);
+      }));
+    }
+
+    // Re-run the color pipeline from the stored raw render (no re-render needed).
+    function reprocess() {
+      if (!rawMatrix) return;
+      boardMatrix = punchColors(normalizeMatrix(rawMatrix), vibrance);
+      updatePreview();
+    }
+    function onVibrance(val) {
+      vibrance = +val;
+      document.getElementById('v-vib').textContent = val;
+      reprocess();
     }
 
     // ── Emoji render ─────────────────────────────────────────────────────────────
@@ -320,9 +372,8 @@
     function onEmojiChange() {
       const emoji = document.getElementById('emojiSelect').value;
       document.getElementById('sourceEmoji').textContent = emoji;
-      rawMatrix   = renderEmoji(emoji);
-      boardMatrix = normalizeMatrix(rawMatrix);
-      updatePreview();
+      rawMatrix = renderEmoji(emoji);
+      reprocess();   // normalize + vibrance punch + preview
     }
 
     // ── Send to board ─────────────────────────────────────────────────────────────
