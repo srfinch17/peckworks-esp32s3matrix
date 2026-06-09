@@ -189,10 +189,18 @@ uint32_t snowFallStartMs    = 0;
 uint32_t snowFallDurationMs = 500;
 
 // ── Liquid/IMU state ──────────────────────────────────────────
+// Liquid is a 2D closed-container model: gravity is a vector in the matrix
+// plane, and the fluid fills the most "downhill" cells up to a threshold that
+// sloshes with momentum. (See docs/superpowers/specs/2026-06-08-liquid-fixes-design.md)
 bool    imuReady              = false;         // set to true if IMU is detected at boot
-float   liquidHeight[MATRIX_W];               // simulated surface height per column (0-7)
-float   liquidVelocity[MATRIX_W];             // vertical velocity per column
-float   liquidDamping         = 0.88f;        // energy loss per frame (set from viscosity param)
+float   liquidLevel           = 0.0f;          // fill threshold along the gravity axis
+float   liquidLevelVel        = 0.0f;          // slosh velocity of that threshold
+float   liquidGX              = 0.0f;          // smoothed in-plane gravity direction (x)
+float   liquidGY              = 1.0f;          // smoothed in-plane gravity direction (y)
+float   liquidDamping         = 0.88f;         // energy loss per frame (set from viscosity param)
+bool    liquidGradient        = false;         // true = custom top/bottom gradient instead of palette
+CRGB    liquidTopColor        = CRGB(230, 250, 255);  // surface/froth color (custom mode)
+CRGB    liquidBottomColor     = CRGB(  0,  40, 160);  // deep color (custom mode)
 
 // ── Gradient Spiral ───────────────────────────────────────────────────────────
 CRGB     spiralColor1   = CRGB(255,   0,   0);
