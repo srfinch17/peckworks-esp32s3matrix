@@ -50,12 +50,7 @@
 
     <div class="group" id="gradient-group" style="display:none">
       <label>Custom gradient</label>
-      <div class="slider-row" style="gap:22px">
-        <label style="text-transform:none;letter-spacing:0;margin:0;color:#aaa">Top
-          <input type="color" id="topColor" value="#e6faff" style="vertical-align:middle"></label>
-        <label style="text-transform:none;letter-spacing:0;margin:0;color:#aaa">Bottom
-          <input type="color" id="bottomColor" value="#0028a0" style="vertical-align:middle"></label>
-      </div>
+      <div id="palSlot"></div>
       <div class="hint">Top = surface / froth · Bottom = deep</div>
     </div>
 
@@ -82,8 +77,14 @@
     </p>
   </div>
 
+  <script src="palette.js"></script>
   <script>
     let theme = 'classic';
+
+    // Shared palette (S2) for the Custom gradient: [Top, Bottom].
+    const pal = Palette.mount('#palSlot', {
+      count: 2, labels: ['Top', 'Bottom'], defaults: ['#e6faff', '#0028a0']
+    });
 
     // Each liquid moves like its real substance: water sloshes freely (thin),
     // lava is thick and slow. Selecting a preset sets a matching viscosity
@@ -112,9 +113,10 @@
       const viscosity = +document.getElementById('viscosity').value;
       const body = { type: 'liquid', viscosity, speed: 50 };
       if (theme === 'custom') {
+        const c = pal.get();   // [top, bottom]
         body.gradient = true;
-        body.top      = document.getElementById('topColor').value;
-        body.bottom   = document.getElementById('bottomColor').value;
+        body.top      = c[0];
+        body.bottom   = c[1];
       } else {
         body.theme = theme;
       }
