@@ -159,6 +159,26 @@ void handleAnimation() {
     configTime((long)clockTimezone * 3600L, 0, "pool.ntp.org", "time.nist.gov");
   }
 
+  if (animationName == "calendar") {
+    calendarStyle   = String(doc["style"] | "clock");   // scroll | bignum | grid | clock
+    calendarColor1  = hexToColor(String(doc["color1"] | "#00C8FF"));   // primary (day/text/today)
+    calendarColor2  = hexToColor(String(doc["color2"] | "#FF7800"));   // secondary (month/other days)
+    calendarColor3  = hexToColor(String(doc["color3"] | "#50505A"));   // accent (separator)
+    calendarScrollX = MATRIX_W;
+    clockTimezone   = (int)(doc["timezone"] | -7);      // same NTP plumbing as the clock
+    ntpSynced       = false;
+    configTime((long)clockTimezone * 3600L, 0, "pool.ntp.org", "time.nist.gov");
+  }
+
+  if (animationName == "sound") {
+    soundColor1      = hexToColor(String(doc["color1"] | "#0050FF"));  // VU bottom
+    soundColor2      = hexToColor(String(doc["color2"] | "#FF00A0"));  // VU top
+    soundSensitivity = constrain((float)(int)(doc["sensitivity"] | 5), 0.0f, 10.0f);
+    soundBaseline    = 1.0f;   // re-track from rest
+    soundEnergy      = 0.0f;
+    soundPeak        = 0.0f;
+  }
+
   if (animationName == "weather") {
     weatherZip        = String(doc["zipcode"]     | "85013");
     weatherUnit       = String(doc["units"]       | "F");

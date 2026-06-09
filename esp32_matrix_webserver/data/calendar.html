@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calendar — ESP32 Matrix</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; padding: 20px; }
+    .wrap { max-width: 760px; margin: 0 auto; }
+    .back { color: #555; text-decoration: none; font-size: 0.85rem; display: inline-block; margin-bottom: 16px; }
+    .back:hover { color: #999; }
+    h1 { font-size: 1.3rem; color: #ffd166; margin-bottom: 20px; }
+    .panel { background: #161616; border: 1px solid #2a2a2a; border-radius: 12px; padding: 22px; max-width: 520px; }
+    .group { margin-bottom: 20px; }
+    .group > label { display: block; font-size: 0.72rem; color: #777; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; }
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .cal-btn { border: 2px solid #333; border-radius: 8px; padding: 8px 14px; cursor: pointer; font-size: 0.82rem; font-weight: 600; background: #1a1a1a; color: #bbb; transition: border-color .12s, color .12s; }
+    .cal-btn.active { border-color: #ffd166; color: #fff; }
+    input[type=range] { width: 100%; accent-color: #ffd166; cursor: pointer; }
+    input[type=number] { width: 72px; background: #111; color: #e0e0e0; border: 1px solid #333; border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn-primary { background: #3a2e0a; color: #ffd166; border: 1px solid #6a5417; border-radius: 7px; padding: 10px 22px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
+    .btn-primary:hover { background: #4a3a10; }
+    .btn-secondary { background: #1a1a1a; color: #aaa; border: 1px solid #333; border-radius: 7px; padding: 10px 18px; cursor: pointer; font-size: 0.85rem; }
+    .btn-secondary:hover { background: #222; }
+    .status { font-size: 0.78rem; margin-top: 14px; min-height: 1.2em; color: #00cc66; }
+    .status.err { color: #ff5555; }
+    .hint { font-size: 0.7rem; color: #555; margin-top: 5px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a href="/" class="back">← Home</a>
+    <h1>📅 Calendar</h1>
+
+    <div class="panel">
+      <div class="group">
+        <label>Style</label>
+        <div class="btn-row">
+          <button class="cal-btn active" data-style="scroll" onclick="pickStyle(this)">Scrolling</button>
+          <button class="cal-btn"        data-style="bignum" onclick="pickStyle(this)">Big Day</button>
+          <button class="cal-btn"        data-style="grid"   onclick="pickStyle(this)">Month Grid</button>
+          <button class="cal-btn"        data-style="clock"  onclick="pickStyle(this)">Month + Day</button>
+        </div>
+        <div class="hint" id="styleHint">"Tue Jun 9" scrolls across the display.</div>
+      </div>
+
+      <div class="group">
+        <label>Colors</label>
+        <div id="palSlot"></div>
+      </div>
+
+      <div class="group">
+        <label>Scroll speed</label>
+        <input type="range" id="speed" min="1" max="10" value="6">
+      </div>
+
+      <div class="group">
+        <label>UTC offset (timezone)</label>
+        <input type="number" id="tz" value="-7" min="-12" max="14">
+        <span class="hint">e.g. -7 = Arizona. Needed for the correct local date.</span>
+      </div>
+
+      <div class="actions">
+        <button class="btn-primary" onclick="apply()">Show on Board</button>
+        <button class="btn-secondary" onclick="clearDisplay()">Clear</button>
+      </div>
+      <div class="status" id="status"></div>
+    </div>
+  </div>
+
+  <script src="palette.js"></script>
+  <script src="bright.js" data-auto></script>
+  <script>
+    const HINTS = {
+      scroll: '"Tue Jun 9" scrolls across the display.',
+      bignum: 'Today\'s day-of-month as a big centered number.',
+      grid:   'Mini month grid — 7 columns (Sun–Sat), today highlighted in the Primary color.',
+      clock:  'Month on top, day below — same layout as the clock.'
+    };
+    let style = 'scroll';
+    let colors = ['#00c8ff', '#ff7800', '#50505a'];
+
+    const pal = Palette.mount('#palSlot', {
+      count: 3,
+      labels: ['Primary', 'Secondary', 'Accent'],
+      defaults: colors,
+      onChange: function (c) { colors = c; }
+    });
+    colors = pal.get();
+
+    function pickStyle(btn) {
+      document.querySelectorAll('.cal-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      style = btn.dataset.style;
+      document.getElementById('styleHint').textContent = HINTS[style];
+    }
+
+    function setStatus(msg, isErr) {
+      const el = document.getElementById('status');
+      el.textContent = msg; el.className = 'status' + (isErr ? ' err' : '');
+    }
+
+    async function apply() {
+      const spd = +document.getElementById('speed').value;          // 1-10
+      const ms  = Math.round(150 - (spd - 1) * 14);                  // 1->150ms (slow), 10->24ms (fast)
+      const body = {
+        type: 'calendar', style: style,
+        color1: colors[0], color2: colors[1], color3: colors[2],
+        timezone: +document.getElementById('tz').value,
+        speed: ms
+      };
+      try {
+        const r = await fetch('/api/display/animation', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        setStatus(r.ok ? '✓ Calendar running (' + style + ')' : 'Error: HTTP ' + r.status, !r.ok);
+      } catch { setStatus('Cannot reach board — check WiFi.', true); }
+    }
+
+    async function clearDisplay() {
+      try {
+        const r = await fetch('/api/display/clear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        setStatus(r.ok ? 'Display cleared.' : 'Error: HTTP ' + r.status, !r.ok);
+      } catch { setStatus('Cannot reach board.', true); }
+    }
+  </script>
+</body>
+</html>
