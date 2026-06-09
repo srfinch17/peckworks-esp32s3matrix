@@ -461,6 +461,35 @@ void handleRoot() {
 
 bool applyAnimationBody(const String& body);   // defined in api_handlers.ino (used by auto-resume)
 
+// Human-readable WiFi auth mode — tells us if a network is plain WPA2 or the
+// WPA2/WPA3 transition mode that some ESP32 cores fail to handshake with.
+static const char* encName(wifi_auth_mode_t m) {
+  switch (m) {
+    case WIFI_AUTH_OPEN:          return "open";
+    case WIFI_AUTH_WEP:           return "WEP";
+    case WIFI_AUTH_WPA_PSK:       return "WPA";
+    case WIFI_AUTH_WPA2_PSK:      return "WPA2";
+    case WIFI_AUTH_WPA_WPA2_PSK:  return "WPA/WPA2";
+    case WIFI_AUTH_WPA3_PSK:      return "WPA3";
+    case WIFI_AUTH_WPA2_WPA3_PSK: return "WPA2/WPA3-transition";
+    default:                      return "other";
+  }
+}
+
+// Diagnostic pre-connect scan: print every visible network's signal strength,
+// channel, and auth mode. Answers "is the signal weak?" and "is the router in
+// WPA3-transition mode?" directly from the board's point of view.
+static void scanReport() {
+  Serial.println("Scanning...");
+  int n = WiFi.scanNetworks();
+  for (int i = 0; i < n; i++) {
+    Serial.printf("  '%s'  ch=%d  rssi=%d dBm  auth=%s\n",
+                  WiFi.SSID(i).c_str(), WiFi.channel(i), WiFi.RSSI(i),
+                  encName(WiFi.encryptionType(i)));
+  }
+  WiFi.scanDelete();
+}
+
 // Wait up to timeoutMs for WiFi to come up, pulsing blue and logging the live
 // status code every 2s so connect problems are visible in the Serial Monitor.
 static void waitForWiFiConnect(uint32_t timeoutMs) {
@@ -524,6 +553,7 @@ void setup() {
   Serial.printf("PSRAM: %s (size=%u bytes)\n", psramFound() ? "active" : "NOT active", ESP.getPsramSize());
 
   WiFi.mode(WIFI_STA);   // init the WiFi driver so the stored config is readable
+  scanReport();          // diagnostic: signal strength + auth mode of every visible network
 
 #ifdef WIFI_SSID
   // Hardcoded override from secrets.h — bypasses the portal and its credential
