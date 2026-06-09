@@ -604,6 +604,23 @@ void loop() {
     }
   }
 
+  // Heap monitor + low-heap safety. Both the weather and sketch deaths look like
+  // heap exhaustion on this PSRAM-disabled board: a few requests' transient allocs
+  // + WiFi buffers run the heap down until the server/WiFi can't allocate. Log the
+  // trend; if free heap gets critically low, reboot to recover (auto-resume
+  // restores the display) instead of hanging offline. Real fix: enable PSRAM.
+  static uint32_t lastHeapLog = 0;
+  if (millis() - lastHeapLog >= 10000) {
+    lastHeapLog = millis();
+    Serial.printf("[heap] free=%u largest-block=%u min-ever=%u\n",
+                  ESP.getFreeHeap(), ESP.getMaxAllocHeap(), ESP.getMinFreeHeap());
+    if (ESP.getFreeHeap() < 14000) {
+      Serial.println("[heap] CRITICAL low heap — restarting to recover.");
+      delay(50);
+      ESP.restart();
+    }
+  }
+
   uint32_t now = millis();   // snapshot the clock once per loop iteration
 
   // Rainbow always at 66ms. Frostbite capped at 66ms minimum — shimmer and sine sparkles
