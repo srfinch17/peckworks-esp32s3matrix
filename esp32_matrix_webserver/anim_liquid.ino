@@ -75,9 +75,10 @@ void readAccel(float &ax, float &ay, float &az) {
 
 // ── stepLiquidFrame ───────────────────────────────────────────
 // 2D CLOSED-CONTAINER FLUID.
-//   Gravity is treated as a vector in the matrix plane. Each cell gets a
-//   "potential" = how far downhill it is along that vector; the fluid occupies
-//   the most-downhill cells up to a threshold (liquidLevel) that springs toward
+//   Gravity is a vector in the matrix plane. Each cell's potential
+//   p = x*gx + y*gy INCREASES along gravity, so the most-downhill cells have the
+//   HIGHEST p. The fluid occupies the top cells by potential (p >= liquidLevel),
+//   and that threshold springs toward
 //   equilibrium with momentum. Tilt any direction → the fluid pools against the
 //   low edge; rotate past a corner → it spills onto the next edge. Full 360°.
 //   (Replaces the old 1D per-column heightfield that could only slosh L/R.)

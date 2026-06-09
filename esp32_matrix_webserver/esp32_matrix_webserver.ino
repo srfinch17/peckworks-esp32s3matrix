@@ -174,8 +174,6 @@ CRGB     timerColorColon   = CRGB::White;          // colon color (timer_text on
 int      timerExpiredState = 0;             // 0=running, 1=blinking, 2=solid (expired)
 uint32_t timerExpiredMs    = 0;
 
-int      fillLitCount      = 0;   // not used directly — settlement count is in snowSettledCount
-
 // ── Snow timer state ──────────────────────────────────────────
 // SnowCell: one LED position. row 0 = bottom, row 7 = top.
 // (The Y coordinate is inverted from matrix coordinates where y=0 is top.)
@@ -205,7 +203,7 @@ CRGB    liquidBottomColor     = CRGB(  0,  40, 160);  // deep color (custom mode
 // ── Calendar state ────────────────────────────────────────────
 // Styles: "scroll" (date scrolls), "bignum" (day), "grid" (month grid), "clock"
 // (month over day, clock-style). Date comes from NTP, same as clock mode.
-String  calendarStyle  = "clock";
+String  calendarStyle  = "scroll";   // default matches the Calendar web page's selected style
 CRGB    calendarColor1 = CRGB(0, 200, 255);    // primary  (day / today / text)
 CRGB    calendarColor2 = CRGB(255, 120, 0);    // secondary(month / other days)
 CRGB    calendarColor3 = CRGB(80, 80, 90);     // accent   (separator / grid frame)
