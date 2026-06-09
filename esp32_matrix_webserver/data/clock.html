@@ -27,32 +27,7 @@
     }
     .px { border-radius: 3px; background: #0a0a0a; }
     .preview-label { font-size: 0.62rem; color: #333; margin-top: 6px; text-transform: uppercase; letter-spacing: .06em; }
-    .pickers { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
-    .picker-group { display: flex; flex-direction: column; gap: 5px; }
-    .picker-group label { font-size: 0.68rem; color: #666; text-transform: uppercase; letter-spacing: .06em; }
-    .picker-group input[type=color] {
-      width: 48px; height: 34px; border: 1px solid #333; border-radius: 6px;
-      background: none; cursor: pointer; padding: 2px;
-    }
-    .presets-label { font-size: 0.68rem; color: #555; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
-    .presets-grid {
-      display: grid;
-      grid-template-columns: repeat(8, 1fr);
-      gap: 5px;
-      margin-bottom: 18px;
-    }
-    .preset {
-      aspect-ratio: 1;
-      border-radius: 5px;
-      border: 1px solid rgba(255,255,255,0.07);
-      cursor: pointer;
-      transition: transform .1s;
-      position: relative;
-      overflow: hidden;
-    }
-    .preset:hover { transform: scale(1.12); }
-    .preset.active { outline: 2px solid #fff; outline-offset: 2px; }
-    .preset .comp-strip { position: absolute; bottom: 0; left: 0; right: 0; height: 35%; }
+    /* picker/preset styles removed — page now uses the shared Palette component (palette.js) */
     .footer-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     select { background: #1e1e1e; color: #ccc; border: 1px solid #333; border-radius: 6px; padding: 6px 10px; font-size: 0.82rem; cursor: pointer; }
     button { background: #1e1e1e; color: #ccc; border: 1px solid #333; border-radius: 7px; padding: 8px 18px; cursor: pointer; font-size: 0.85rem; }

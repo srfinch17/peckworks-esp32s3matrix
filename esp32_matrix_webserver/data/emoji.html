@@ -164,13 +164,9 @@
       </div>
     </div>
 
-    <!-- Brightness slider -->
-    <div class="bri-row">
-      <label>Brightness — <span id="v-bri">80</span></label>
-      <input type="range" id="bri-slider" min="0" max="255" value="80" oninput="onBriSlider(this.value)">
-      <span class="bri-val" id="bri-minvis">min R/G/B: 4</span>
-    </div>
-    <div class="bri-hint" id="bri-hint">Preview shows exact board output at this brightness. Higher brightness = more visible color detail.</div>
+    <!-- Brightness — shared widget (bright.js). The preview tracks the global brightness. -->
+    <div id="brightnessSlot"></div>
+    <div class="bri-hint" id="bri-hint">Preview shows exact board output at the current brightness.</div>
 
     <!-- Vibrance: punch saturation so colors survive the shrink to 8×8 -->
     <div class="bri-row">
@@ -188,6 +184,8 @@
 
   <canvas id="renderCanvas" width="192" height="192"></canvas>
 
+  <script src="ledsim.js"></script>
+  <script src="bright.js" data-auto></script>
   <script>
     const canvas = document.getElementById('renderCanvas');
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -196,13 +194,10 @@
     let rawMatrix  = null;
     // Board matrix — normalized to full 0-255 range, sent to the board
     let boardMatrix = null;
-    let currentBri  = 80;
     let vibrance    = 60;   // color punch %, 0 = raw averaged colors
 
-    // ── Brightness formula (matches FastLED nscale8x3 exactly) ──────────────────
-    // LED is ON when result >= 1, OFF when result == 0.
-    function effective(channel, bri) { return (channel * (bri + 1) / 256) | 0; }
-    function minVisible(bri)         { return Math.ceil(256 / (bri + 1)); }
+    // Brightness/visibility math comes from the shared ledsim.js
+    // (LedSim.effective / LedSim.minVisibleChannel / LedSim.previewColor).
 
     // ── Color helpers ────────────────────────────────────────────────────────────
     function parseHex(hex) {
@@ -232,13 +227,7 @@
       }));
     }
 
-    // LED pixels are linear; screens use gamma ~2.2 — direct rgb() of effective values looks too dark.
-    function ledToDisplay(v) { return v === 0 ? 0 : Math.round(255 * Math.pow(v / 255, 1 / 2.2)); }
-    // Return the CSS color the board will actually display for a given hex + brightness.
-    function previewColor(hex, bri) {
-      const [r,g,b] = parseHex(hex);
-      return `rgb(${ledToDisplay(effective(r,bri))},${ledToDisplay(effective(g,bri))},${ledToDisplay(effective(b,bri))})`;
-    }
+    // (LED appearance / gamma preview is provided by LedSim.previewColor — see ledsim.js)
 
     // ── Vibrance / color punch ─────────────────────────────────────────────────────
     // Averaging an emoji down to 8×8 muddies and desaturates colors, so they read
@@ -338,35 +327,22 @@
         for (let x = 0; x < 8; x++) {
           const px = document.createElement('div');
           px.className = 'pixel';
-          px.style.background = previewColor(boardMatrix[y][x], currentBri);
+          px.style.background = LedSim.previewColor(boardMatrix[y][x], LedSim.bri());
           grid.appendChild(px);
         }
       }
     }
 
-    // ── Brightness slider ─────────────────────────────────────────────────────────
-    let briTimer;
-    function onBriSlider(val) {
-      currentBri = +val;
-      document.getElementById('v-bri').textContent = val;
-      const mv = minVisible(currentBri);
-      document.getElementById('bri-minvis').textContent = `min R/G/B: ${mv}`;
+    // ── Brightness hint (driven by the shared bright.js widget) ─────────────────────
+    function updateBriHint() {
+      const bri = LedSim.bri();
+      const mv  = LedSim.minVisibleChannel(bri);
       document.getElementById('bri-hint').textContent =
-        `At brightness ${val}: any channel below ${mv} is physically dark. ` +
+        `At brightness ${bri}: any channel below ${mv} is physically dark. ` +
         (mv <= 4 ? 'Full color detail visible.' : mv <= 15 ? 'Good detail.' : 'Raise brightness for better color range.');
-      localStorage.setItem('emoji_brightness', String(val));
-      updatePreview();
-      clearTimeout(briTimer);
-      briTimer = setTimeout(async () => {
-        try {
-          await fetch('/api/brightness', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ level: currentBri })
-          });
-        } catch {}
-      }, 200);
     }
+    // Re-render the preview + hint whenever the shared brightness changes.
+    if (window.LedSim) LedSim.onChange(() => { updateBriHint(); updatePreview(); });
 
     // ── Emoji change ──────────────────────────────────────────────────────────────
     function onEmojiChange() {
@@ -381,12 +357,7 @@
       if (!boardMatrix) return;
       setStatus('Sending…');
       try {
-        // Set brightness first, then send the matrix
-        await fetch('/api/brightness', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ level: currentBri })
-        });
+        // Brightness is handled globally by the shared bright.js widget — just send the matrix.
         const r = await fetch('/api/display/matrix', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -406,14 +377,7 @@
 
     // ── Init ──────────────────────────────────────────────────────────────────────
     (function init() {
-      const saved = localStorage.getItem('emoji_brightness');
-      if (saved !== null) {
-        currentBri = +saved;
-        document.getElementById('bri-slider').value = currentBri;
-        document.getElementById('v-bri').textContent = currentBri;
-        const mv = minVisible(currentBri);
-        document.getElementById('bri-minvis').textContent = `min R/G/B: ${mv}`;
-      }
+      updateBriHint();
       onEmojiChange();
     })();
   </script>
