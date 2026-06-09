@@ -201,7 +201,7 @@ void drawChar3x5(char c, int startCol, int rowOffset, CRGB color) {
 void drawStr3x3(const char* str, int startCol, int rowOffset, CRGB color) {
   for (int i = 0; str[i] != '\0'; i++) {
     int x = startCol + i * (FONT_CHAR_W + FONT_CHAR_GAP);
-    if (x >= MATRIX_W) break;
+    if (x >= MATRIX_W) continue;   // keep scanning; drawChar clips off-screen cols (safe for scroll)
     drawChar3x3(str[i], x, rowOffset, color);
   }
 }
@@ -209,7 +209,7 @@ void drawStr3x3(const char* str, int startCol, int rowOffset, CRGB color) {
 void drawStr3x5(const char* str, int startCol, int rowOffset, CRGB color) {
   for (int i = 0; str[i] != '\0'; i++) {
     int x = startCol + i * (FONT_CHAR_W + FONT_CHAR_GAP);
-    if (x >= MATRIX_W) break;
+    if (x >= MATRIX_W) continue;   // keep scanning; drawChar clips off-screen cols (safe for scroll)
     drawChar3x5(str[i], x, rowOffset, color);
   }
 }

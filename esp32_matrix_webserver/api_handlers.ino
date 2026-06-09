@@ -162,7 +162,7 @@ void handleAnimation() {
   }
 
   if (animationName == "calendar") {
-    calendarStyle   = String(doc["style"] | "clock");   // scroll | bignum | grid | clock
+    calendarStyle   = String(doc["style"] | "scroll");   // scroll | bignum | grid | clock
     calendarColor1  = hexToColor(String(doc["color1"] | "#00C8FF"));   // primary (day/text/today)
     calendarColor2  = hexToColor(String(doc["color2"] | "#FF7800"));   // secondary (month/other days)
     calendarColor3  = hexToColor(String(doc["color3"] | "#50505A"));   // accent (separator)

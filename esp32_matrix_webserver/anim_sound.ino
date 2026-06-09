@@ -25,21 +25,29 @@ void stepSoundFrame() {
 
   float mag = sqrtf(ax * ax + ay * ay + az * az);
 
-  // Slowly track the steady-state magnitude so gravity/orientation is removed.
-  soundBaseline += (mag - soundBaseline) * 0.05f;
+  // dt since last frame (seconds). Attack/release/decay are wall-clock based so
+  // they don't change when the animation tick rate (animationSpeed) changes.
+  static uint32_t lastMs = 0;
+  uint32_t now = millis();
+  float dt = lastMs ? (now - lastMs) / 1000.0f : 0.016f;
+  lastMs = now;
+
+  // Slowly track the steady-state magnitude so gravity/orientation is removed
+  // (~1.5s settle, so a sustained bass note lingers before the AC-coupling fades it).
+  soundBaseline += (mag - soundBaseline) * (1.0f - expf(-dt / 1.5f));
   float dev = fabsf(mag - soundBaseline);
 
   // sensitivity 0-10 → gain. Higher sensitivity reacts to gentler vibration.
   float gain   = 6.0f + soundSensitivity * 8.0f;
   float target = constrain(dev * gain, 0.0f, 1.0f);
 
-  // Fast attack, slow release — feels like a real VU meter.
+  // Fast attack (instant), time-based release (~120ms) — real VU-meter feel.
   if (target > soundEnergy) soundEnergy = target;
-  else                      soundEnergy += (target - soundEnergy) * 0.25f;
+  else                      soundEnergy += (target - soundEnergy) * (1.0f - expf(-dt / 0.12f));
 
-  // Peak hold with slow decay.
+  // Peak hold with time-based decay (~0.6 per second).
   if (soundEnergy > soundPeak) soundPeak = soundEnergy;
-  else { soundPeak -= 0.02f; if (soundPeak < 0.0f) soundPeak = 0.0f; }
+  else { soundPeak -= 0.6f * dt; if (soundPeak < 0.0f) soundPeak = 0.0f; }
 
   fill_solid(leds, NUM_LEDS, CRGB::Black);
 
