@@ -3,7 +3,7 @@
 // Board: Waveshare ESP32-S3-Matrix (8x8 WS2812B)
 // ============================================================
 // PURPOSE:
-//   This firmware turns the ESP32-S3 into a WiFi-connected
+//   This firmware turns the ESP32-S3 into a WiFi-connected 
 //   HTTP server. It listens for commands sent from your PC
 //   (via the MCP Node.js server) and controls the LED matrix.
 //
@@ -53,6 +53,7 @@
 #include <PNGdec.h>
 #include <time.h>
 #include <Preferences.h>   // NVS key/value store — used for auto-resume
+#include <esp_wifi.h>      // esp_wifi_get_config — read stored SSID/password for explicit connect
 
 // ============================================================
 // SECTION 1: HARDWARE CONFIGURATION
@@ -492,6 +493,12 @@ void setup() {
     MDNS.end(); MDNS.begin("esp32matrix");
   }, ARDUINO_EVENT_WIFI_STA_GOT_IP);
 
+  // Diagnostic: PSRAM state. If Tools says Enabled but this prints "NOT active",
+  // PSRAM init failed at early boot — which can also wedge WiFi driver init.
+  Serial.printf("PSRAM: %s (size=%u bytes)\n", psramFound() ? "active" : "NOT active", ESP.getPsramSize());
+
+  WiFi.mode(WIFI_STA);   // init the WiFi driver so the stored config is readable
+
   WiFiManager wm;
   if (wm.getWiFiIsSaved()) {
     // We HAVE saved WiFi credentials → connect to that network and KEEP TRYING.
@@ -499,13 +506,23 @@ void setup() {
     // the board keeps running (auto-resumed display) and the loop() watchdog +
     // auto-reconnect keep retrying the saved network until it comes back. The
     // portal is ONLY for a never-configured board or a deliberately held BOOT.
-    Serial.println("Saved WiFi found — connecting (no portal; will keep retrying)...");
-    WiFi.mode(WIFI_STA);
+    wifi_config_t conf;
+    memset(&conf, 0, sizeof(conf));
+    esp_wifi_get_config(WIFI_IF_STA, &conf);
+    Serial.printf("Saved WiFi found — SSID '%s' — connecting (no portal; will keep retrying)...\n",
+                  (const char*)conf.sta.ssid);
     WiFi.setAutoReconnect(true);
     WiFi.setSleep(false);   // disable modem power-save (a common silent-drop cause)
-    WiFi.begin();           // uses the stored SSID/password
-    uint32_t start = millis();
+    // Explicit-credential begin: WiFi.begin() with no args showed it can silently
+    // start no attempt (no disconnect events at all). Passing the stored
+    // SSID/password removes that ambiguity.
+    WiFi.begin((const char*)conf.sta.ssid, (const char*)conf.sta.password);
+    uint32_t start = millis(), lastStat = 0;
     while (WiFi.status() != WL_CONNECTED && millis() - start < 25000) {
+      if (millis() - lastStat >= 2000) {   // live status code while we wait
+        lastStat = millis();
+        Serial.printf("  connecting... status=%d\n", (int)WiFi.status());
+      }
       bool on = ((millis() - start) / 400) % 2;   // pulse blue while connecting
       fill_solid(leds, NUM_LEDS, on ? CRGB::Blue : CRGB::Black);
       FastLED.show();
@@ -541,8 +558,10 @@ void setup() {
   if (!LittleFS.begin(true)) {
     Serial.println("WARNING: LittleFS mount failed — web UI files not available yet.");
     Serial.println("  Upload data/ folder via: Tools → ESP32 LittleFS Data Upload");
-  } else {
+  } else if (WiFi.status() == WL_CONNECTED) {
     Serial.println("LittleFS mounted. Web UI ready at http://" + WiFi.localIP().toString());
+  } else {
+    Serial.println("LittleFS mounted. Web UI will be ready once WiFi connects.");
   }
 
   server.on("/",                          HTTP_GET,  handleRoot);
@@ -614,7 +633,7 @@ void loop() {
   if (millis() - lastWifiCheck >= 5000) {
     lastWifiCheck = millis();
     if (WiFi.status() != WL_CONNECTED) {
-      Serial.println("WiFi down — forcing reconnect.");
+      Serial.printf("WiFi down (status=%d) — forcing reconnect.\n", (int)WiFi.status());
       WiFi.reconnect();
     }
   }
