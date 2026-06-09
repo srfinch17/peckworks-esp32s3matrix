@@ -482,59 +482,59 @@ void setup() {
     }
   }
 
-  // Blue = trying to connect (or waiting for portal input)
-  fill_solid(leds, NUM_LEDS, CRGB::Blue);
-  FastLED.show();
-
-  WiFiManager wm;
-  wm.setConnectTimeout(10);  // give up on saved credentials after 10 s
-
-  // Amber = config portal is open; user needs to connect to "ESP32-Matrix-Setup"
-  wm.setAPCallback([](WiFiManager*) {
-    Serial.println("No saved WiFi found — config portal open.");
-    Serial.println("Connect to hotspot: ESP32-Matrix-Setup");
-    Serial.println("Then open 192.168.4.1 in your browser.");
-    fill_solid(leds, NUM_LEDS, CRGB(255, 80, 0));
-    FastLED.show();
-  });
-
-  // autoConnect() tries saved credentials first. If that fails it starts the
-  // "ESP32-Matrix-Setup" AP and blocks here until the user configures WiFi.
-  if (!wm.autoConnect("ESP32-Matrix-Setup")) {
-    Serial.println("WiFi setup failed — restarting in 5 s...");
-    delay(5000);
-    ESP.restart();
-  }
-
-  Serial.println("WiFi connected!");
-  Serial.print("IP Address: ");
-  Serial.println(WiFi.localIP());
-
-  // Keep WiFi alive. The firmware previously connected once and never recovered
-  // if the link dropped (so any glitch = permanently offline until reflash).
-  //   - setAutoReconnect: STA auto-reconnects on disconnect
-  //   - setSleep(false):  disable modem power-save (a common silent-drop cause)
-  //   - onEvent loggers:  print the disconnect REASON code so we can see WHY,
-  //     and re-announce mDNS after a reconnect.
-  WiFi.setAutoReconnect(true);
-  WiFi.setSleep(false);
+  // WiFi event handlers, registered up front so they catch the initial connect
+  // too: log disconnect reasons, and (re)announce mDNS on every got-IP.
   WiFi.onEvent([](WiFiEvent_t, WiFiEventInfo_t info) {
-    Serial.printf("WiFi DISCONNECTED, reason=%d — retrying\n", info.wifi_sta_disconnected.reason);
+    Serial.printf("WiFi DISCONNECTED, reason=%d\n", info.wifi_sta_disconnected.reason);
   }, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
   WiFi.onEvent([](WiFiEvent_t, WiFiEventInfo_t) {
-    Serial.print("WiFi reconnected, IP "); Serial.println(WiFi.localIP());
+    Serial.print("WiFi got IP "); Serial.println(WiFi.localIP());
     MDNS.end(); MDNS.begin("esp32matrix");
   }, ARDUINO_EVENT_WIFI_STA_GOT_IP);
 
-  if (MDNS.begin("esp32matrix")) {
-    Serial.println("mDNS started — board reachable at http://esp32matrix.local");
+  WiFiManager wm;
+  if (wm.getWiFiIsSaved()) {
+    // We HAVE saved WiFi credentials → connect to that network and KEEP TRYING.
+    // Do NOT fall into the blocking config portal on a slow/transient connect:
+    // the board keeps running (auto-resumed display) and the loop() watchdog +
+    // auto-reconnect keep retrying the saved network until it comes back. The
+    // portal is ONLY for a never-configured board or a deliberately held BOOT.
+    Serial.println("Saved WiFi found — connecting (no portal; will keep retrying)...");
+    WiFi.mode(WIFI_STA);
+    WiFi.setAutoReconnect(true);
+    WiFi.setSleep(false);   // disable modem power-save (a common silent-drop cause)
+    WiFi.begin();           // uses the stored SSID/password
+    uint32_t start = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - start < 25000) {
+      bool on = ((millis() - start) / 400) % 2;   // pulse blue while connecting
+      fill_solid(leds, NUM_LEDS, on ? CRGB::Blue : CRGB::Black);
+      FastLED.show();
+      delay(200);
+    }
+    if (WiFi.status() != WL_CONNECTED)
+      Serial.println("Saved WiFi not up yet — running anyway; watchdog keeps retrying in the background.");
   } else {
-    Serial.println("WARNING: mDNS failed. Use IP address above to reach the board.");
+    // No saved credentials → first-time setup only: open the config portal.
+    Serial.println("No saved WiFi — opening setup portal 'ESP32-Matrix-Setup' (192.168.4.1).");
+    fill_solid(leds, NUM_LEDS, CRGB(255, 80, 0));   // amber = portal
+    FastLED.show();
+    wm.setAPCallback([](WiFiManager*) {
+      fill_solid(leds, NUM_LEDS, CRGB(255, 80, 0));
+      FastLED.show();
+    });
+    wm.startConfigPortal("ESP32-Matrix-Setup");
+    WiFi.setAutoReconnect(true);
+    WiFi.setSleep(false);
   }
 
-  fill_solid(leds, NUM_LEDS, CRGB::Green);
-  FastLED.show();
-  delay(800);
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("WiFi connected!");
+    Serial.print("IP Address: ");
+    Serial.println(WiFi.localIP());
+    fill_solid(leds, NUM_LEDS, CRGB::Green);   // brief green = connected OK
+    FastLED.show();
+    delay(600);
+  }
   fill_solid(leds, NUM_LEDS, CRGB::Black);
   FastLED.show();
 
