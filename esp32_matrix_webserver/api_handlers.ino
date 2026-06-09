@@ -20,6 +20,7 @@ void handleClear() {
   stopAll();
   fill_solid(leds, NUM_LEDS, CRGB::Black);
   FastLED.show();
+  prefs.putString("kind", "off");   // auto-resume: stay blank on next boot
   sendJson(200, "{\"status\":\"ok\"}");
 }
 
@@ -36,6 +37,7 @@ void handleBrightness() {
   brightness = (uint8_t)level;
   FastLED.setBrightness(brightness);
   FastLED.show();
+  prefs.putUChar("bri", brightness);   // auto-resume (NVS skips no-op writes, so drags don't wear flash)
   sendJson(200, "{\"status\":\"ok\",\"brightness\":" + String(brightness) + "}");
 }
 
@@ -82,12 +84,25 @@ void handleText() {
 // Starts one of the built-in animations. This is the big one —
 // it initializes every animation type, so there are a lot of cases.
 // Params: type (required), plus animation-specific params.
-void handleAnimation() {
-  JsonDocument doc;
-  if (deserializeJson(doc, server.arg("plain")) != DeserializationError::Ok) {
-    sendJson(400, "{\"error\":\"Invalid JSON\"}");
-    return;
+// Start NTP using a POSIX TZ string (DST-aware) when 'tz' is given, else a fixed
+// UTC offset from 'timezone'. Shared by the clock and calendar modes.
+static void startNtp(JsonDocument& doc) {
+  const char* tz = doc["tz"] | "";
+  if (strlen(tz) > 0) {
+    clockTZ = String(tz);
+    configTzTime(clockTZ.c_str(), "pool.ntp.org", "time.nist.gov");
+  } else {
+    clockTimezone = (int)(doc["timezone"] | -7);
+    configTime((long)clockTimezone * 3600L, 0, "pool.ntp.org", "time.nist.gov");
   }
+}
+
+// Applies an animation command from a JSON body. Shared by the HTTP handler
+// (handleAnimation) and the boot-time auto-resume in setup(). Returns false on
+// malformed JSON. Does NOT send an HTTP response or persist anything.
+bool applyAnimationBody(const String& body) {
+  JsonDocument doc;
+  if (deserializeJson(doc, body) != DeserializationError::Ok) return false;
 
   stopAll();   // stop any currently running animation or text scroll
   animationName  = String(doc["type"] | "fire");
@@ -149,7 +164,6 @@ void handleAnimation() {
   }
 
   if (animationName == "clock") {
-    clockTimezone    = (int)(doc["timezone"] | -7);
     // Accept color1/2/3 (the shared MCP convention) as aliases for the named
     // keys the web clock page sends. color1=hours, color2=minutes, color3=colon.
     clockColorHours  = hexToColor(String(doc["colorHours"]   | (doc["color1"] | "#FF3300")));
@@ -158,7 +172,7 @@ void handleAnimation() {
     clockPrevHour    = -1;
     clockPrevMin     = -1;
     ntpSynced        = false;
-    configTime((long)clockTimezone * 3600L, 0, "pool.ntp.org", "time.nist.gov");
+    startNtp(doc);   // tz (POSIX, DST-aware) or timezone (fixed offset)
   }
 
   if (animationName == "calendar") {
@@ -167,9 +181,8 @@ void handleAnimation() {
     calendarColor2  = hexToColor(String(doc["color2"] | "#FF7800"));   // secondary (month/other days)
     calendarColor3  = hexToColor(String(doc["color3"] | "#50505A"));   // accent (separator)
     calendarScrollX = MATRIX_W;
-    clockTimezone   = (int)(doc["timezone"] | -7);      // same NTP plumbing as the clock
     ntpSynced       = false;
-    configTime((long)clockTimezone * 3600L, 0, "pool.ntp.org", "time.nist.gov");
+    startNtp(doc);   // same NTP plumbing as the clock (tz POSIX/DST or fixed offset)
   }
 
   if (animationName == "sound") {
@@ -345,6 +358,15 @@ void handleAnimation() {
   }
 
   animationActive = true;
+  return true;
+}
+
+// POST /api/display/animation — HTTP wrapper: apply, persist for auto-resume, respond.
+void handleAnimation() {
+  String body = server.arg("plain");
+  if (!applyAnimationBody(body)) { sendJson(400, "{\"error\":\"Invalid JSON\"}"); return; }
+  prefs.putString("kind", "anim");       // auto-resume: remember the last animation
+  prefs.putString("animbody", body);
   sendJson(200, "{\"status\":\"ok\",\"animation\":\"" + animationName + "\"}");
 }
 

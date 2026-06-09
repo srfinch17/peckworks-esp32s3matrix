@@ -18,7 +18,7 @@
     .cal-btn { border: 2px solid #333; border-radius: 8px; padding: 8px 14px; cursor: pointer; font-size: 0.82rem; font-weight: 600; background: #1a1a1a; color: #bbb; transition: border-color .12s, color .12s; }
     .cal-btn.active { border-color: #ffd166; color: #fff; }
     input[type=range] { width: 100%; accent-color: #ffd166; cursor: pointer; }
-    input[type=number] { width: 72px; background: #111; color: #e0e0e0; border: 1px solid #333; border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; }
+    input[type=number], select { background: #111; color: #e0e0e0; border: 1px solid #333; border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; }
     .actions { display: flex; gap: 10px; flex-wrap: wrap; }
     .btn-primary { background: #3a2e0a; color: #ffd166; border: 1px solid #6a5417; border-radius: 7px; padding: 10px 22px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
     .btn-primary:hover { background: #4a3a10; }
@@ -57,9 +57,22 @@
       </div>
 
       <div class="group">
-        <label>UTC offset (timezone)</label>
-        <input type="number" id="tz" value="-7" min="-12" max="14">
-        <span class="hint">e.g. -7 = Arizona. Needed for the correct local date.</span>
+        <label>Timezone</label>
+        <select id="tz">
+          <option value="MST7" selected>Phoenix — MST (no DST)</option>
+          <option value="PST8PDT,M3.2.0,M11.1.0">US Pacific</option>
+          <option value="MST7MDT,M3.2.0,M11.1.0">US Mountain</option>
+          <option value="CST6CDT,M3.2.0,M11.1.0">US Central</option>
+          <option value="EST5EDT,M3.2.0,M11.1.0">US Eastern</option>
+          <option value="AKST9AKDT,M3.2.0,M11.1.0">US Alaska</option>
+          <option value="HST10">US Hawaii (no DST)</option>
+          <option value="UTC0">UTC</option>
+          <option value="GMT0BST,M3.5.0/1,M10.5.0">UK — London</option>
+          <option value="CET-1CEST,M3.5.0,M10.5.0/3">Central Europe</option>
+          <option value="JST-9">Japan</option>
+          <option value="AEST-10AEDT,M10.1.0,M4.1.0/3">Sydney</option>
+        </select>
+        <span class="hint">DST handled automatically. Needed for the correct local date.</span>
       </div>
 
       <div class="actions">
@@ -108,7 +121,7 @@
       const body = {
         type: 'calendar', style: style,
         color1: colors[0], color2: colors[1], color3: colors[2],
-        timezone: +document.getElementById('tz').value,
+        tz: document.getElementById('tz').value,
         speed: ms
       };
       try {
