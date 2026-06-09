@@ -146,6 +146,7 @@ int      weatherHumidity   = 0;         // percent
 int      weatherUvIndex    = 0;
 int      weatherPressure   = 0;         // hPa
 uint32_t lastWeatherFetch  = 0;         // millis() of last successful fetch
+bool     weatherNeedsFetch = false;     // handler sets this; loop() does the fetch (off the request/boot path)
 uint8_t  weatherFrame      = 0;         // frame counter for icon animations
 String   weatherDataMode   = "temp";    // which data to show: temp/humidity/uv/pressure/cycle
 String   weatherIconSource = "animated";// "animated" (built-in) or "remote" (fetched PNG)

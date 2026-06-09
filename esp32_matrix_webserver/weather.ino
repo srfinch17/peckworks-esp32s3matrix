@@ -256,12 +256,12 @@ void fetchWeatherIcon(const String& url) {
 // Fetches current weather from wttr.in as JSON, then parses the
 // fields we need with ArduinoJson.
 //
-// WHY getString() INSTEAD OF STREAMING:
-//   The wttr.in response is 40-50KB of JSON. ArduinoJson's
-//   streaming deserializer sometimes fails mid-parse on large
-//   payloads from slow WiFi connections (the stream stalls and
-//   the parser times out). getString() buffers the whole response
-//   in heap RAM first, then parses it — slower but reliable.
+// WHY STREAM-PARSE WITH A FILTER:
+//   The wttr.in response is 40-50KB of JSON — too big to buffer in heap on this
+//   PSRAM-disabled board (a getString() of the whole body fragmented the heap and
+//   dropped WiFi, unrecoverably once auto-resume kept replaying weather on boot).
+//   We now parse straight from the socket with an ArduinoJson filter, so only the
+//   few fields we keep ever live in RAM. The filter is what makes streaming reliable.
 //
 // WHY atoi() ON STRINGS:
 //   wttr.in sends all numeric values as JSON strings, not numbers.
@@ -280,10 +280,7 @@ void fetchWeather() {
     return;
   }
 
-  String payload = http.getString();   // buffer full response before parsing
-  http.end();
-  lastWeatherFetch = millis();
-  Serial.printf("Weather payload: %d bytes\n", payload.length());
+  Serial.printf("Weather fetch: free heap before parse %u\n", ESP.getFreeHeap());
 
   // ArduinoJson filter: only keep the fields we actually use.
   // This dramatically reduces RAM usage — the full doc would overflow the heap.
@@ -297,11 +294,14 @@ void fetchWeather() {
   filter["current_condition"][0]["weatherIconUrl"][0]["value"] = true;
 
   JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, payload, DeserializationOption::Filter(filter));
-  if (err) {
-    Serial.printf("Weather JSON err: %s\n", err.c_str());
-    return;
-  }
+  // Stream-parse straight from the socket with the filter — never buffers the full
+  // ~50KB response. PSRAM is disabled, so a big getString() here was fragmenting the
+  // heap and dropping WiFi (it couldn't recover even after a reboot via auto-resume).
+  DeserializationError err = deserializeJson(doc, http.getStream(), DeserializationOption::Filter(filter));
+  http.end();
+  lastWeatherFetch = millis();
+  Serial.printf("Weather fetch: free heap after parse %u, err=%s\n", ESP.getFreeHeap(), err.c_str());
+  if (err) return;
 
   JsonObject cond = doc["current_condition"][0];
   const char* tf  = cond["temp_F"];
@@ -526,8 +526,10 @@ void drawMetricLabel(const uint8_t bits[8], int rows, CRGB color) {
 //   2. Phase switch: toggles between data overlay (2s) and icon (3s)
 //   3. Rendering: draws either the icon or the data overlay
 void stepWeatherFrame() {
-  // Refresh weather data every 10 minutes (600000ms)
-  if ((millis() - lastWeatherFetch) >= 600000UL) fetchWeather();
+  // Refresh on request (set by the handler/auto-resume) or every 10 minutes.
+  // Done here in loop() — never in a request handler or setup() — so the blocking
+  // GET can't stall the web server or boot.
+  if (weatherNeedsFetch || (millis() - lastWeatherFetch) >= 600000UL) { weatherNeedsFetch = false; fetchWeather(); }
 
   // Phase timer: show data for 2s, then icon for 3s, repeat
   uint32_t elapsed = millis() - weatherPhaseStart;
@@ -783,7 +785,7 @@ void drawThunderIcon2(uint8_t f) {
 // ── stepWeather2Frame ─────────────────────────────────────────
 void stepWeather2Frame() {
   static uint8_t w2f = 0;
-  if ((millis() - lastWeatherFetch) >= 600000UL) fetchWeather();
+  if (weatherNeedsFetch || (millis() - lastWeatherFetch) >= 600000UL) { weatherNeedsFetch = false; fetchWeather(); }
 
   w2f++;
   fill_solid(leds, NUM_LEDS, CRGB::Black);
