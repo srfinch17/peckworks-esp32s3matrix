@@ -202,6 +202,24 @@ bool    liquidGradient        = false;         // true = custom top/bottom gradi
 CRGB    liquidTopColor        = CRGB(230, 250, 255);  // surface/froth color (custom mode)
 CRGB    liquidBottomColor     = CRGB(  0,  40, 160);  // deep color (custom mode)
 
+// ── Calendar state ────────────────────────────────────────────
+// Styles: "scroll" (date scrolls), "bignum" (day), "grid" (month grid), "clock"
+// (month over day, clock-style). Date comes from NTP, same as clock mode.
+String  calendarStyle  = "clock";
+CRGB    calendarColor1 = CRGB(0, 200, 255);    // primary  (day / today / text)
+CRGB    calendarColor2 = CRGB(255, 120, 0);    // secondary(month / other days)
+CRGB    calendarColor3 = CRGB(80, 80, 90);     // accent   (separator / grid frame)
+int     calendarScrollX = MATRIX_W;            // scroll position for "scroll" style
+
+// ── Sound (vibration) visualizer state ────────────────────────
+// No microphone — the IMU feels low-frequency vibration (bass through a surface).
+CRGB    soundColor1     = CRGB(0, 80, 255);     // bottom of the VU bar
+CRGB    soundColor2     = CRGB(255, 0, 160);    // top of the VU bar
+float   soundSensitivity = 5.0f;                // 0-10
+float   soundBaseline   = 1.0f;                 // slow-tracked steady magnitude (gravity)
+float   soundEnergy     = 0.0f;                 // smoothed current level 0-1
+float   soundPeak       = 0.0f;                 // decaying peak marker 0-1
+
 // ── Gradient Spiral ───────────────────────────────────────────────────────────
 CRGB     spiralColor1   = CRGB(255,   0,   0);
 CRGB     spiralColor2   = CRGB(  0,   0, 255);
@@ -571,6 +589,8 @@ void loop() {
     else if (animationName == "comet")      runCometFrame();
     else if (animationName == "sun")       runSunFrame();
     else if (animationName == "frostbite") runFrostbiteFrame();
+    else if (animationName == "calendar")  stepCalendarFrame();
+    else if (animationName == "sound")     stepSoundFrame();
     FastLED.show();
   }
 
