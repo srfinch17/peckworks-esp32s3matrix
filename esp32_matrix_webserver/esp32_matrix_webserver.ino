@@ -99,6 +99,13 @@ WebServer server(80);
 // NVS (non-volatile storage) — remembers the last display + brightness so the
 // board resumes itself after a power cycle (see setup() and the API handlers).
 Preferences prefs;
+// Auto-resume writes are DEBOUNCED: handlers set these + a dirty flag, and loop()
+// flushes once things settle. This avoids churning the NVS partition that also
+// holds the WiFi credentials (rapid writes there can cost you your WiFi).
+String   resumeKind    = "";
+String   resumeBody    = "";
+bool     resumeDirty   = false;
+uint32_t resumeDirtyMs = 0;
 
 // ── Animation control ────────────────────────────────────────
 uint8_t  brightness      = 40;      // global FastLED brightness (0-255)
@@ -461,10 +468,18 @@ void setup() {
   // Hold BOOT (GPIO 0) during power-on to wipe saved credentials and force
   // the config portal — useful if you're moving the board to a new network.
   pinMode(0, INPUT_PULLUP);
+  delay(10);
   if (digitalRead(0) == LOW) {
-    Serial.println("BOOT held — clearing saved WiFi credentials.");
-    WiFiManager wm;
-    wm.resetSettings();
+    // Require a sustained ~1s hold. A single glitchy strapping-pin read right
+    // after a USB flash/reset must NOT wipe WiFi credentials by accident.
+    delay(1000);
+    if (digitalRead(0) == LOW) {
+      Serial.println("BOOT held 1s — clearing saved WiFi credentials.");
+      WiFiManager wm;
+      wm.resetSettings();
+    } else {
+      Serial.println("BOOT was only a blip — keeping saved WiFi credentials.");
+    }
   }
 
   // Blue = trying to connect (or waiting for portal input)
@@ -619,6 +634,16 @@ void loop() {
       delay(50);
       ESP.restart();
     }
+  }
+
+  // Debounced auto-resume save: write to NVS once changes have settled (~8s),
+  // instead of on every request — protects the WiFi creds in the same partition.
+  if (resumeDirty && millis() - resumeDirtyMs >= 8000) {
+    resumeDirty = false;
+    prefs.putUChar("bri", brightness);
+    if (resumeKind.length()) prefs.putString("kind", resumeKind);
+    if (resumeKind == "anim" && resumeBody.length()) prefs.putString("animbody", resumeBody);
+    Serial.println("Auto-resume state saved to NVS.");
   }
 
   uint32_t now = millis();   // snapshot the clock once per loop iteration

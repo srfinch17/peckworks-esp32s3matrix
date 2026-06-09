@@ -20,7 +20,7 @@ void handleClear() {
   stopAll();
   fill_solid(leds, NUM_LEDS, CRGB::Black);
   FastLED.show();
-  prefs.putString("kind", "off");   // auto-resume: stay blank on next boot
+  resumeKind = "off"; resumeDirty = true; resumeDirtyMs = millis();   // auto-resume: stay blank on next boot
   sendJson(200, "{\"status\":\"ok\"}");
 }
 
@@ -37,7 +37,7 @@ void handleBrightness() {
   brightness = (uint8_t)level;
   FastLED.setBrightness(brightness);
   FastLED.show();
-  prefs.putUChar("bri", brightness);   // auto-resume (NVS skips no-op writes, so drags don't wear flash)
+  resumeDirty = true; resumeDirtyMs = millis();   // debounced auto-resume save (avoids NVS churn on slider drags)
   sendJson(200, "{\"status\":\"ok\",\"brightness\":" + String(brightness) + "}");
 }
 
@@ -365,8 +365,8 @@ bool applyAnimationBody(const String& body) {
 void handleAnimation() {
   String body = server.arg("plain");
   if (!applyAnimationBody(body)) { sendJson(400, "{\"error\":\"Invalid JSON\"}"); return; }
-  prefs.putString("kind", "anim");       // auto-resume: remember the last animation
-  prefs.putString("animbody", body);
+  // Debounced auto-resume (flushed from loop() after ~8s) — see esp32_matrix_webserver.ino.
+  resumeKind = "anim"; resumeBody = body; resumeDirty = true; resumeDirtyMs = millis();
   sendJson(200, "{\"status\":\"ok\",\"animation\":\"" + animationName + "\"}");
 }
 
