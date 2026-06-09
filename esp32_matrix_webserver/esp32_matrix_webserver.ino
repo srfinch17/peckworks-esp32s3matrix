@@ -658,8 +658,8 @@ void setup() {
   // WiFi is already up (autoConnect blocks above), so clock/calendar NTP works.
   brightness = prefs.getUChar("bri", brightness);
   FastLED.setBrightness(brightness);
-  if (prefs.getString("kind", "") == "anim") {
-    String body = prefs.getString("animbody", "");
+  if (prefs.isKey("kind") && prefs.getString("kind", "") == "anim") {   // isKey: avoid harmless NOT_FOUND error log on fresh NVS
+    String body = prefs.isKey("animbody") ? prefs.getString("animbody", "") : "";
     if (body.length()) {
       Serial.println("Auto-resume: restoring last animation.");
       applyAnimationBody(body);   // defined in api_handlers.ino
@@ -684,11 +684,13 @@ void setup() {
 void loop() {
   server.handleClient();   // process any pending HTTP requests first
 
-  // WiFi self-heal backstop: if the link is down for a few seconds (and the
-  // built-in auto-reconnect hasn't recovered it), force a reconnect. Keeps the
-  // board from being stranded offline while it keeps animating.
+  // WiFi self-heal backstop — deliberately GENTLE. The driver's autoReconnect
+  // already retries every ~2s; this only kicks a wedged driver every 30s.
+  // Don't make it aggressive: rapid forced auth cycling looks like an attack to
+  // mesh-router security heuristics, which can blocklist the board's MAC (we
+  // lived this — see PITFALLS, "mesh refused the 4-way handshake").
   static uint32_t lastWifiCheck = 0;
-  if (millis() - lastWifiCheck >= 5000) {
+  if (millis() - lastWifiCheck >= 30000) {
     lastWifiCheck = millis();
     if (WiFi.status() != WL_CONNECTED) {
       Serial.printf("WiFi down (status=%d) — forcing reconnect.\n", (int)WiFi.status());
