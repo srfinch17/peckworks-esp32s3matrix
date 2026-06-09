@@ -88,11 +88,20 @@
     if (state.onStatus) state.onStatus(msg, isErr);
   }
 
+  // Announce the value immediately (un-debounced) so previews (ledsim.js) can
+  // track the slider in real time, even though the board POST is debounced.
+  function broadcast() {
+    try {
+      global.dispatchEvent(new CustomEvent('matrixbrightness', { detail: { level: state.val } }));
+    } catch (e) { /* old browsers: previews just won't live-update */ }
+  }
+
   // Push the current value to the board (debounced). report=true => show
   // success text; report=false => only surface failures (used on load/set).
   function commit(report) {
     state.els.val.textContent = state.val;
     localStorage.setItem(STORE_VAL, String(state.val));
+    broadcast();
     clearTimeout(state.timer);
     state.timer = setTimeout(function () {
       postLevel(state.val).then(function (ok) {
@@ -147,6 +156,8 @@
 
     state.els.slider.addEventListener('input', onInput);
     state.els.cb.addEventListener('change', onToggle);
+
+    broadcast();  // let any preview render at the restored brightness on load
 
     // Sync the board to the UI on load (surface failures only).
     postLevel(state.val).then(function (ok) {
