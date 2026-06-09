@@ -121,11 +121,18 @@ void handleAnimation() {
     // Maps to liquidDamping: higher viscosity → lower damping coeff (more energy lost per frame)
     float vis     = constrain((float)(int)(doc["viscosity"] | 5), 0.0f, 10.0f);
     liquidDamping = 0.97f - vis * 0.02f;
-    // Initialize all columns to mid-height (flat surface)
-    for (int x = 0; x < MATRIX_W; x++) {
-      liquidHeight[x]   = MATRIX_H * 0.5f;
-      liquidVelocity[x] = 0.0f;
+
+    // Color: either the shared palette (already set above from theme) or a
+    // custom top/bottom gradient.
+    liquidGradient = doc["gradient"] | false;
+    if (liquidGradient) {
+      liquidTopColor    = hexToColor(String(doc["top"]    | "#E6FAFF"));  // surface/froth
+      liquidBottomColor = hexToColor(String(doc["bottom"] | "#0028A0"));  // deep
     }
+
+    // Reset the fluid to settle from a flat start.
+    liquidLevel = 0.0f;  liquidLevelVel = 0.0f;
+    liquidGX    = 0.0f;  liquidGY       = 1.0f;   // default "down" until the IMU reports
   }
 
   if (animationName == "chiptemp") {
