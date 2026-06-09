@@ -11,10 +11,10 @@
 // and the same getLocalTime() NTP source as the clock. configTime() is started
 // in handleAnimation() when calendar mode begins.
 //
-// Colors:
-//   calendarColor1 — primary  (the day / today / scroll text)
-//   calendarColor2 — secondary(the month / other days in the grid)
-//   calendarColor3 — accent   (separator dots in clock style)
+// Colors (all three distinct so the parts read apart):
+//   calendarColor1 — primary   (day number / today / scroll text)
+//   calendarColor2 — secondary (month number / weekday cells in the grid)
+//   calendarColor3 — accent    (weekday letter in clock style / weekend cells in grid)
 // ============================================================
 
 static const char* const CAL_WDAYS[7]   = { "SUN","MON","TUE","WED","THU","FRI","SAT" };
@@ -71,16 +71,35 @@ void stepCalendarFrame() {
     // Weekday of the 1st of this month (0 = Sun), derived from today's wday/mday.
     int firstW = (((wday - (mday - 1)) % 7) + 7) % 7;
     int days   = calDaysInMonth(mon0, year);
-    CRGB other = CRGB(calendarColor2.r / 4, calendarColor2.g / 4, calendarColor2.b / 4);
     for (int d = 1; d <= days; d++) {
       int cell = firstW + (d - 1);
       int col  = cell % 7;        // 7 columns: Sun..Sat
       int row  = cell / 7;        // up to 6 week-rows
       if (row > 5) break;         // safety (a month spans at most 6 rows)
-      setPixel(col, row, (d == mday) ? calendarColor1 : other);
+      // today = primary, weekend (Sun/Sat columns) = accent, weekday = secondary.
+      // All at FULL brightness — the old (color2/4) dimming dropped non-today
+      // cells below the visibility threshold at low brightness, so only one dot lit.
+      CRGB c = (d == mday)            ? calendarColor1
+             : (col == 0 || col == 6) ? calendarColor3
+                                      : calendarColor2;
+      setPixel(col, row, c);
     }
   }
-  else {  // "clock" — month (tiny top) over day (big bottom), like the clock
-    drawTimeDisplay(mon0 + 1, mday, calendarColor2, calendarColor3, calendarColor1);
+  else {  // "clock" — month (top-left) + weekday letter (top-right) + day (bottom), no colon
+    int month = mon0 + 1;
+    // Month, top-left, tiny 3×3, in calendarColor2. Months 10-12: a 1px "1" bar in
+    // col 0 + the units digit at cols 1-3, leaving room for the weekday letter.
+    if (month >= 10) {
+      setPixel(0, 0, calendarColor2); setPixel(0, 1, calendarColor2); setPixel(0, 2, calendarColor2);
+      drawChar3x3('0' + (month % 10), 1, 0, calendarColor2);
+    } else {
+      drawChar3x3('0' + month, 0, 0, calendarColor2);
+    }
+    // Weekday first letter, top-right (cols 5-7), tiny 3×3, in calendarColor3.
+    drawChar3x3(CAL_WDAYS[wday][0], 5, 0, calendarColor3);
+    // Day number, bottom (rows 3-7), 3×5, centered, in calendarColor1 — no colon.
+    char dbuf[4];
+    snprintf(dbuf, sizeof(dbuf), "%d", mday);
+    drawStrCentered3x5(dbuf, 3, calendarColor1);
   }
 }

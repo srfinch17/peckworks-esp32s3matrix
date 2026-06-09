@@ -203,7 +203,7 @@ bool applyAnimationBody(const String& body) {
     weatherHasIcon    = false;
     weatherShowIcon   = false;
     weatherPhaseStart = millis();
-    fetchWeather();   // fetch immediately; loop will re-fetch every 10 minutes
+    weatherNeedsFetch = true;   // loop() fetches on the next frame (off the request/boot path)
   }
 
   if (animationName == "weather2") {
@@ -213,7 +213,7 @@ bool applyAnimationBody(const String& body) {
     const char* c2 = doc["color2"] | "#FFDC50";
     weather2Color1 = hexToColor(String(c1));
     weather2Color2 = hexToColor(String(c2));
-    fetchWeather();
+    weatherNeedsFetch = true;   // loop() fetches on the next frame (off the request/boot path)
   }
 
   if (animationName == "timer_fill" || animationName == "timer_snow" || animationName == "timer_text") {
