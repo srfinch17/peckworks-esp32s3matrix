@@ -60,9 +60,9 @@
     </div>
 
     <div class="group">
-      <label>Viscosity — <span id="v-vis">5</span></label>
+      <label>Viscosity — <span id="v-vis">9</span></label>
       <div class="slider-row">
-        <input type="range" id="viscosity" min="0" max="10" value="5"
+        <input type="range" id="viscosity" min="0" max="10" value="9"
                oninput="document.getElementById('v-vis').textContent = this.value">
       </div>
       <div class="hint">0 = water (sloshy &amp; wavy) &nbsp;·&nbsp; 10 = honey (thick &amp; slow)</div>
@@ -85,11 +85,21 @@
   <script>
     let theme = 'classic';
 
+    // Each liquid moves like its real substance: water sloshes freely (thin),
+    // lava is thick and slow. Selecting a preset sets a matching viscosity
+    // (0 = runny/sloshy, 10 = thick/sluggish); you can still adjust it after.
+    const VIS_BY_THEME = { blue: 1, purple: 2, green: 6, classic: 9 };
+
     function selectPalette(btn, t) {
       document.querySelectorAll('.pal-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       theme = t;
       document.getElementById('gradient-group').style.display = (t === 'custom') ? 'block' : 'none';
+      if (t in VIS_BY_THEME) {
+        const v = VIS_BY_THEME[t];
+        document.getElementById('viscosity').value = v;
+        document.getElementById('v-vis').textContent = v;
+      }
     }
 
     function setStatus(msg, isErr) {
