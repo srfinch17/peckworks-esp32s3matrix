@@ -553,6 +553,19 @@ void setup() {
   Serial.printf("PSRAM: %s (size=%u bytes)\n", psramFound() ? "active" : "NOT active", ESP.getPsramSize());
 
   WiFi.mode(WIFI_STA);   // init the WiFi driver so the stored config is readable
+
+#ifdef WIFI_MAC_OVERRIDE
+  // Present a different MAC to the network — escape hatch for a router/mesh
+  // that has auto-blocklisted the board's real MAC (it can't be unblocked on
+  // routers with no accessible device list). Must run before any connect/scan.
+  {
+    uint8_t newMac[6] = WIFI_MAC_OVERRIDE;
+    esp_err_t macErr = esp_wifi_set_mac(WIFI_IF_STA, newMac);
+    Serial.printf("MAC override %s\n", macErr == ESP_OK ? "applied" : "FAILED");
+  }
+#endif
+  Serial.print("STA MAC: "); Serial.println(WiFi.macAddress());
+
   scanReport();          // diagnostic: signal strength + auth mode of every visible network
 
 #ifdef WIFI_SSID
