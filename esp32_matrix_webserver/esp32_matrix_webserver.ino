@@ -483,8 +483,9 @@ static void scanReport() {
   Serial.println("Scanning...");
   int n = WiFi.scanNetworks();
   for (int i = 0; i < n; i++) {
-    Serial.printf("  '%s'  ch=%d  rssi=%d dBm  auth=%s\n",
-                  WiFi.SSID(i).c_str(), WiFi.channel(i), WiFi.RSSI(i),
+    Serial.printf("  '%s'  bssid=%s  ch=%d  rssi=%d dBm  auth=%s\n",
+                  WiFi.SSID(i).c_str(), WiFi.BSSIDstr(i).c_str(),
+                  WiFi.channel(i), WiFi.RSSI(i),
                   encName(WiFi.encryptionType(i)));
   }
   WiFi.scanDelete();
@@ -554,6 +555,15 @@ void setup() {
 
   WiFi.mode(WIFI_STA);   // init the WiFi driver so the stored config is readable
 
+  // Core 3.x brings the driver up asynchronously — wait until it can report a
+  // MAC before touching it (calling esp_wifi_set_mac too early fails silently
+  // and reads back 00:00:00:00:00:00).
+  {
+    uint8_t cur[6] = {0};
+    uint32_t t0 = millis();
+    while (esp_wifi_get_mac(WIFI_IF_STA, cur) != ESP_OK && millis() - t0 < 3000) delay(20);
+  }
+
 #ifdef WIFI_MAC_OVERRIDE
   // Present a different MAC to the network — escape hatch for a router/mesh
   // that has auto-blocklisted the board's real MAC (it can't be unblocked on
@@ -561,7 +571,15 @@ void setup() {
   {
     uint8_t newMac[6] = WIFI_MAC_OVERRIDE;
     esp_err_t macErr = esp_wifi_set_mac(WIFI_IF_STA, newMac);
-    Serial.printf("MAC override %s\n", macErr == ESP_OK ? "applied" : "FAILED");
+    if (macErr != ESP_OK) {
+      // Some driver states only allow a MAC change while stopped: stop→set→start.
+      esp_wifi_stop();
+      delay(100);
+      macErr = esp_wifi_set_mac(WIFI_IF_STA, newMac);
+      esp_wifi_start();
+      delay(100);
+    }
+    Serial.printf("MAC override %s (err=%d)\n", macErr == ESP_OK ? "applied" : "FAILED", (int)macErr);
   }
 #endif
   Serial.print("STA MAC: "); Serial.println(WiFi.macAddress());
