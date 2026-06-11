@@ -14,6 +14,21 @@
 //   This eliminates the need for separate null checks on every field.
 // ============================================================
 
+// Escapes a string for safe embedding inside a JSON string value.
+// Caller-supplied text (scroll text, zip, request paths) can contain '"' or '\',
+// which would otherwise produce malformed JSON in our hand-built responses.
+static String escapeJson(const String& s) {
+  String out;
+  out.reserve(s.length() + 4);
+  for (unsigned int i = 0; i < s.length(); i++) {
+    char c = s.charAt(i);
+    if (c == '"' || c == '\\') { out += '\\'; out += c; }
+    else if ((uint8_t)c < 0x20) out += ' ';   // control chars also break JSON
+    else out += c;
+  }
+  return out;
+}
+
 // POST /api/display/clear
 // Stops all animations and text, blanks all LEDs.
 void handleClear() {
@@ -35,6 +50,7 @@ void handleBrightness() {
   // constrain() clamps a value to [lo, hi] — prevents bad values from crashing FastLED
   int level = constrain((int)(doc["level"] | 50), 0, 255);
   brightness = (uint8_t)level;
+  resumeBri  = brightness;   // only user-committed brightness persists to NVS (not grid-test's 255)
   FastLED.setBrightness(brightness);
   FastLED.show();
   resumeDirty = true; resumeDirtyMs = millis();   // debounced auto-resume save (avoids NVS churn on slider drags)
@@ -65,7 +81,7 @@ void handleText() {
   scrollSmall    = (bool)(doc["small"]    | false);
   scrollTiny     = (bool)(doc["tiny"]     | false);
   if (scrollTiny) scrollSmall = false;   // tiny overrides small
-  scrollSpeed    = doc["scroll_speed"] | 100;
+  scrollSpeed    = (uint32_t)constrain((int)(doc["scroll_speed"] | 100), 10, 5000);   // negative would wrap the uint32 to ~49 days/step
   scrollOffset   = 0;
   scrollPausing  = false;
 
@@ -77,7 +93,7 @@ void handleText() {
 
   renderScrollFrame();   // render the first frame immediately
   FastLED.show();
-  sendJson(200, "{\"status\":\"ok\",\"text\":\"" + scrollText + "\"}");
+  sendJson(200, "{\"status\":\"ok\",\"text\":\"" + escapeJson(scrollText) + "\"}");
 }
 
 // POST /api/display/animation
@@ -92,21 +108,39 @@ static void startNtp(JsonDocument& doc) {
     clockTZ = String(tz);
     configTzTime(clockTZ.c_str(), "pool.ntp.org", "time.nist.gov");
   } else {
+    clockTZ = "";   // fixed offset is now the active config — don't let status report a stale tz string
     clockTimezone = (int)(doc["timezone"] | -7);
     configTime((long)clockTimezone * 3600L, 0, "pool.ntp.org", "time.nist.gov");
   }
 }
 
+// Every name the loop() dispatch chain knows how to render. An unrecognized type
+// must be rejected here: it would otherwise be accepted, persisted for auto-resume,
+// match no dispatch branch, and the board would "resume" into a black screen.
+static const char* const KNOWN_ANIMS[] = {
+  "fire", "rainbow", "breathe", "wave", "solid", "liquid", "imu", "chiptemp",
+  "weather", "weather2", "timer_fill", "timer_snow", "timer_text", "clock",
+  "matrix_rain", "dancefloor", "spiral", "starfield", "fireworks", "fireworks2",
+  "comet", "sun", "frostbite", "calendar", "sound"
+};
+
 // Applies an animation command from a JSON body. Shared by the HTTP handler
 // (handleAnimation) and the boot-time auto-resume in setup(). Returns false on
-// malformed JSON. Does NOT send an HTTP response or persist anything.
+// malformed JSON or an unknown animation type (checked BEFORE stopping the
+// current display, so a bad request leaves the board showing what it was).
+// Does NOT send an HTTP response or persist anything.
 bool applyAnimationBody(const String& body) {
   JsonDocument doc;
   if (deserializeJson(doc, body) != DeserializationError::Ok) return false;
 
+  String reqType = String(doc["type"] | "fire");
+  bool known = false;
+  for (auto n : KNOWN_ANIMS) if (reqType == n) { known = true; break; }
+  if (!known) return false;
+
   stopAll();   // stop any currently running animation or text scroll
-  animationName  = String(doc["type"] | "fire");
-  animationSpeed = doc["speed"]  | 66;   // ms per frame; MCP server translates 1-5 scale to this
+  animationName  = reqType;
+  animationSpeed = (uint32_t)constrain((int)(doc["speed"] | 66), 10, 10000);   // ms per frame; MCP translates 1-5 to this. Clamp: negative wraps the uint32
   solidColor     = hexToColor(String(doc["color"] | "#0064FF"));
 
   // Theme/palette — same concept, two names (fire calls it "palette", matrix_rain calls it "theme").
@@ -179,8 +213,10 @@ bool applyAnimationBody(const String& body) {
     calendarStyle   = String(doc["style"] | "scroll");   // scroll | bignum | grid | clock
     calendarColor1  = hexToColor(String(doc["color1"] | "#00C8FF"));   // primary (day/text/today)
     calendarColor2  = hexToColor(String(doc["color2"] | "#FF7800"));   // secondary (month/other days)
-    calendarColor3  = hexToColor(String(doc["color3"] | "#50505A"));   // accent (separator)
+    calendarColor3  = hexToColor(String(doc["color3"] | "#50505A"));   // accent (weekday letter / weekend cols)
     calendarScrollX = MATRIX_W;
+    // Scroll style: ms per 1px advance — calendar.html's speed slider maps to 150 (slow) … 24 (fast)
+    calendarScrollMs = (uint32_t)constrain((int)(doc["speed"] | 80), 24, 400);
     ntpSynced       = false;
     startNtp(doc);   // same NTP plumbing as the clock (tz POSIX/DST or fixed offset)
   }
@@ -364,7 +400,7 @@ bool applyAnimationBody(const String& body) {
 // POST /api/display/animation — HTTP wrapper: apply, persist for auto-resume, respond.
 void handleAnimation() {
   String body = server.arg("plain");
-  if (!applyAnimationBody(body)) { sendJson(400, "{\"error\":\"Invalid JSON\"}"); return; }
+  if (!applyAnimationBody(body)) { sendJson(400, "{\"error\":\"Invalid JSON or unknown animation type\"}"); return; }
   // Debounced auto-resume (flushed from loop() after ~8s) — see esp32_matrix_webserver.ino.
   resumeKind = "anim"; resumeBody = body; resumeDirty = true; resumeDirtyMs = millis();
   sendJson(200, "{\"status\":\"ok\",\"animation\":\"" + animationName + "\"}");
@@ -493,7 +529,7 @@ void handleWeatherMode() {
 // Data is cached from the last fetchWeather() call; it only refreshes
 // when the weather animation is running (every 10 minutes).
 void handleSensorWeather() {
-  String json = "{\"zip\":\""    + weatherZip    + "\""
+  String json = "{\"zip\":\""    + escapeJson(weatherZip) + "\""
                 ",\"code\":"     + String(weatherCode) +
                 ",\"category\":" + String(weatherCategory(weatherCode)) +
                 ",\"temp\":"     + String(weatherTempVal) +
@@ -520,7 +556,7 @@ void handleStatus() {
 
   if (textActive) {
     json += ",\"state\":\"text\"";
-    json += ",\"text\":\"" + scrollText + "\"";
+    json += ",\"text\":\"" + escapeJson(scrollText) + "\"";
     json += ",\"size\":\"" + String(scrollTiny ? "tiny" : scrollSmall ? "small" : "normal") + "\"";
     json += ",\"gradient\":" + String(scrollGradient ? "true" : "false");
     json += ",\"scroll_speed\":" + String(scrollSpeed);
@@ -535,12 +571,15 @@ void handleStatus() {
       json += ",\"timer_total_seconds\":"     + String(timerTotalMs / 1000);
     }
     if (animationName == "weather") {
-      json += ",\"zip\":\""       + weatherZip      + "\"";
+      json += ",\"zip\":\""       + escapeJson(weatherZip) + "\"";
       json += ",\"data_mode\":\"" + weatherDataMode + "\"";
       json += ",\"units\":\""     + weatherUnit     + "\"";
     }
-    if (animationName == "clock") {
-      json += ",\"timezone\":" + String(clockTimezone);
+    if (animationName == "clock" || animationName == "calendar") {
+      // Report whichever timezone config is actually active: the DST-aware POSIX
+      // string (tz) when one was given, else the fixed integer offset.
+      if (clockTZ.length() > 0) json += ",\"tz\":\"" + escapeJson(clockTZ) + "\"";
+      else                      json += ",\"timezone\":" + String(clockTimezone);
       json += ",\"ntp_synced\":" + String(ntpSynced ? "true" : "false");
     }
     if (animationName == "chiptemp") {

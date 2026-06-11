@@ -52,11 +52,12 @@ void stepCalendarFrame() {
     char buf[20];
     snprintf(buf, sizeof(buf), "%s %s %d", CAL_WDAYS[wday], CAL_MONTHS[mon0], mday);
     drawStr3x5(buf, calendarScrollX, 2, calendarColor1);   // rows 2-6
-    // Advance on an independent ~80ms timer (~12.5 px/s, readable) so the scroll
-    // speed doesn't change with animationSpeed / the animation tick rate.
+    // Advance on an independent wall-clock timer (calendarScrollMs per pixel, set
+    // from the page's speed slider; default 80ms ≈ 12.5 px/s) so the scroll rate
+    // tracks the slider, not the animation frame tick.
     static uint32_t lastCalScrollMs = 0;
     uint32_t now = millis();
-    if (now - lastCalScrollMs >= 80) {
+    if (now - lastCalScrollMs >= calendarScrollMs) {
       lastCalScrollMs = now;
       calendarScrollX--;
       if (calendarScrollX < -((int)strlen(buf) * 4)) calendarScrollX = MATRIX_W;  // 4px stride per char
