@@ -102,14 +102,25 @@ void handleText() {
 // Params: type (required), plus animation-specific params.
 // Start NTP using a POSIX TZ string (DST-aware) when 'tz' is given, else a fixed
 // UTC offset from 'timezone'. Shared by the clock and calendar modes.
+//
+// Only (re)starts SNTP when the requested config actually CHANGED: configTzTime/
+// configTime restart the SNTP client from scratch, so clicking through calendar
+// styles (each click re-sends the same tz) right after boot kept aborting the
+// FIRST sync before it could complete — every style sat pulsing white "waiting
+// for NTP" while the restarts piled up.
+static String ntpActiveCfg = "";   // what SNTP was last started with; "" = never
 static void startNtp(JsonDocument& doc) {
   const char* tz = doc["tz"] | "";
+  int offset = (int)(doc["timezone"] | -7);
+  String cfg = (strlen(tz) > 0) ? String("tz:") + tz : String("off:") + String(offset);
+  if (cfg == ntpActiveCfg) return;   // same config — let the in-flight/periodic sync run
+  ntpActiveCfg = cfg;
   if (strlen(tz) > 0) {
     clockTZ = String(tz);
     configTzTime(clockTZ.c_str(), "pool.ntp.org", "time.nist.gov");
   } else {
     clockTZ = "";   // fixed offset is now the active config — don't let status report a stale tz string
-    clockTimezone = (int)(doc["timezone"] | -7);
+    clockTimezone = offset;
     configTime((long)clockTimezone * 3600L, 0, "pool.ntp.org", "time.nist.gov");
   }
 }
