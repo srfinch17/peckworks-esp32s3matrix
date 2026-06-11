@@ -253,7 +253,10 @@
         const [r,g,b] = parseHex(hex);
         if (r===0 && g===0 && b===0) return '#000000';
         let [h,s,v] = rgb2hsv(r,g,b);
-        s = Math.min(1, s + (1 - s) * k);           // push toward vivid
+        // Ramp the saturation boost in by the ORIGINAL saturation: achromatic
+        // cells (white/gray — s≈0, where hue is undefined/noise) must stay
+        // achromatic, or every white pixel turns pink (hue defaults to red).
+        s = Math.min(1, s + (1 - s) * k * Math.min(1, s / 0.15));
         v = Math.min(1, v + (1 - v) * k * 0.45);    // lift muddy/dark cells a touch
         const [nr,ng,nb] = hsv2rgb(h,s,v);
         return toHex(nr,ng,nb);

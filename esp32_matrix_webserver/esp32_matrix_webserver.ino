@@ -22,8 +22,9 @@
 //   USB Mode:         "Hardware CDC and JTAG"
 //   USB CDC On Boot:  "Enabled"
 //   Upload Speed:     921600
-//   Flash Size:       "8MB (64Mb)"
-//   Partition Scheme: "8MB with spiffs (3MB APP, 5MB SPIFFS)"
+//   PSRAM:            "Enabled"  ← required: 2MB PSRAM keeps WiFi/web server stable under load
+//   Flash Size:       "4MB (32Mb)"  ← board is 4MB, verified via esptool
+//   Partition Scheme: "Huge APP (3MB No OTA / 1MB SPIFFS)"  ← LittleFS lives in the 1MB region
 //
 // UPLOADING WEB FILES (do this AFTER flashing firmware):
 //   Arduino IDE → Tools → ESP32 LittleFS Data Upload
@@ -117,6 +118,11 @@ String   resumeKind    = "";
 String   resumeBody    = "";
 bool     resumeDirty   = false;
 uint32_t resumeDirtyMs = 0;
+// The brightness value that persists to NVS. Tracked separately from the live
+// `brightness` global so diagnostics that drive the panel hard (grid-test defaults
+// to 255 for calibration) can never be what the board boots back into — at 255
+// an all-lit panel pulls ~3-4A and can brown out USB power (see PITFALLS).
+uint8_t  resumeBri     = 40;
 
 // ── Animation control ────────────────────────────────────────
 uint8_t  brightness      = 40;      // global FastLED brightness (0-255)
@@ -163,8 +169,9 @@ int      weatherCode       = 113;       // wttr.in condition code (113 = clear)
 int      weatherHumidity   = 0;         // percent
 int      weatherUvIndex    = 0;
 int      weatherPressure   = 0;         // hPa
-uint32_t lastWeatherFetch  = 0;         // millis() of last successful fetch
+uint32_t lastWeatherFetch  = 0;         // millis() of last fetch ATTEMPT (success or failure)
 bool     weatherNeedsFetch = false;     // handler sets this; loop() does the fetch (off the request/boot path)
+bool     weatherFetchOk    = false;     // true once a fetch has succeeded; until then retry every 30s, not 10 min
 uint8_t  weatherFrame      = 0;         // frame counter for icon animations
 String   weatherDataMode   = "temp";    // which data to show: temp/humidity/uv/pressure/cycle
 String   weatherIconSource = "animated";// "animated" (built-in) or "remote" (fetched PNG)
@@ -233,6 +240,7 @@ CRGB    calendarColor1 = CRGB(0, 200, 255);    // primary  (day / today / text)
 CRGB    calendarColor2 = CRGB(255, 120, 0);    // secondary(month / other days)
 CRGB    calendarColor3 = CRGB(80, 80, 90);     // accent   (separator / grid frame)
 int     calendarScrollX = MATRIX_W;            // scroll position for "scroll" style
+uint32_t calendarScrollMs = 80;                // ms per 1px scroll advance (set from the page's speed slider)
 
 // ── Sound (vibration) visualizer state ────────────────────────
 // No microphone — the IMU feels low-frequency vibration (bass through a surface).
@@ -677,7 +685,7 @@ void setup() {
     if (path.startsWith("/api/")) {
       sendJson(404, "{\"error\":\"Unknown API endpoint. GET / for the full list.\"}");
     } else {
-      sendJson(404, "{\"error\":\"File not found: " + path + "\"}");
+      sendJson(404, "{\"error\":\"File not found: " + escapeJson(path) + "\"}");
     }
   });
 
@@ -686,8 +694,12 @@ void setup() {
   Serial.println("Test it: open http://" + WiFi.localIP().toString() + " in your browser.");
 
   // ── Auto-resume: restore the last display + brightness from NVS ──────────────
-  // WiFi is already up (autoConnect blocks above), so clock/calendar NTP works.
+  // NOTE: WiFi may NOT be up here — waitForWiFiConnect gives up after 25s and we
+  // run offline while the watchdog retries. Clock/calendar self-heal (SNTP syncs
+  // once WiFi appears); weather retries on a short cadence until its first
+  // successful fetch (see stepWeatherFrame).
   brightness = prefs.getUChar("bri", brightness);
+  resumeBri  = brightness;
   FastLED.setBrightness(brightness);
   if (prefs.isKey("kind") && prefs.getString("kind", "") == "anim") {   // isKey: avoid harmless NOT_FOUND error log on fresh NVS
     String body = prefs.isKey("animbody") ? prefs.getString("animbody", "") : "";
@@ -750,7 +762,7 @@ void loop() {
   // instead of on every request — protects the WiFi creds in the same partition.
   if (resumeDirty && millis() - resumeDirtyMs >= 8000) {
     resumeDirty = false;
-    prefs.putUChar("bri", brightness);
+    prefs.putUChar("bri", resumeBri);   // last user-committed brightness, NOT the live global (grid-test sets that to 255)
     if (resumeKind.length()) prefs.putString("kind", resumeKind);
     if (resumeKind == "anim" && resumeBody.length()) prefs.putString("animbody", resumeBody);
     Serial.println("Auto-resume state saved to NVS.");

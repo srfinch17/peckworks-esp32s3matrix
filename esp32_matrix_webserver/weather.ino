@@ -204,6 +204,11 @@ void fetchWeatherIcon(const String& url) {
   WiFiClientSecure sc;
   sc.setInsecure();   // skip cert validation (wttr.in uses HTTPS)
   HTTPClient http;
+  // HTTP/1.0, same reason as fetchWeather: getStreamPtr() is the raw socket, so a
+  // chunked HTTP/1.1 body would interleave chunk-framing lines into the PNG buffer
+  // (corrupting the magic bytes), and keep-alive means readBytes() never hits EOF —
+  // it would block out the full 8s timeout on every fetch, stalling the frame loop.
+  http.useHTTP10(true);
   http.begin(sc, url);
   http.setTimeout(8000);
   if (http.GET() != 200) { http.end(); return; }
@@ -212,8 +217,13 @@ void fetchWeatherIcon(const String& url) {
   uint8_t* buf = (uint8_t*)malloc(MAX_ICON);
   if (!buf) { http.end(); return; }
 
+  // Read exactly Content-Length bytes when the server provides it; HTTP/1.0
+  // closes the connection after the body, so even without a length the read
+  // ends at EOF instead of waiting out the timeout.
   WiFiClient* stream = http.getStreamPtr();
-  int got = stream->readBytes(buf, MAX_ICON);
+  int len  = http.getSize();
+  int want = (len > 0 && len < MAX_ICON) ? len : MAX_ICON;
+  int got  = stream->readBytes(buf, want);
   http.end();
 
   // Reset accumulators before decode
@@ -270,6 +280,11 @@ void fetchWeatherIcon(const String& url) {
 void fetchWeather() {
   HTTPClient http;
   String url = "http://wttr.in/" + weatherZip + "?format=j1";
+  // HTTP/1.0: forbids chunked transfer encoding. REQUIRED for the stream-parse
+  // below — getStream() is the RAW socket (no de-chunking; only getString()/
+  // writeToStream() de-chunk), and wttr.in chunks HTTP/1.1 responses, which fed
+  // chunk-size framing lines into the parser and broke every fetch.
+  http.useHTTP10(true);
   http.begin(url);
   http.setTimeout(10000);
   int code = http.GET();
@@ -322,6 +337,7 @@ void fetchWeather() {
   weatherHumidity = hu ? atoi(hu) : 0;
   weatherUvIndex  = uv ? atoi(uv) : 0;
   weatherPressure = pr ? atoi(pr) : 0;
+  weatherFetchOk  = true;   // we have real data — step frames switch to the 10-min refresh cadence
 
   Serial.printf("Weather OK: %d°%s code=%d hum=%d%% uv=%d pres=%dhPa\n",
                 weatherTempVal, weatherUnit.c_str(), weatherCode,
@@ -526,10 +542,14 @@ void drawMetricLabel(const uint8_t bits[8], int rows, CRGB color) {
 //   2. Phase switch: toggles between data overlay (2s) and icon (3s)
 //   3. Rendering: draws either the icon or the data overlay
 void stepWeatherFrame() {
-  // Refresh on request (set by the handler/auto-resume) or every 10 minutes.
+  // Refresh on request (set by the handler/auto-resume) or every 10 minutes —
+  // but retry every 30s until the FIRST successful fetch, since auto-resume can
+  // start weather before WiFi is up (boot proceeds offline after 25s) and a
+  // failed fetch would otherwise show zeroed data for the full 10-minute gate.
   // Done here in loop() — never in a request handler or setup() — so the blocking
   // GET can't stall the web server or boot.
-  if (weatherNeedsFetch || (millis() - lastWeatherFetch) >= 600000UL) { weatherNeedsFetch = false; fetchWeather(); }
+  uint32_t refreshMs = weatherFetchOk ? 600000UL : 30000UL;
+  if (weatherNeedsFetch || (millis() - lastWeatherFetch) >= refreshMs) { weatherNeedsFetch = false; fetchWeather(); }
 
   // Phase timer: show data for 2s, then icon for 3s, repeat
   uint32_t elapsed = millis() - weatherPhaseStart;
@@ -785,7 +805,9 @@ void drawThunderIcon2(uint8_t f) {
 // ── stepWeather2Frame ─────────────────────────────────────────
 void stepWeather2Frame() {
   static uint8_t w2f = 0;
-  if (weatherNeedsFetch || (millis() - lastWeatherFetch) >= 600000UL) { weatherNeedsFetch = false; fetchWeather(); }
+  // Same retry policy as stepWeatherFrame: 30s until first success, then 10 min.
+  uint32_t refreshMs = weatherFetchOk ? 600000UL : 30000UL;
+  if (weatherNeedsFetch || (millis() - lastWeatherFetch) >= refreshMs) { weatherNeedsFetch = false; fetchWeather(); }
 
   w2f++;
   fill_solid(leds, NUM_LEDS, CRGB::Black);

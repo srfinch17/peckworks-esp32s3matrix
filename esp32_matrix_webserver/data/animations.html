@@ -366,15 +366,8 @@
           <span style="font-size:.7rem;color:#555">Bright</span>
         </div>
       </div>
-      <div class="group">
-        <label>Board Brightness — <span id="v-sun-bri">40</span></label>
-        <div class="slider-row">
-          <span style="font-size:.7rem;color:#555">Off</span>
-          <input type="range" id="sun-bri" min="0" max="255" value="40" oninput="updateSunBrightness(this.value)">
-          <span style="font-size:.7rem;color:#555">Full</span>
-        </div>
-        <div class="hint">Controls board brightness — the preview above always renders at full brightness.</div>
-      </div>
+      <!-- Board brightness lives in the shared widget (bright.js) at the top of the
+           page — a second control here fought it and bypassed the >100 heat lock. -->
     </div>
 
     <!-- Panel: dancefloor -->
@@ -750,8 +743,6 @@
   // Sun
   const SUN_BX=[3,6,7,6,4,1,0,1], SUN_BY=[0,1,3,6,7,6,4,1];
   let sunSlot=0;
-  let sunPrevBri=40;
-  let sunBriTimer;
 
   function stepPrevSun() {
     prevCells.fill('#000');
@@ -779,21 +770,6 @@
       prevCells[SUN_BY[pos]*8+SUN_BX[pos]]=`rgb(${sunCh(col.r,ringPct)},${sunCh(col.g,ringPct)},${sunCh(col.b,ringPct)})`;
     }
     sunSlot=(sunSlot+1)%8;
-  }
-
-  function updateSunBrightness(val) {
-    sunPrevBri = +val;
-    getEl('v-sun-bri').textContent = val;
-    localStorage.setItem('sun_brightness', String(val));
-    clearTimeout(sunBriTimer);
-    sunBriTimer = setTimeout(async () => {
-      try {
-        await fetch('/api/brightness', {
-          method: 'POST', headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ level: sunPrevBri })
-        });
-      } catch {}
-    }, 200);
   }
 
   // Dance Floor
@@ -1019,15 +995,9 @@
     spiralPalIdx=null;
   }
 
-  // ── Sun brightness init ───────────────────────────────────────────────────────
-  (function initSunBri() {
-    const saved = localStorage.getItem('sun_brightness');
-    if (saved !== null) {
-      sunPrevBri = +saved;
-      const el = getEl('sun-bri');
-      if (el) { el.value = sunPrevBri; getEl('v-sun-bri').textContent = sunPrevBri; }
-    }
-  })();
+  // (The old sun_brightness localStorage key is retired — board brightness is the
+  //  shared bright.js widget, which reads the board's real value from /api/status.)
+  localStorage.removeItem('sun_brightness');
 
   // ── Frostbite presets ─────────────────────────────────────────────────────────
   const FB_PRESETS = [

@@ -282,10 +282,14 @@
 
   async function sendBrightness(level) {
     try {
-      await fetch('/api/brightness', {
+      // Use the grid-test endpoint, NOT /api/brightness: calibration brightness is
+      // transient and must never become the NVS auto-resume value (a board booting
+      // at 255 all-lit can brown out USB power). This also re-renders the test
+      // pattern at the new level, same as /api/brightness would.
+      await fetch('/api/grid-test/set', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ level })
+        body: JSON.stringify({ mode: currentMode, brightness: level })
       });
     } catch {}
   }

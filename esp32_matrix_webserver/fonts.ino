@@ -127,7 +127,7 @@ const uint8_t FONT_3X3_LIGHT[43][3] PROGMEM = {
 // ── 3×5 Font ───────────────────────────────────────────────────
 // bit0 = top row (row 0), bit4 = bottom row (row 4)
 // Digits 0–9 match the existing MINI_FONT in clock_timer.ino.
-const uint8_t FONT_3X5[37][3] PROGMEM = {
+const uint8_t FONT_3X5[43][3] PROGMEM = {
   // A – Z  (indices 0–25)
   {31,  5, 31},  // A  ###/# #/###/# #/# #
   {31, 21, 10},  // B  ##./# #/##./# #/##.
@@ -168,6 +168,15 @@ const uint8_t FONT_3X5[37][3] PROGMEM = {
   {23, 21, 31},  // 9
   // space (index 36)
   { 0,  0,  0},  // ' '
+  // punctuation (indices 37–42) — fontIdx maps . , : ; ? ! here; FONT_3X3 already
+  // has these, and drawChar3x5 reads whatever index fontIdx returns, so the two
+  // arrays MUST stay the same length or punctuation reads past the end.
+  { 0, 16,  0},  // .  ─ single dot, bottom row
+  { 0, 24,  0},  // ,  ─ dot + tail (rows 3-4)
+  { 0, 10,  0},  // :  ─ dots at rows 1 and 3
+  { 0, 26,  0},  // ;  ─ dots at rows 1, 3 + tail row 4
+  { 1, 21,  3},  // ?  ─ ###/..#/.#./.../.#.
+  { 0, 23,  0},  // !  ─ bar rows 0-2, dot row 4
 };
 
 // ── Draw functions ─────────────────────────────────────────────

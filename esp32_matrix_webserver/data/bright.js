@@ -4,9 +4,11 @@
  * One source of truth for the brightness control: a non-linear
  * stepped slider (lots of resolution at the low end where most use
  * lives, compressed up top), the power-safety high-brightness lock,
- * debounced POSTs to /api/brightness, and localStorage persistence.
- * The board has ONE physical brightness, so every page that mounts
- * this controls the SAME global value.
+ * and debounced POSTs to /api/brightness. The BOARD is the source of
+ * truth: mount reads /api/status and shows the board's brightness
+ * (localStorage is only the placeholder/offline fallback) and never
+ * POSTs until the user moves the slider. The board has ONE physical
+ * brightness, so every page that mounts this controls the SAME value.
  *
  * Usage — explicit:  MatrixBright.mount('#slot', { onStatus: setStatus });
  * Usage — auto:      <script src="bright.js" data-auto></script>
@@ -105,16 +107,24 @@
     return (!state.unlocked && i > SAFE_IDX) ? SAFE_IDX : i;
   }
 
-  // Apply a slider index: update UI, persist, broadcast, debounced POST.
-  // report=true shows success text; false only surfaces failures (load/set).
-  function applyIdx(i, report) {
-    i = clampIdx(i);
+  // Update the UI/preview to a slider index WITHOUT posting to the board.
+  // Used at mount, where the BOARD's value is the source of truth — POSTing a
+  // browser-local value there would clobber NVS auto-resume and MCP-set
+  // brightness (and a fresh browser would dim the board to the default).
+  function showIdx(i) {
     state.idx = i;
     state.val = STOPS[i];
     if (state.els.slider) state.els.slider.value = i;
     if (state.els.val) state.els.val.textContent = state.val;
     localStorage.setItem(STORE_VAL, String(state.val));
     broadcast();
+  }
+
+  // Apply a slider index: update UI, persist, broadcast, debounced POST.
+  // report=true shows success text; false only surfaces failures (load/set).
+  function applyIdx(i, report) {
+    i = clampIdx(i);
+    showIdx(i);
     clearTimeout(state.timer);
     state.timer = setTimeout(function () {
       postLevel(state.val).then(function (ok) {
@@ -158,8 +168,20 @@
     state.unlocked = localStorage.getItem(STORE_LOCK) === '1';
     state.els.cb.checked = state.unlocked;
 
-    var stored = localStorage.getItem(STORE_VAL);
-    applyIdx(clampIdx(idxForValue(stored !== null ? +stored : 10)), false);  // restore + sync board
+    // Init: show the last local value as a placeholder (validated — garbage in
+    // localStorage must not collapse to stop 0 and black the panel), then read
+    // the board's ACTUAL brightness from /api/status and show that. No POST at
+    // mount: only user input syncs the board. Shown unclamped — if the board is
+    // above the lock (e.g. grid-test calibration), the widget reports the truth;
+    // the clamp applies the moment the user moves the slider.
+    var stored = parseInt(localStorage.getItem(STORE_VAL), 10);
+    showIdx(idxForValue(Number.isFinite(stored) ? stored : 40));
+    fetch('/api/status')
+      .then(function (r) { return r.json(); })
+      .then(function (st) {
+        if (st && typeof st.brightness === 'number') showIdx(idxForValue(st.brightness));
+      })
+      .catch(function () { status('Board unreachable — showing last local value.', true); });
 
     state.els.slider.addEventListener('input', onInput);
     state.els.cb.addEventListener('change', onToggle);
