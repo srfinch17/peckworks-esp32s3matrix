@@ -503,6 +503,11 @@ static void scanReport() {
 // status code every 2s so connect problems are visible in the Serial Monitor.
 static void waitForWiFiConnect(uint32_t timeoutMs) {
   uint32_t start = millis(), lastStat = 0;
+  // WiFi.begin() has run, so the driver is up and this readback is authoritative —
+  // unlike the boot-time "STA MAC" print, which can race the 3.x async driver and
+  // show zeros. This is the MAC the router actually sees (incl. WIFI_MAC_OVERRIDE),
+  // and it prints even when the connect FAILS — the case where it matters most.
+  Serial.print("  presenting MAC: "); Serial.println(WiFi.macAddress());
   while (WiFi.status() != WL_CONNECTED && millis() - start < timeoutMs) {
     if (millis() - lastStat >= 2000) {
       lastStat = millis();
@@ -590,6 +595,8 @@ void setup() {
     Serial.printf("MAC override %s (err=%d)\n", macErr == ESP_OK ? "applied" : "FAILED", (int)macErr);
   }
 #endif
+  // All-zeros here = the async driver wasn't up yet at read time; the
+  // authoritative value is the "presenting MAC" line during the connect wait.
   Serial.print("STA MAC: "); Serial.println(WiFi.macAddress());
 
   scanReport();          // diagnostic: signal strength + auth mode of every visible network
@@ -645,6 +652,8 @@ void setup() {
     Serial.println("WiFi connected!");
     Serial.print("IP Address: ");
     Serial.println(WiFi.localIP());
+    Serial.print("MAC presented: ");
+    Serial.println(WiFi.macAddress());
     fill_solid(leds, NUM_LEDS, CRGB::Green);   // brief green = connected OK
     FastLED.show();
     delay(600);
