@@ -522,6 +522,16 @@ static void waitForWiFiConnect(uint32_t timeoutMs) {
 
 void setup() {
   Serial.begin(115200);
+#if ARDUINO_USB_CDC_ON_BOOT && ARDUINO_USB_MODE
+  // Serial is the hardware USB-CDC port (USB CDC On Boot: Enabled). CRITICAL:
+  // with the cable plugged in but no terminal draining (Serial Monitor closed —
+  // the normal state), HWCDC::write blocks up to tx_timeout_ms per chunk and
+  // tolerates 20 consecutive timeouts — ~2 SECONDS of frozen loop per print.
+  // The 10s heap log alone made every animation hitch and the web server crawl.
+  // Timeout 0 = never block: prints flow when a monitor is attached, drop when
+  // it isn't. Diagnostics are best-effort; the display and server are not.
+  Serial.setTxTimeoutMs(0);
+#endif
   delay(500);
   Serial.println("\n=== ESP32-S3 Matrix Web Server ===");
 
@@ -734,6 +744,17 @@ void setup() {
 // ============================================================
 
 void loop() {
+  // Loop-stall watchdog: track the longest gap between loop() iterations and
+  // report it on the 10s heap line below. Anything over ~50ms is a visible
+  // animation hitch (this instrumentation is how the blocking-CDC stall was
+  // confirmed). A legit slow frame (weather fetch) also shows up here — honest.
+  static uint32_t lastLoopIterMs = 0, loopMaxGapMs = 0;
+  {
+    uint32_t tIter = millis();
+    if (lastLoopIterMs && tIter - lastLoopIterMs > loopMaxGapMs) loopMaxGapMs = tIter - lastLoopIterMs;
+    lastLoopIterMs = tIter;
+  }
+
   server.handleClient();   // process any pending HTTP requests first
 
   // WiFi self-heal backstop — deliberately GENTLE. The driver's autoReconnect
@@ -758,8 +779,10 @@ void loop() {
   static uint32_t lastHeapLog = 0;
   if (millis() - lastHeapLog >= 10000) {
     lastHeapLog = millis();
-    Serial.printf("[heap] free=%u largest-block=%u min-ever=%u\n",
-                  ESP.getFreeHeap(), ESP.getMaxAllocHeap(), ESP.getMinFreeHeap());
+    Serial.printf("[heap] free=%u largest-block=%u min-ever=%u max-stall=%lums\n",
+                  ESP.getFreeHeap(), ESP.getMaxAllocHeap(), ESP.getMinFreeHeap(),
+                  (unsigned long)loopMaxGapMs);
+    loopMaxGapMs = 0;   // fresh window
     if (ESP.getFreeHeap() < 14000) {
       Serial.println("[heap] CRITICAL low heap — restarting to recover.");
       delay(50);
