@@ -1,11 +1,12 @@
 // ============================================================
 // SECTION: CALENDAR ANIMATIONS
 //
-// Four ways to show today's date (synced from NTP, same as clock mode):
+// Five ways to show today's date (synced from NTP, same as clock mode):
 //   "scroll" — "TUE JUN 9" scrolls across (3×5 font)
 //   "bignum" — the day-of-month as a big centered number
 //   "grid"   — a mini month grid: 7 cols (Sun–Sat) × weeks, today highlighted
 //   "clock"  — month over day, in the clock's tiny-top / big-bottom layout
+//   "square" — desk-calendar square: 2-letter weekday on top, day number below
 //
 // Reuses font helpers (fonts.ino), drawTimeDisplay/blendColors (clock_timer.ino),
 // and the same getLocalTime() NTP source as the clock. configTime() is started
@@ -34,9 +35,7 @@ static int calDaysInMonth(int mon0, int year) {
 void stepCalendarFrame() {
   struct tm t;
   if (!getLocalTime(&t, 100)) {
-    // NTP not synced yet — pulse dim white while waiting (same as clock).
-    uint8_t pulse = (uint8_t)(128 + 60 * sinf(millis() / 800.0f));
-    fill_solid(leds, NUM_LEDS, CRGB(pulse, pulse, pulse));
+    drawNtpWaitFrame();   // animated hourglass until the first NTP sync (shared with clock)
     return;
   }
   ntpSynced = true;
@@ -85,6 +84,18 @@ void stepCalendarFrame() {
                                       : calendarColor2;
       setPixel(col, row, c);
     }
+  }
+  else if (calendarStyle == "square") {
+    // One square torn off a desk calendar: weekday on top, big day number below.
+    // Two 3×3 letters (SU MO TU WE TH FR SA — unambiguous, watch-style), because
+    // three 3×3 glyphs are 11px wide and the matrix is 8. Weekday in color2,
+    // day in color1. Rows: 3×3 on 0-2, 3×5 on 3-7 (literals — fonts.ino's ROW_*
+    // macros aren't visible here, see PITFALLS on .ino concatenation order).
+    char wd[3] = { CAL_WDAYS[wday][0], CAL_WDAYS[wday][1], '\0' };
+    drawStrCentered3x3(wd, 0, calendarColor2);
+    char dbuf[4];
+    snprintf(dbuf, sizeof(dbuf), "%d", mday);
+    drawStrCentered3x5(dbuf, 3, calendarColor1);
   }
   else {  // "clock" — month (top-left) + weekday letter (top-right) + day (bottom), no colon
     int month = mon0 + 1;

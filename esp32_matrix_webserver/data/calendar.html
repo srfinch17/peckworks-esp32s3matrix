@@ -42,6 +42,7 @@
           <button class="cal-btn"        data-style="bignum" onclick="pickStyle(this)">Big Day</button>
           <button class="cal-btn"        data-style="grid"   onclick="pickStyle(this)">Month Grid</button>
           <button class="cal-btn"        data-style="clock"  onclick="pickStyle(this)">Month + Day</button>
+          <button class="cal-btn"        data-style="square" onclick="pickStyle(this)">Square</button>
         </div>
         <div class="hint" id="styleHint">"Tue Jun 9" scrolls across the display.</div>
       </div>
@@ -90,7 +91,8 @@
       scroll: '"Tue Jun 9" scrolls across the display.',
       bignum: 'Today\'s day-of-month as a big centered number.',
       grid:   'Mini month grid — 7 columns (Sun–Sat), today highlighted in the Primary color.',
-      clock:  'Month on top, day below — same layout as the clock.'
+      clock:  'Month on top, day below — same layout as the clock.',
+      square: 'Desk-calendar square — 2-letter weekday (Secondary color) on top, big day number (Primary) below.'
     };
     let style = 'scroll';
     let colors = ['#00c8ff', '#ff7800', '#50505a'];
