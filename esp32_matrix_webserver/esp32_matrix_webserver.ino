@@ -697,6 +697,15 @@ void setup() {
     String path = server.uri();
     if (LittleFS.exists(path)) {
       File file = LittleFS.open(path, "r");
+      // Let the browser cache the shared static assets (bright.js / palette.js /
+      // ledsim.js / images) — every page pulls them, and re-serving each one is
+      // a full TCP connection on a single-client server (WebServer pins to one
+      // connection at a time; an idle browser socket can hold it for up to 5s,
+      // see HTTP_MAX_DATA_WAIT). HTML deliberately stays uncached so LittleFS
+      // uploads show up on plain reload. ⚠ After re-uploading a CHANGED .js,
+      // hard-refresh (Ctrl+F5) once — see PITFALLS.
+      if (path.endsWith(".js") || path.endsWith(".css") || path.endsWith(".png") || path.endsWith(".ico"))
+        server.sendHeader("Cache-Control", "max-age=86400");
       server.streamFile(file, getContentType(path));
       file.close();
       return;
@@ -708,6 +717,9 @@ void setup() {
     }
   });
 
+  // Don't delay(1) inside handleClient when idle — loop() spins freely, so new
+  // connections get accepted sooner and animation frames never wait on the yield.
+  server.enableDelay(false);
   server.begin();
   Serial.println("HTTP server started on port 80.");
   Serial.println("Test it: open http://" + WiFi.localIP().toString() + " in your browser.");
