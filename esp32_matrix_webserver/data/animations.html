@@ -297,11 +297,15 @@
     <!-- Panel: fireworks -->
     <div class="anim-panel" id="panel-fireworks">
       <div class="group">
+        <label>Preset Shows — <span id="fw-pal-name">Custom</span></label>
+        <div class="df-pal-grid" id="fw-pal-grid"></div>
+      </div>
+      <div class="group">
         <label>Explosion Palette</label>
         <div class="color-row">
-          <div class="picker-group"><label>Color 1</label><input type="color" id="fw-c1" value="#ff3200"></div>
-          <div class="picker-group"><label>Color 2</label><input type="color" id="fw-c2" value="#ffc800"></div>
-          <div class="picker-group"><label>Color 3</label><input type="color" id="fw-c3" value="#0064ff"></div>
+          <div class="picker-group"><label>Color 1</label><input type="color" id="fw-c1" value="#ff3200" oninput="clearFwPreset()"></div>
+          <div class="picker-group"><label>Color 2</label><input type="color" id="fw-c2" value="#ffc800" oninput="clearFwPreset()"></div>
+          <div class="picker-group"><label>Color 3</label><input type="color" id="fw-c3" value="#0064ff" oninput="clearFwPreset()"></div>
         </div>
       </div>
     </div>
@@ -309,11 +313,15 @@
     <!-- Panel: fireworks2 -->
     <div class="anim-panel" id="panel-fireworks2">
       <div class="group">
+        <label>Preset Shows — <span id="fw2-pal-name">Custom</span></label>
+        <div class="df-pal-grid" id="fw2-pal-grid"></div>
+      </div>
+      <div class="group">
         <label>Tip Color Palette</label>
         <div class="color-row">
-          <div class="picker-group"><label>Tip 1</label><input type="color" id="fw2-c1" value="#ff3200"></div>
-          <div class="picker-group"><label>Tip 2</label><input type="color" id="fw2-c2" value="#ffc800"></div>
-          <div class="picker-group"><label>Tip 3</label><input type="color" id="fw2-c3" value="#0064ff"></div>
+          <div class="picker-group"><label>Tip 1</label><input type="color" id="fw2-c1" value="#ff3200" oninput="clearFw2Preset()"></div>
+          <div class="picker-group"><label>Tip 2</label><input type="color" id="fw2-c2" value="#ffc800" oninput="clearFw2Preset()"></div>
+          <div class="picker-group"><label>Tip 3</label><input type="color" id="fw2-c3" value="#0064ff" oninput="clearFw2Preset()"></div>
         </div>
       </div>
     </div>
@@ -993,6 +1001,50 @@
     getEl('sp-pal-num').textContent='—';
     getEl('sp-pal-name').textContent='Custom';
     spiralPalIdx=null;
+  }
+
+  // ── Fireworks preset palettes (shared list, one grid per fireworks panel) ──────
+  // 3 colors each, matching color1/2/3. Named after real firework shell effects.
+  // Colors are CRGB-direct (this board is RGB order) and chosen to stay visible
+  // at the default brightness 40 (every channel 0 or ≥ ~40).
+  const FW_PRESETS = [
+    ['Classic Burst', '#ff3200', '#ffc800', '#0064ff'],
+    ['Golden Willow', '#ffc832', '#ff8c00', '#c83200'],
+    ['Patriot',       '#ff3200', '#ffffff', '#0064ff'],
+    ['Emerald Rain',  '#00ff64', '#64ffc8', '#00a050'],
+    ['Pink Peony',    '#ff2d78', '#ff96c8', '#b400ff'],
+    ['Ice Crystal',   '#dcebff', '#78c8ff', '#0064ff'],
+    ['Violet Storm',  '#b400ff', '#ff00a0', '#5000ff'],
+    ['Ember Glow',    '#ff6400', '#ff9600', '#c84600'],
+    ['Aurora',        '#00ffc8', '#00c8ff', '#9600ff'],
+    ['White Strobe',  '#ffffff', '#c8dcff', '#ffc8dc'],
+  ];
+  function buildFwPresetGrid(gridId, nameId, pickerIds) {
+    const grid = getEl(gridId);
+    FW_PRESETS.forEach(([name, c1, c2, c3], i) => {
+      const el = document.createElement('div');
+      el.className = 'df-swatch';
+      el.title = name;
+      el.style.background = `linear-gradient(to right,${c1} 33%,${c2} 33% 66%,${c3} 66%)`;
+      el.onclick = () => {
+        grid.querySelectorAll('.df-swatch').forEach((s,j)=>s.classList.toggle('active',j===i));
+        getEl(nameId).textContent = name;
+        getEl(pickerIds[0]).value = c1;
+        getEl(pickerIds[1]).value = c2;
+        getEl(pickerIds[2]).value = c3;
+      };
+      grid.appendChild(el);
+    });
+  }
+  buildFwPresetGrid('fw-pal-grid',  'fw-pal-name',  ['fw-c1','fw-c2','fw-c3']);
+  buildFwPresetGrid('fw2-pal-grid', 'fw2-pal-name', ['fw2-c1','fw2-c2','fw2-c3']);
+  function clearFwPreset() {
+    getEl('fw-pal-grid').querySelectorAll('.df-swatch').forEach(el=>el.classList.remove('active'));
+    getEl('fw-pal-name').textContent='Custom';
+  }
+  function clearFw2Preset() {
+    getEl('fw2-pal-grid').querySelectorAll('.df-swatch').forEach(el=>el.classList.remove('active'));
+    getEl('fw2-pal-name').textContent='Custom';
   }
 
   // (The old sun_brightness localStorage key is retired — board brightness is the
