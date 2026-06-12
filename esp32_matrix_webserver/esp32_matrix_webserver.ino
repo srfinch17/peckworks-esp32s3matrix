@@ -242,6 +242,17 @@ CRGB    calendarColor3 = CRGB(80, 80, 90);     // accent   (separator / grid fra
 int     calendarScrollX = MATRIX_W;            // scroll position for "scroll" style
 uint32_t calendarScrollMs = 80;                // ms per 1px scroll advance (set from the page's speed slider)
 
+// ── Frames player (Claude's expression channel) ───────────────
+// Plays a short uploaded frame sequence — the transport for the MCP server's
+// expression tools (canned glyphs, Claude-drawn animations). See
+// docs/superpowers/specs/2026-06-11-claude-expression-display.md.
+#define MAX_PLAY_FRAMES 24
+CRGB     framesBuf[MAX_PLAY_FRAMES * 64];   // 24 frames × 64 px ≈ 4.6KB static
+uint8_t  framesCount  = 0;    // frames loaded
+uint16_t framesLoops  = 0;    // 0 = loop forever; N = play N passes then HOLD the last frame
+uint16_t framesPlayed = 0;    // completed passes
+uint8_t  framesIdx    = 0;    // next frame to show
+
 // ── Sound (vibration) visualizer state ────────────────────────
 // No microphone — the IMU feels low-frequency vibration (bass through a surface).
 CRGB    soundColor1     = CRGB(0, 80, 255);     // bottom of the VU bar
@@ -686,6 +697,7 @@ void setup() {
   server.on("/api/display/text",          HTTP_POST, handleText);
   server.on("/api/display/animation",     HTTP_POST, handleAnimation);
   server.on("/api/display/matrix",        HTTP_POST, handleMatrix);
+  server.on("/api/display/frames",        HTTP_POST, handleFrames);
   server.on("/api/display/temperature",   HTTP_POST, handleTemperature);
   server.on("/api/sensors/temperature",   HTTP_GET,  handleSensorTemperature);
   server.on("/api/sensors/accelerometer", HTTP_GET,  handleSensorAccelerometer);
@@ -848,6 +860,7 @@ void loop() {
     else if (animationName == "frostbite") runFrostbiteFrame();
     else if (animationName == "calendar")  stepCalendarFrame();
     else if (animationName == "sound")     stepSoundFrame();
+    else if (animationName == "frames")    stepFramesFrame();
     FastLED.show();
   }
 
