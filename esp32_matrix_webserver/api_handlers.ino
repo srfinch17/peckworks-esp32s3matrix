@@ -448,6 +448,66 @@ void handleMatrix() {
   sendJson(200, "{\"status\":\"ok\"}");
 }
 
+// POST /api/display/frames — Claude's expression channel (frame-sequence player).
+// Body: { "frames": ["<384 hex chars = RRGGBB × 64 px, row-major>", ...],
+//         "frame_ms": 30-5000 (default 150), "loop": 0-1000 (0 = forever,
+//         N = play N passes then hold the last frame) }
+// Transient by design — never persisted for auto-resume (an expression is a
+// moment, not a mode). Validates EVERYTHING before touching playback state so
+// a malformed upload can't corrupt whatever is currently showing.
+static uint8_t framesHexNib(char c) {
+  if (c >= '0' && c <= '9') return c - '0';
+  if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+  if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+  return 0;
+}
+void handleFrames() {
+  JsonDocument doc;
+  if (deserializeJson(doc, server.arg("plain")) != DeserializationError::Ok) {
+    sendJson(400, "{\"error\":\"Invalid JSON\"}");
+    return;
+  }
+  JsonArray arr = doc["frames"];
+  if (arr.isNull() || arr.size() < 1 || arr.size() > MAX_PLAY_FRAMES) {
+    sendJson(400, "{\"error\":\"frames must be an array of 1-" + String(MAX_PLAY_FRAMES) + " strings\"}");
+    return;
+  }
+  // Pass 1: validate every frame before committing anything.
+  for (JsonVariant v : arr) {
+    const char* hex = v.as<const char*>();
+    if (!hex || strlen(hex) != 384) {
+      sendJson(400, "{\"error\":\"each frame must be exactly 384 hex chars (RRGGBB x 64)\"}");
+      return;
+    }
+  }
+  // Pass 2: decode into the playback buffer.
+  int n = 0;
+  for (JsonVariant v : arr) {
+    const char* hex = v.as<const char*>();
+    for (int i = 0; i < 64; i++) {
+      const char* p = hex + i * 6;
+      framesBuf[n * 64 + i] = CRGB(
+        (framesHexNib(p[0]) << 4) | framesHexNib(p[1]),
+        (framesHexNib(p[2]) << 4) | framesHexNib(p[3]),
+        (framesHexNib(p[4]) << 4) | framesHexNib(p[5]));
+    }
+    n++;
+  }
+
+  stopAll();
+  framesCount    = (uint8_t)n;
+  framesLoops    = (uint16_t)constrain((int)(doc["loop"] | 0), 0, 1000);
+  framesPlayed   = 0;
+  framesIdx      = 0;
+  animationName  = "frames";
+  animationSpeed = (uint32_t)constrain((int)(doc["frame_ms"] | 150), 30, 5000);
+  animationActive = true;
+
+  stepFramesFrame();   // show the first frame immediately
+  FastLED.show();
+  sendJson(200, "{\"status\":\"ok\",\"frames\":" + String(n) + "}");
+}
+
 // POST /api/display/temperature
 // Legacy endpoint: accepts either a 8×8 matrix (direct pixel control)
 // or a {value, unit, color} object (scrolls the temperature as text).
