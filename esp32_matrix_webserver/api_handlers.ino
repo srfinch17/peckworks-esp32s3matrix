@@ -422,7 +422,6 @@ void handleAnimation() {
 // Lets the caller paint arbitrary pixels by sending a full 8×8 color grid.
 // Each cell is a hex string like "#FF0000". Stops all animations first.
 void handleMatrix() {
-  Serial.printf("[matrix] free heap %u (largest block %u)\n", ESP.getFreeHeap(), ESP.getMaxAllocHeap());
   JsonDocument doc;
   if (deserializeJson(doc, server.arg("plain")) != DeserializationError::Ok) {
     sendJson(400, "{\"error\":\"Invalid JSON — body may exceed buffer\"}");
