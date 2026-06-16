@@ -252,6 +252,7 @@ bool applyAnimationBody(const String& body) {
     weatherShowIcon   = false;
     weatherPhaseStart = millis();
     weatherNeedsFetch = true;   // loop() fetches on the next frame (off the request/boot path)
+    weatherFetchOk    = false;  // new config → fast (30s) retry until THIS config's first success, not 10 min
   }
 
   if (animationName == "weather2") {
@@ -262,6 +263,7 @@ bool applyAnimationBody(const String& body) {
     weather2Color1 = hexToColor(String(c1));
     weather2Color2 = hexToColor(String(c2));
     weatherNeedsFetch = true;   // loop() fetches on the next frame (off the request/boot path)
+    weatherFetchOk    = false;  // new config → fast (30s) retry until THIS config's first success, not 10 min
   }
 
   if (animationName == "timer_fill" || animationName == "timer_snow" || animationName == "timer_text") {
