@@ -48,9 +48,21 @@ void stepCalendarFrame() {
   fill_solid(leds, NUM_LEDS, CRGB::Black);
 
   if (calendarStyle == "scroll") {
-    char buf[20];
-    snprintf(buf, sizeof(buf), "%s %s %d", CAL_WDAYS[wday], CAL_MONTHS[mon0], mday);
-    drawStr3x5(buf, calendarScrollX, 2, calendarColor1);   // rows 2-6
+    // Draw the date as three tokens so weekday / month / day can each take their own
+    // color (color1/2/3). Single-color mode (calendarScrollMono) paints all in color1.
+    // Each glyph is a 4px stride (3px + 1px gap); a word gap is one extra stride.
+    char wd[4], mo[4], dy[4];
+    snprintf(wd, sizeof(wd), "%s", CAL_WDAYS[wday]);   // 3 chars
+    snprintf(mo, sizeof(mo), "%s", CAL_MONTHS[mon0]);  // 3 chars
+    snprintf(dy, sizeof(dy), "%d", mday);              // 1-2 chars
+    CRGB cWd = calendarColor1;
+    CRGB cMo = calendarScrollMono ? calendarColor1 : calendarColor2;
+    CRGB cDy = calendarScrollMono ? calendarColor1 : calendarColor3;
+    int x = calendarScrollX;
+    drawStr3x5(wd, x, 2, cWd);  x += ((int)strlen(wd) + 1) * 4;   // +1 stride = word gap
+    drawStr3x5(mo, x, 2, cMo);  x += ((int)strlen(mo) + 1) * 4;
+    drawStr3x5(dy, x, 2, cDy);
+    int totalChars = (int)strlen(wd) + 1 + (int)strlen(mo) + 1 + (int)strlen(dy);  // incl. both word gaps
     // Advance on an independent wall-clock timer (calendarScrollMs per pixel, set
     // from the page's speed slider; default 80ms ≈ 12.5 px/s) so the scroll rate
     // tracks the slider, not the animation frame tick.
@@ -59,7 +71,7 @@ void stepCalendarFrame() {
     if (now - lastCalScrollMs >= calendarScrollMs) {
       lastCalScrollMs = now;
       calendarScrollX--;
-      if (calendarScrollX < -((int)strlen(buf) * 4)) calendarScrollX = MATRIX_W;  // 4px stride per char
+      if (calendarScrollX < -(totalChars * 4)) calendarScrollX = MATRIX_W;  // 4px stride per char
     }
   }
   else if (calendarStyle == "bignum") {

@@ -241,6 +241,7 @@ CRGB    calendarColor2 = CRGB(255, 120, 0);    // secondary(month / other days)
 CRGB    calendarColor3 = CRGB(80, 80, 90);     // accent   (separator / grid frame)
 int     calendarScrollX = MATRIX_W;            // scroll position for "scroll" style
 uint32_t calendarScrollMs = 80;                // ms per 1px scroll advance (set from the page's speed slider)
+bool    calendarScrollMono = false;            // scroll: true = whole date in color1; false = weekday/month/day in color1/2/3
 
 // ── Frames player (Claude's expression channel) ───────────────
 // Plays a short uploaded frame sequence — the transport for the MCP server's
@@ -698,6 +699,7 @@ void setup() {
   server.on("/api/display/animation",     HTTP_POST, handleAnimation);
   server.on("/api/display/matrix",        HTTP_POST, handleMatrix);
   server.on("/api/display/frames",        HTTP_POST, handleFrames);
+  server.on("/api/display/framebuffer",   HTTP_GET,  handleFramebuffer);
   server.on("/api/display/temperature",   HTTP_POST, handleTemperature);
   server.on("/api/sensors/temperature",   HTTP_GET,  handleSensorTemperature);
   server.on("/api/sensors/accelerometer", HTTP_GET,  handleSensorAccelerometer);
