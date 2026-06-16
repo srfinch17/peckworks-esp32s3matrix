@@ -226,6 +226,7 @@ bool applyAnimationBody(const String& body) {
     calendarColor2  = hexToColor(String(doc["color2"] | "#FF7800"));   // secondary (month/other days)
     calendarColor3  = hexToColor(String(doc["color3"] | "#50505A"));   // accent (weekday letter / weekend cols)
     calendarScrollX = MATRIX_W;
+    calendarScrollMono = doc["scroll_mono"] | false;   // scroll: single-color (color1) vs weekday/month/day in color1/2/3
     // Scroll style: ms per 1px advance — calendar.html's speed slider maps to 150 (slow) … 24 (fast)
     calendarScrollMs = (uint32_t)constrain((int)(doc["speed"] | 80), 24, 400);
     ntpSynced       = false;
@@ -462,8 +463,23 @@ static uint8_t framesHexNib(char c) {
   return 0;
 }
 void handleFrames() {
+  // This is our largest payload (up to MAX_PLAY_FRAMES × 384 hex chars ≈ 9KB),
+  // and parsing it briefly allocates a copy of the body plus the JSON document.
+  // On a tight heap that transient spike can trip loop()'s low-heap auto-restart
+  // (< 14000) and freeze/reboot the board. Bail out gracefully instead. With
+  // PSRAM enabled there's plenty of headroom; this only bites if PSRAM is off.
+  if (ESP.getFreeHeap() < 30000) {
+    sendJson(503, "{\"error\":\"low memory, retry shortly\"}");
+    return;
+  }
+
+  // Parse ZERO-COPY: hold the body in a named buffer and let ArduinoJson store
+  // pointers into it instead of duplicating every hex string into the document.
+  // That roughly halves the transient allocation. `body` must outlive all use of
+  // `doc` (it does — both are function-scoped and decoding finishes below).
+  String body = server.arg("plain");
   JsonDocument doc;
-  if (deserializeJson(doc, server.arg("plain")) != DeserializationError::Ok) {
+  if (deserializeJson(doc, (char*)body.c_str(), body.length()) != DeserializationError::Ok) {
     sendJson(400, "{\"error\":\"Invalid JSON\"}");
     return;
   }
@@ -617,6 +633,27 @@ void handleSensorWeather() {
 //   - Always: brightness
 //   - If text is scrolling: text content, font size, gradient, speed
 //   - If animation is running: animation name, plus mode-specific fields
+// GET /api/display/framebuffer
+// Returns the current 8×8 framebuffer as 64 "RRGGBB" hex strings, row-major
+// (index = y*8 + x). Lets any web page show an exact, always-accurate live preview
+// of whatever the board is actually displaying — every animation and every text
+// style — by polling, instead of re-implementing the firmware's rendering in JS.
+// Values are the raw leds[] colors (pre-brightness); the page applies its own
+// ledsim brightness model, matching how the other previews render.
+void handleFramebuffer() {
+  String json;
+  json.reserve(NUM_LEDS * 10 + 16);
+  json = "{\"px\":[";
+  char hex[10];
+  for (int i = 0; i < NUM_LEDS; i++) {
+    snprintf(hex, sizeof(hex), "\"%02X%02X%02X\"", leds[i].r, leds[i].g, leds[i].b);
+    json += hex;
+    if (i < NUM_LEDS - 1) json += ',';
+  }
+  json += "]}";
+  sendJson(200, json);
+}
+
 //     (timer has remaining/total seconds, weather has zip/data mode/units,
 //      clock has timezone and NTP sync status)
 //   - If idle: state = "idle"
