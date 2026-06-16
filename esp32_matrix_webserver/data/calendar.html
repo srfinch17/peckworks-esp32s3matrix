@@ -65,7 +65,7 @@
       <div class="group" id="previewGroup">
         <label>Board Preview</label>
         <div class="cal-preview" id="calPreview"></div>
-        <div class="preview-cap" id="previewCap">Live mirror of the actual board, at the current brightness.</div>
+        <div class="preview-cap">Live mirror of the actual board, at the current brightness.</div>
       </div>
 
       <div class="group">
@@ -202,6 +202,7 @@
       }
     }
     async function pollFramebuffer() {
+      if (document.hidden) return;   // don't hammer the single-client ESP32 server for a preview nobody's viewing
       try {
         const r = await fetch('/api/display/framebuffer');
         if (r.ok) { const d = await r.json(); lastFrame = d.px; paintPreview(); }
