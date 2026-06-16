@@ -406,10 +406,14 @@ void drawPartlyCloudyIcon(uint8_t f) {
   for (int y = 5; y <= 7; y++)
     for (int x = 0; x <= 2; x++)
       setPixel(x, y, sunC);
-  // Animated glow at the sun-cloud boundary
-  uint8_t p = sin8(f * 6);
-  setPixel(3, 5, CRGB(p, (uint8_t)(p / 2), 0));
-  setPixel(0, 4, CRGB(p, (uint8_t)(p / 2), 0));
+  setPixel(2, 5, CRGB::Black);   // trim the outer corner so the sun reads round, not square
+  // Three glow sparkles arcing over the sun's exposed edge, twinkling out of phase.
+  uint8_t p1 = sin8(f * 6);
+  uint8_t p2 = sin8(f * 6 + 85);
+  uint8_t p3 = sin8(f * 6 + 170);
+  setPixel(3, 5, CRGB(p1, (uint8_t)(p1 / 2), 0));
+  setPixel(0, 4, CRGB(p2, (uint8_t)(p2 / 2), 0));
+  setPixel(2, 4, CRGB(p3, (uint8_t)(p3 / 2), 0));   // added third sparkle
   // Cloud scrolls slowly left-to-right across the top 4 rows
   int cx = (int)((f / 4) % 14) - 3;   // cx cycles from -3 to +10
   CRGB cloudC = CRGB(160, 160, 185);
