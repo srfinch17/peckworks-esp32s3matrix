@@ -709,6 +709,38 @@ void handleStatus() {
   sendJson(200, json);
 }
 
+// GET /api/presence — current semantic status, served verbatim.
+void handlePresenceGet() {
+  sendJson(200, presenceJson);
+}
+
+// POST /api/presence — replace the stored status. Body is a normalized
+// PresenceMessage (validated by the MCP server); the board does a minimal
+// defensive check (intent present) and stamps ts with its NTP clock.
+void handlePresencePost() {
+  if (server.arg("plain").length() > 2048) {
+    sendJson(413, "{\"error\":\"presence body too large\"}");
+    return;
+  }
+  if (ESP.getFreeHeap() < 30000) {
+    sendJson(503, "{\"error\":\"low memory, retry shortly\"}");
+    return;
+  }
+  JsonDocument doc;
+  if (deserializeJson(doc, server.arg("plain")) != DeserializationError::Ok) {
+    sendJson(400, "{\"error\":\"Invalid JSON\"}");
+    return;
+  }
+  if (!doc["intent"].is<const char*>() || String((const char*)doc["intent"]).length() == 0) {
+    sendJson(400, "{\"error\":\"intent (non-empty string) required\"}");
+    return;
+  }
+  doc["ts"] = (uint32_t)time(nullptr);   // epoch seconds; card formats to local
+  presenceJson = "";
+  serializeJson(doc, presenceJson);
+  sendJson(200, "{\"status\":\"ok\"}");
+}
+
 // POST /api/grid-test/set — body: {"mode": "color"|"brightness", "brightness": 0-255}
 //
 // Diagnostic app. Two static test patterns to calibrate what the board can display.
