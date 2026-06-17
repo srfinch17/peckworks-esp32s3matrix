@@ -262,11 +262,41 @@ void stepTimerTextFrame() {
   drawChar3x5('0' + seconds % 10, 5, 3, timerColor2);
 }
 
+// ── NTP-wait indicator ───────────────────────────────────────
+// Animated hourglass shown by clock AND calendar until the first NTP sync —
+// replaces the old full-screen white pulse, which read as "broken" instead of
+// "waiting". Amber glass frame, gold sand draining top→bottom on a ~4s loop,
+// with a grain twinkling through the neck.
+void drawNtpWaitFrame() {
+  fill_solid(leds, NUM_LEDS, CRGB::Black);
+  const CRGB glass(110, 60, 10);    // dim amber frame (RGB order — maps direct)
+  const CRGB sand(255, 190, 40);    // bright gold sand
+
+  // Glass: top/bottom caps, wide bulb shoulders (rows 1/6), straight waist walls
+  // (rows 2-5 at cols 2/5, leaving a 2px-wide channel at cols 3-4).
+  for (int x = 1; x <= 6; x++) { setPixel(x, 0, glass); setPixel(x, 7, glass); }
+  setPixel(1, 1, glass); setPixel(6, 1, glass);
+  for (int y = 2; y <= 5; y++) { setPixel(2, y, glass); setPixel(5, y, glass); }
+  setPixel(1, 6, glass); setPixel(6, 6, glass);
+
+  // 6 sand cells each side. TOP is the drain order (outer shoulder empties
+  // first); BOT is the landing order (bottom row piles up first). {x, y} pairs.
+  static const int8_t TOP[6][2] = { {2,1},{5,1},{3,1},{4,1},{3,2},{4,2} };
+  static const int8_t BOT[6][2] = { {3,6},{4,6},{2,6},{5,6},{3,5},{4,5} };
+
+  uint32_t t = millis();
+  int moved = (int)((t % 4000UL) * 6 / 4000UL);   // 0..5 grains moved this cycle
+  for (int i = moved; i < 6; i++) setPixel(TOP[i][0], TOP[i][1], sand);   // still up top
+  for (int i = 0; i < moved; i++) setPixel(BOT[i][0], BOT[i][1], sand);   // already landed
+  // The falling grain, twinkling through the neck (cols 3-4, rows 3-4)
+  setPixel(3 + (int)((t / 160) % 2), 3 + (int)((t / 320) % 2), sand);
+}
+
 // ── Clock Mode (NTP) ─────────────────────────────────────────
 // Displays the current time synced from pool.ntp.org.
 // configTime() is called in handleAnimation() to start NTP sync.
-// Until sync completes, the display pulses dim white to show
-// it's waiting for a time signal.
+// Until sync completes, the display shows the animated hourglass
+// (drawNtpWaitFrame above) to show it's waiting for a time signal.
 //
 // The display only redraws when the hour or minute changes —
 // this is an optimization since the 8×8 matrix only has minute
@@ -275,9 +305,7 @@ void stepTimerTextFrame() {
 void stepClockFrame() {
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo, 100)) {
-    // NTP not yet synced — pulse dim white while waiting
-    uint8_t pulse = (uint8_t)(128 + 60 * sinf(millis() / 800.0f));
-    fill_solid(leds, NUM_LEDS, CRGB(pulse, pulse, pulse));
+    drawNtpWaitFrame();   // animated hourglass until the first NTP sync
     return;
   }
   ntpSynced = true;
