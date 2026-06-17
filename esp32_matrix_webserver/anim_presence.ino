@@ -129,7 +129,12 @@ void runPresenceFrame() {
       char buf[12];
       snprintf(buf, sizeof(buf), "%ld", lroundf(presValues[presValueIdx]));
       int len = (int)strlen(buf);
-      int wpx = len * FONT_CHAR_W + (len - 1) * FONT_CHAR_GAP;   // pixel width
+      // Pixel width = len chars * 3px + (len-1) * 1px gap = 4*len - 1.
+      // Hardcoded (not FONT_CHAR_W/FONT_CHAR_GAP): those macros live in fonts.ino,
+      // which Arduino concatenates AFTER this file (alphabetical), so they aren't
+      // defined yet at this point in the preprocessed unit. Function prototypes are
+      // hoisted; #define macros are not.
+      int wpx = 4 * len - 1;
       if (wpx <= MATRIX_W) {
         drawStrCentered3x5(buf, 1, presColor);   // static, vertically centered (rows 1–5)
       } else {
