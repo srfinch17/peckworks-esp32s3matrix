@@ -706,7 +706,7 @@ void setup() {
   // call reveals whether the flash and the LittleFS upload are in sync.
   if (LittleFS.exists("/version.json")) {
     File vf = LittleFS.open("/version.json", "r");
-    StaticJsonDocument<128> vdoc;
+    JsonDocument vdoc;
     if (deserializeJson(vdoc, vf) == DeserializationError::Ok && vdoc["version"].is<const char*>())
       webVersion = String((const char*)vdoc["version"]);
     vf.close();
