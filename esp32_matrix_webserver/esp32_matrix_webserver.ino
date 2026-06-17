@@ -891,6 +891,7 @@ void loop() {
     else if (animationName == "frostbite") runFrostbiteFrame();
     else if (animationName == "calendar")  stepCalendarFrame();
     else if (animationName == "sound")     stepSoundFrame();
+    else if (animationName == "presence")  runPresenceFrame();
     else if (animationName == "frames")    stepFramesFrame();
     FastLED.show();
   }
