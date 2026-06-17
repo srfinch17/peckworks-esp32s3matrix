@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Claude — Presence</title>
+<style>
+  :root { --accent: #46506a; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #0c0e14; color: #e8ecf4;
+    font: 16px/1.4 ui-sans-serif, system-ui, sans-serif; -webkit-user-select: none; }
+  #card { height: 100%; display: grid; grid-template-rows: auto 1fr auto;
+    gap: 10px; padding: 18px 20px;
+    background: radial-gradient(120% 90% at 30% 0%, color-mix(in srgb, var(--accent) 28%, #0c0e14), #0c0e14); }
+  #top { display: flex; align-items: center; gap: 14px; }
+  #glyph { font-size: 52px; line-height: 1; color: var(--accent);
+    text-shadow: 0 0 18px color-mix(in srgb, var(--accent) 60%, transparent); }
+  #headline { font-size: 22px; font-weight: 650; }
+  #label { font-size: 12px; letter-spacing: .12em; text-transform: uppercase;
+    color: color-mix(in srgb, var(--accent) 70%, #e8ecf4); }
+  #detail { color: #aeb6c8; font-size: 15px; }
+  #data { display: flex; flex-direction: column; gap: 8px; justify-content: center; }
+  .bar { height: 14px; border-radius: 7px; background: #1c2030; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--accent);
+    border-radius: 7px; transition: width .4s ease; }
+  .readouts { display: flex; gap: 18px; flex-wrap: wrap; }
+  .readout { display: flex; flex-direction: column; }
+  .readout .v { font-size: 28px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .readout .l { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #8b94a8; }
+  #spark { width: 100%; height: 56px; display: block; }
+  #foot { display: flex; justify-content: space-between; font-size: 11px; color: #6b7488; }
+  /* motion */
+  @keyframes pulse  { 0%,100%{opacity:1} 50%{opacity:.55} }
+  @keyframes shimmer{ 0%,100%{opacity:.7} 50%{opacity:1} }
+  @keyframes blink  { 0%,49%{opacity:1} 50%,100%{opacity:.2} }
+  @keyframes breathe{ 0%,100%{opacity:.45} 50%{opacity:.75} }
+  @keyframes burst  { 0%{transform:scale(1)} 30%{transform:scale(1.18)} 100%{transform:scale(1)} }
+  @keyframes settle { 0%{transform:scale(1.18)} 100%{transform:scale(1)} }
+  .m-pulse   #glyph { animation: pulse 1.4s ease-in-out infinite; }
+  .m-shimmer #glyph { animation: shimmer 2s ease-in-out infinite; }
+  .m-blink   #glyph { animation: blink .7s steps(1) infinite; }
+  .m-breathe #glyph { animation: breathe 3.5s ease-in-out infinite; }
+  .m-burst   #glyph { animation: burst .8s ease-out; }
+  .m-settle  #glyph { animation: settle .5s ease-out; }
+  /* urgency escalates: notice = slow pulse on whole card, urgent = blink */
+  .u-notice #card { animation: pulse 2.4s ease-in-out infinite; }
+  .u-urgent #card { animation: blink 1s steps(1) infinite; }
+</style>
+</head>
+<body>
+  <div id="card">
+    <div id="top">
+      <div id="glyph">z</div>
+      <div>
+        <div id="label">Idle</div>
+        <div id="headline"></div>
+      </div>
+    </div>
+    <div id="data"></div>
+    <div>
+      <div id="detail"></div>
+      <div id="foot"><span id="intent">idle</span><span id="age">—</span></div>
+    </div>
+  </div>
+
+<script type="module">
+import { PRESENCE_VOCAB } from "./presence-vocab.js";
+
+const GENERIC = { label: "Status", glyph: "○", color: "#7a8aa0", motion: "none" };
+const $ = (id) => document.getElementById(id);
+let lastTs = 0;
+
+function renderData(data) {
+  const box = $("data");
+  box.innerHTML = "";
+  if (!data) return;
+  if ("progress" in data) {
+    const pct = Math.round(Math.max(0, Math.min(1, data.progress)) * 100);
+    box.innerHTML = `<div class="bar"><i style="width:${pct}%"></i></div>
+      <div class="readout"><span class="v">${pct}%</span></div>`;
+  } else if ("values" in data) {
+    const row = document.createElement("div");
+    row.className = "readouts";
+    for (const r of data.values) {
+      const el = document.createElement("div");
+      el.className = "readout";
+      const vEl = document.createElement("span");
+      vEl.className = "v";
+      vEl.textContent = String(r.value);
+      if (r.unit) { const u = document.createElement("small"); u.textContent = r.unit; vEl.appendChild(u); }
+      el.appendChild(vEl);
+      if (r.label) { const lEl = document.createElement("span"); lEl.className = "l"; lEl.textContent = r.label; el.appendChild(lEl); }
+      row.appendChild(el);
+    }
+    box.appendChild(row);
+  } else if ("series" in data) {
+    box.appendChild(sparkline(data.series, data.label, data.unit));
+  }
+}
+
+function sparkline(series, label, unit) {
+  const w = 320, h = 56, n = series.length;
+  const min = Math.min(...series), max = Math.max(...series), span = (max - min) || 1;
+  const pts = series.map((v, i) =>
+    `${(i / Math.max(1, n - 1)) * w},${h - ((v - min) / span) * (h - 6) - 3}`).join(" ");
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.id = "spark"; svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  svg.innerHTML = `<polyline fill="none" stroke="currentColor" stroke-width="2"
+     stroke-linejoin="round" stroke-linecap="round" points="${pts}" />`;
+  const wrap = document.createElement("div");
+  if (label || unit) {
+    const cap = document.createElement("div");
+    cap.className = "readout"; cap.style.marginBottom = "4px";
+    const lEl = document.createElement("span");
+    lEl.className = "l";
+    lEl.textContent = `${label ?? ""} ${unit ? `(${unit})` : ""}`.trim();
+    cap.appendChild(lEl);
+    wrap.appendChild(cap);
+  }
+  wrap.appendChild(svg);
+  return wrap;
+}
+
+function render(m) {
+  const v = PRESENCE_VOCAB[m.intent] ?? GENERIC;
+  document.documentElement.style.setProperty("--accent", v.color);
+  $("glyph").textContent = v.glyph;
+  $("label").textContent = v.label;
+  $("headline").textContent = m.headline ?? "";
+  $("detail").textContent = m.detail ?? "";
+  $("intent").textContent = m.intent;
+  const cls = `m-${v.motion} u-${m.urgency ?? "ambient"}`;
+  if (document.body.className !== cls) document.body.className = cls;
+  renderData(m.data);
+  lastTs = Number(m.ts) > 1e9 ? Number(m.ts) : 0;
+}
+
+async function poll() {
+  if (document.hidden) return;   // single-client board: don't poll when unseen
+  try {
+    const r = await fetch("/api/presence", { cache: "no-store" });
+    if (r.ok) render(await r.json());
+  } catch { /* board momentarily unreachable — keep last render */ }
+}
+
+function tickAge() {
+  if (!lastTs) { $("age").textContent = "—"; return; }
+  const s = Math.max(0, Math.floor(Date.now() / 1000) - lastTs);
+  $("age").textContent = s < 60 ? `${s}s ago` : `${Math.floor(s / 60)}m ago`;
+}
+
+poll();
+setInterval(poll, 1500);
+setInterval(tickAge, 1000);
+</script>
+</body>
+</html>

@@ -75,6 +75,12 @@
 // the LittleFS upload predates versioning (re-upload to start tracking).
 String webVersion = "unknown";
 
+// Presence Protocol: the last semantic status the board was told to show. Stored
+// as already-normalized JSON (the MCP server validates before POSTing). Served
+// verbatim at GET /api/presence for any renderer (the desktop card). RAM only —
+// resets to idle on reboot. The LEDs are still driven by the MCP frame path in v0.
+String presenceJson = "{\"intent\":\"idle\"}";
+
 // ============================================================
 // SECTION 1: HARDWARE CONFIGURATION
 // ============================================================
@@ -727,6 +733,8 @@ void setup() {
   server.on("/api/sensors/weather",       HTTP_GET,  handleSensorWeather);
   server.on("/api/weather/mode",          HTTP_POST, handleWeatherMode);
   server.on("/api/status",               HTTP_GET,  handleStatus);
+  server.on("/api/presence",             HTTP_GET,  handlePresenceGet);
+  server.on("/api/presence",             HTTP_POST, handlePresencePost);
   server.on("/api/grid-test/set",        HTTP_POST, handleGridTest);
   server.onNotFound([]() {
     String path = server.uri();
