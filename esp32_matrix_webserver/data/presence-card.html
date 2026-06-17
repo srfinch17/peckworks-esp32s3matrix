@@ -84,8 +84,12 @@ function renderData(data) {
     for (const r of data.values) {
       const el = document.createElement("div");
       el.className = "readout";
-      el.innerHTML = `<span class="v">${r.value}${r.unit ? `<small>${r.unit}</small>` : ""}</span>` +
-        (r.label ? `<span class="l">${r.label}</span>` : "");
+      const vEl = document.createElement("span");
+      vEl.className = "v";
+      vEl.textContent = String(r.value);
+      if (r.unit) { const u = document.createElement("small"); u.textContent = r.unit; vEl.appendChild(u); }
+      el.appendChild(vEl);
+      if (r.label) { const lEl = document.createElement("span"); lEl.className = "l"; lEl.textContent = r.label; el.appendChild(lEl); }
       row.appendChild(el);
     }
     box.appendChild(row);
@@ -107,7 +111,10 @@ function sparkline(series, label, unit) {
   if (label || unit) {
     const cap = document.createElement("div");
     cap.className = "readout"; cap.style.marginBottom = "4px";
-    cap.innerHTML = `<span class="l">${label ?? ""} ${unit ? `(${unit})` : ""}</span>`;
+    const lEl = document.createElement("span");
+    lEl.className = "l";
+    lEl.textContent = `${label ?? ""} ${unit ? `(${unit})` : ""}`.trim();
+    cap.appendChild(lEl);
     wrap.appendChild(cap);
   }
   wrap.appendChild(svg);
@@ -122,8 +129,8 @@ function render(m) {
   $("headline").textContent = m.headline ?? "";
   $("detail").textContent = m.detail ?? "";
   $("intent").textContent = m.intent;
-  document.body.className =
-    `m-${v.motion} u-${m.urgency ?? "ambient"}`;
+  const cls = `m-${v.motion} u-${m.urgency ?? "ambient"}`;
+  if (document.body.className !== cls) document.body.className = cls;
   renderData(m.data);
   lastTs = Number(m.ts) > 1e9 ? Number(m.ts) : 0;
 }
