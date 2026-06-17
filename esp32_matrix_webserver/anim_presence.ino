@@ -96,57 +96,57 @@ void parsePresence() {
   }
 }
 
+// Draw an integer big + vertically centered (3×5); scroll it if too wide for 8px.
+// Shared by the progress (percent) and values (readout) shapes — numbers read on
+// the 8×8 where solid fills don't.
+static void drawBigNumber(long n, CRGB color, uint32_t now) {
+  char buf[12];
+  snprintf(buf, sizeof(buf), "%ld", n);
+  int len = (int)strlen(buf);
+  // Width = len*3px + (len-1)*1px gap = 4*len-1. Hardcoded (not FONT_CHAR_W/GAP):
+  // those macros live in fonts.ino, concatenated AFTER this file, so undefined here.
+  int wpx = 4 * len - 1;
+  if (wpx <= MATRIX_W) {
+    drawStrCentered3x5(buf, 1, color);   // static, vertically centered (rows 1–5)
+  } else {
+    if (now - presScrollLastMs >= 60) {  // advance the scroll
+      presScrollLastMs = now;
+      presScrollX -= 1;
+      if (presScrollX < -wpx) presScrollX = MATRIX_W;
+    }
+    drawStr3x5(buf, presScrollX, 1, color);
+  }
+}
+
 // Draw the cached presence data. Clears the panel; the loop calls FastLED.show().
 void runPresenceFrame() {
   FastLED.clear();
   uint32_t now = millis();
 
   switch (presShape) {
-    case PRES_PROGRESS: {
-      int lit = (int)lroundf(presProgress * (float)NUM_LEDS);   // 0..64
-      for (int i = 0; i < lit; i++) {
-        int row = MATRIX_H - 1 - (i / MATRIX_W);   // fill bottom row first, upward
-        int col = i % MATRIX_W;                    // left-to-right within the row
-        setPixel(col, row, presColor);
-      }
+    case PRES_PROGRESS:
+      // Show the percent as a number (a solid fill doesn't read as "progress" on 8×8).
+      drawBigNumber(lroundf(presProgress * 100.0f), presColor, now);
       break;
-    }
 
     case PRES_SERIES: {
+      // Thin-line sparkline: light ONLY the top pixel of each column (the value),
+      // not the fill beneath — so a monotonic series reads as a rising LINE, not a
+      // solid triangle, and a jagged one reads as a chart.
       int x0 = (MATRIX_W - presSeriesCount) / 2;   // center the columns
       for (int i = 0; i < presSeriesCount; i++)
-        for (int r = 0; r < presSeries[i]; r++)
-          setPixel(x0 + i, MATRIX_H - 1 - r, presColor);   // bottom-up column
+        setPixel(x0 + i, MATRIX_H - presSeries[i], presColor);   // top pixel = trace point
       break;
     }
 
-    case PRES_VALUES: {
+    case PRES_VALUES:
       if (presValueCount > 1 && now - presValueLastMs >= 1800) {
         presValueLastMs = now;
         presValueIdx = (presValueIdx + 1) % presValueCount;
         presScrollX = MATRIX_W;   // restart scroll for the newly shown number
       }
-      char buf[12];
-      snprintf(buf, sizeof(buf), "%ld", lroundf(presValues[presValueIdx]));
-      int len = (int)strlen(buf);
-      // Pixel width = len chars * 3px + (len-1) * 1px gap = 4*len - 1.
-      // Hardcoded (not FONT_CHAR_W/FONT_CHAR_GAP): those macros live in fonts.ino,
-      // which Arduino concatenates AFTER this file (alphabetical), so they aren't
-      // defined yet at this point in the preprocessed unit. Function prototypes are
-      // hoisted; #define macros are not.
-      int wpx = 4 * len - 1;
-      if (wpx <= MATRIX_W) {
-        drawStrCentered3x5(buf, 1, presColor);   // static, vertically centered (rows 1–5)
-      } else {
-        if (now - presScrollLastMs >= 60) {      // advance the scroll
-          presScrollLastMs = now;
-          presScrollX -= 1;
-          if (presScrollX < -wpx) presScrollX = MATRIX_W;
-        }
-        drawStr3x5(buf, presScrollX, 1, presColor);
-      }
+      drawBigNumber(lroundf(presValues[presValueIdx]), presColor, now);
       break;
-    }
 
     case PRES_NONE:
     default:
