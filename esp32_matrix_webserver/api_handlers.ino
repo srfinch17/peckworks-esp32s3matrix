@@ -661,7 +661,14 @@ void handleFramebuffer() {
 // This is what the MCP server's matrix_status tool calls.
 void handleStatus() {
   String json = "{";
-  json += "\"brightness\":" + String(brightness);
+  // Version certainty: fw_version is the flashed firmware (from version.h);
+  // fw_built is the compiler's automatic build timestamp (updates every reflash
+  // even without a version bump); web_version is the uploaded LittleFS bundle.
+  // Compare these against the repo /VERSION via `npm run check` / matrix_version.
+  json += "\"fw_version\":\""  + String(FW_VERSION) + "\"";
+  json += ",\"fw_built\":\""   + String(__DATE__ " " __TIME__) + "\"";
+  json += ",\"web_version\":\"" + escapeJson(webVersion) + "\"";
+  json += ",\"brightness\":" + String(brightness);
 
   if (textActive) {
     json += ",\"state\":\"text\"";
