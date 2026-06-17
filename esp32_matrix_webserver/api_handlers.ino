@@ -718,6 +718,14 @@ void handlePresenceGet() {
 // PresenceMessage (validated by the MCP server); the board does a minimal
 // defensive check (intent present) and stamps ts with its NTP clock.
 void handlePresencePost() {
+  if (server.arg("plain").length() > 2048) {
+    sendJson(413, "{\"error\":\"presence body too large\"}");
+    return;
+  }
+  if (ESP.getFreeHeap() < 30000) {
+    sendJson(503, "{\"error\":\"low memory, retry shortly\"}");
+    return;
+  }
   JsonDocument doc;
   if (deserializeJson(doc, server.arg("plain")) != DeserializationError::Ok) {
     sendJson(400, "{\"error\":\"Invalid JSON\"}");
