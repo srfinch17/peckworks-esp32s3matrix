@@ -132,7 +132,7 @@ static const char* const KNOWN_ANIMS[] = {
   "fire", "rainbow", "breathe", "wave", "solid", "liquid", "imu", "chiptemp",
   "weather", "weather2", "timer_fill", "timer_snow", "timer_text", "clock",
   "matrix_rain", "dancefloor", "spiral", "starfield", "fireworks", "fireworks2",
-  "comet", "sun", "frostbite", "calendar", "sound"
+  "comet", "sun", "frostbite", "calendar", "sound", "presence"
 };
 
 // Applies an animation command from a JSON body. Shared by the HTTP handler
@@ -407,6 +407,8 @@ bool applyAnimationBody(const String& body) {
     fbInit      = false;
   }
 
+  if (animationName == "presence") parsePresence();   // parse stored presenceJson into the render cache
+
   animationActive = true;
   return true;
 }
@@ -415,8 +417,12 @@ bool applyAnimationBody(const String& body) {
 void handleAnimation() {
   String body = server.arg("plain");
   if (!applyAnimationBody(body)) { sendJson(400, "{\"error\":\"Invalid JSON or unknown animation type\"}"); return; }
+  // Presence-data mode is transient (like text): presenceJson resets to idle on
+  // reboot, so resuming "presence" would come up on an empty screen.
   // Debounced auto-resume (flushed from loop() after ~8s) — see esp32_matrix_webserver.ino.
-  resumeKind = "anim"; resumeBody = body; resumeDirty = true; resumeDirtyMs = millis();
+  if (animationName != "presence") {
+    resumeKind = "anim"; resumeBody = body; resumeDirty = true; resumeDirtyMs = millis();
+  }
   sendJson(200, "{\"status\":\"ok\",\"animation\":\"" + animationName + "\"}");
 }
 
