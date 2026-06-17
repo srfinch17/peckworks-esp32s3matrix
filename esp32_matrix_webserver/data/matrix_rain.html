@@ -70,15 +70,7 @@
         <div class="hint">Higher fps = drops fall faster overall. Individual drops also vary randomly.</div>
       </div>
 
-      <div class="group">
-        <label>Brightness — <span id="v-bri">40</span></label>
-        <div class="slider-row">
-          <span style="font-size:.68rem;color:#555">Off</span>
-          <input type="range" id="bri" min="0" max="255" value="40" oninput="updateBrightness(this.value)">
-          <span style="font-size:.68rem;color:#555">Full</span>
-        </div>
-        <div class="hint">Controls board brightness — the preview above always renders at full brightness.</div>
-      </div>
+      <div id="brightnessSlot"></div>
 
       <div class="actions">
         <button class="btn-apply" onclick="applyToDisplay()">Apply to Display</button>
@@ -89,6 +81,8 @@
     </div>
   </div>
 
+  <script src="ledsim.js"></script>
+  <script src="bright.js" data-auto></script>
   <script>
     const W = 8, H = 8, CELL = 36, TRAIL_LEN = 4;
 
@@ -101,10 +95,9 @@
 
     let theme      = 'classic';
     let speedMs    = Math.round(1000 / 12);
-    let previewBri = 40;   // mirrors board brightness; applied to preview colors
 
-    // FastLED nscale8x3: (channel * (brightness + 1)) >> 8
-    function dim(v) { return (v * (previewBri + 1) / 256) | 0; }
+    // Dim the preview to the shared brightness (bright.js widget) via the shared model.
+    function dim(v) { return window.LedSim ? LedSim.effective(v, LedSim.bri()) : v; }
 
     // One drop per column, matching the firmware MatrixDrop struct exactly
     const drops = Array.from({ length: W }, (_, col) => ({
@@ -165,34 +158,6 @@
       requestAnimationFrame(animate);
     }
     requestAnimationFrame(animate);
-
-    // ── Brightness ────────────────────────────────────────────
-
-    let briTimer;
-    (function initBri() {
-      const saved = localStorage.getItem('matrix_brightness');
-      if (saved !== null) {
-        previewBri = +saved;
-        document.getElementById('bri').value = previewBri;
-        document.getElementById('v-bri').textContent = previewBri;
-      }
-    })();
-
-    function updateBrightness(val) {
-      previewBri = +val;
-      document.getElementById('v-bri').textContent = val;
-      localStorage.setItem('matrix_brightness', String(val));
-      clearTimeout(briTimer);
-      briTimer = setTimeout(async () => {
-        try {
-          await fetch('/api/brightness', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ level: previewBri })
-          });
-        } catch {}
-      }, 200);
-    }
 
     // ── UI wiring ─────────────────────────────────────────────
 

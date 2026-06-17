@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calendar — ESP32 Matrix</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; padding: 20px; }
+    .wrap { max-width: 760px; margin: 0 auto; }
+    .back { color: #555; text-decoration: none; font-size: 0.85rem; display: inline-block; margin-bottom: 16px; }
+    .back:hover { color: #999; }
+    h1 { font-size: 1.3rem; color: #ffd166; margin-bottom: 20px; }
+    .panel { background: #161616; border: 1px solid #2a2a2a; border-radius: 12px; padding: 22px; max-width: 520px; }
+    .group { margin-bottom: 20px; }
+    .group > label { display: block; font-size: 0.72rem; color: #777; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; }
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .cal-btn { border: 2px solid #333; border-radius: 8px; padding: 8px 14px; cursor: pointer; font-size: 0.82rem; font-weight: 600; background: #1a1a1a; color: #bbb; transition: border-color .12s, color .12s; }
+    .cal-btn.active { border-color: #ffd166; color: #fff; }
+    input[type=range] { width: 100%; accent-color: #ffd166; cursor: pointer; }
+    input[type=number], select { background: #111; color: #e0e0e0; border: 1px solid #333; border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn-primary { background: #3a2e0a; color: #ffd166; border: 1px solid #6a5417; border-radius: 7px; padding: 10px 22px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
+    .btn-primary:hover { background: #4a3a10; }
+    .btn-secondary { background: #1a1a1a; color: #aaa; border: 1px solid #333; border-radius: 7px; padding: 10px 18px; cursor: pointer; font-size: 0.85rem; }
+    .btn-secondary:hover { background: #222; }
+    .status { font-size: 0.78rem; margin-top: 14px; min-height: 1.2em; color: #00cc66; }
+    .status.err { color: #ff5555; }
+    .hint { font-size: 0.7rem; color: #555; margin-top: 5px; }
+    .cal-preview { display: grid; grid-template-columns: repeat(8, 18px); grid-template-rows: repeat(8, 18px); gap: 2px; }
+    .cpx { border-radius: 3px; background: #0a0a0a; }
+    .preview-cap { font-size: 0.62rem; color: #555; margin-top: 7px; }
+    .mono-row { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #bbb; }
+    .mono-row input { width: 16px; height: 16px; accent-color: #ffd166; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a href="/" class="back">← Home</a>
+    <h1>📅 Calendar</h1>
+
+    <div class="panel">
+      <div class="group">
+        <label>Style</label>
+        <div class="btn-row">
+          <button class="cal-btn active" data-style="scroll" onclick="pickStyle(this)">Scrolling</button>
+          <button class="cal-btn"        data-style="bignum" onclick="pickStyle(this)">Big Day</button>
+          <button class="cal-btn"        data-style="grid"   onclick="pickStyle(this)">Month Grid</button>
+          <button class="cal-btn"        data-style="clock"  onclick="pickStyle(this)">Month + Day</button>
+          <button class="cal-btn"        data-style="square" onclick="pickStyle(this)">Square</button>
+        </div>
+        <div class="hint" id="styleHint">"Tue Jun 9" scrolls across in the Primary color.</div>
+      </div>
+
+      <div class="group">
+        <label>Colors</label>
+        <div id="palSlot"></div>
+      </div>
+
+      <div class="group" id="scrollOptGroup" style="display:none">
+        <label>Scroll color</label>
+        <label class="mono-row"><input type="checkbox" id="scrollMono"> Single color (use Primary for the whole date)</label>
+      </div>
+
+      <div class="group" id="previewGroup">
+        <label>Board Preview</label>
+        <div class="cal-preview" id="calPreview"></div>
+        <div class="preview-cap">Live mirror of the actual board, at the current brightness.</div>
+      </div>
+
+      <div class="group">
+        <label>Scroll speed</label>
+        <input type="range" id="speed" min="1" max="10" value="6">
+      </div>
+
+      <div class="group">
+        <label>Timezone</label>
+        <select id="tz">
+          <option value="MST7" selected>Phoenix — MST (no DST)</option>
+          <option value="PST8PDT,M3.2.0,M11.1.0">US Pacific</option>
+          <option value="MST7MDT,M3.2.0,M11.1.0">US Mountain</option>
+          <option value="CST6CDT,M3.2.0,M11.1.0">US Central</option>
+          <option value="EST5EDT,M3.2.0,M11.1.0">US Eastern</option>
+          <option value="AKST9AKDT,M3.2.0,M11.1.0">US Alaska</option>
+          <option value="HST10">US Hawaii (no DST)</option>
+          <option value="UTC0">UTC</option>
+          <option value="GMT0BST,M3.5.0/1,M10.5.0">UK — London</option>
+          <option value="CET-1CEST,M3.5.0,M10.5.0/3">Central Europe</option>
+          <option value="JST-9">Japan</option>
+          <option value="AEST-10AEDT,M10.1.0,M4.1.0/3">Sydney</option>
+        </select>
+        <span class="hint">DST handled automatically. Needed for the correct local date.</span>
+      </div>
+
+      <div class="actions">
+        <button class="btn-primary" onclick="apply()">Show on Board</button>
+        <button class="btn-secondary" onclick="clearDisplay()">Clear</button>
+      </div>
+      <div class="status" id="status"></div>
+    </div>
+  </div>
+
+  <script src="ledsim.js"></script>
+  <script src="palette.js"></script>
+  <script src="bright.js" data-auto></script>
+  <script>
+    const HINTS = {
+      scroll: 'Date scrolls across — Primary = weekday, Secondary = month, Accent = day (or tick Single color).',
+      bignum: "Today's day-of-month as a big centered number (Primary color).",
+      grid:   'Mini month grid — Primary = today, Secondary = weekdays, Accent = weekends.',
+      clock:  'Month + day — Primary = day, Secondary = month, Accent = weekday letter.',
+      square: 'Desk-calendar square — Secondary = 2-letter weekday on top, Primary = big day number below.'
+    };
+
+    // Per-style default colors. The three palette slots mean different things in each
+    // style — e.g. Secondary is the dark weekday FIELD in grid, but bright weekday/month
+    // TEXT in clock/square — so each style loads colors tuned for its own roles. Switching
+    // styles resets the palette to these; recolor afterwards if you like.
+    const STYLE_DEFAULTS = {
+      scroll: ['#00c8ff', '#ff7800', '#ffffff'],   // weekday / month / day — three distinct readable colors
+      bignum: ['#00c8ff', '#ff7800', '#50505a'],
+      grid:   ['#ffffff', '#0c1830', '#994800'],   // today (white) / weekday field (dark navy) / weekend (dim orange)
+      clock:  ['#00c8ff', '#ff7800', '#ffffff'],   // day / month / weekday letter
+      square: ['#00c8ff', '#ff7800', '#50505a']    // day number / weekday letters
+    };
+
+    // Calendar presets follow the grid "hierarchy" pattern the user liked: a BRIGHT
+    // primary (today), a DARK secondary (the quiet weekday field), and a MID accent
+    // (weekend) — all maximally distinct so nothing washes out on the panel. (The
+    // app-wide gradient presets like Fire/Ocean were same-hue ramps that muddied here.)
+    // 32 trios, all following the same hierarchy: BRIGHT primary (today) / DARK secondary
+    // (quiet weekday field) / MID accent (weekend) — every one stays distinct on the panel.
+    const CAL_PRESETS = [
+      { name: 'Frost',  colors: ['#ffffff','#0c1830','#994800'] },
+      { name: 'Mint',   colors: ['#ffffff','#06241a','#c03090'] },
+      { name: 'Lime',   colors: ['#ffffff','#0a1a06','#ffae00'] },
+      { name: 'Rose',   colors: ['#ffffff','#1e0614','#ff3060'] },
+      { name: 'Mono',   colors: ['#ffffff','#141414','#909090'] },
+      { name: 'Steel',  colors: ['#ffffff','#101820','#2868ff'] },
+      { name: 'Rust',   colors: ['#ffffff','#200a04','#d06000'] },
+      { name: 'Ocean',  colors: ['#ffffff','#04141e','#00b0d0'] },
+      { name: 'Plum',   colors: ['#ffffff','#160826','#b060ff'] },
+      { name: 'Forest', colors: ['#ffffff','#04180c','#30c060'] },
+      { name: 'Ember',  colors: ['#ffd060','#240808','#00a0c0'] },
+      { name: 'Amber',  colors: ['#ffcc33','#101010','#2080ff'] },
+      { name: 'Honey',  colors: ['#ffd84d','#1a0a00','#ff4080'] },
+      { name: 'Slate',  colors: ['#00e0ff','#101018','#ff6000'] },
+      { name: 'Aqua',   colors: ['#20e0d0','#0a0a1a','#ff8030'] },
+      { name: 'Sky',    colors: ['#40c0ff','#100818','#ffd000'] },
+      { name: 'Grape',  colors: ['#ffe000','#140838','#00c0d0'] },
+      { name: 'Sun',    colors: ['#ffe000','#1a0a00','#ff3060'] },
+      { name: 'Citron', colors: ['#e0ff20','#06140a','#ff20a0'] },
+      { name: 'Leaf',   colors: ['#40e040','#0a0a0a','#ff5020'] },
+      { name: 'Neon',   colors: ['#50ff80','#100818','#ff40c0'] },
+      { name: 'Tiger',  colors: ['#ff8000','#100818','#00d0ff'] },
+      { name: 'Sunset', colors: ['#ff6020','#18060a','#ffd000'] },
+      { name: 'Candy',  colors: ['#ff60c0','#16061e','#20d0a0'] },
+      { name: 'Bubble', colors: ['#ff80d0','#0a0a1a','#ffd000'] },
+      { name: 'Cobalt', colors: ['#4080ff','#0a0612','#ff9000'] },
+      { name: 'Azure',  colors: ['#50a0ff','#101010','#ffe000'] },
+      { name: 'Cherry', colors: ['#ff3040','#100818','#00d0a0'] },
+      { name: 'Coral',  colors: ['#ff5050','#06121a','#20c0ff'] },
+      { name: 'Lagoon', colors: ['#20d0c0','#0a0a18','#ff6080'] },
+      { name: 'Jade',   colors: ['#30e0a0','#100818','#ff8020'] },
+      { name: 'Violet', colors: ['#a060ff','#0a0a0a','#ffd000'] }
+    ];
+
+    let style = 'scroll';
+    let colors = STYLE_DEFAULTS[style].slice();
+
+    const pal = Palette.mount('#palSlot', {
+      count: 3,
+      labels: ['Primary', 'Secondary', 'Accent'],
+      defaults: colors,
+      presets: CAL_PRESETS,
+      onChange: function (c) { colors = c; applyDebounced(); }
+    });
+    colors = pal.get();
+
+    // Live apply — push to the board on any change (debounced so dragging a picker or
+    // the speed slider doesn't flood the board with POSTs / thrash the NTP reconfig).
+    let applyTimer = null;
+    function applyDebounced() { clearTimeout(applyTimer); applyTimer = setTimeout(apply, 220); }
+
+    // Board preview: poll the firmware's actual framebuffer (GET /api/display/framebuffer)
+    // and render it through ledsim.js at the current brightness. Because it mirrors the
+    // real leds[], it's exact for EVERY style (and animation) — no font/layout duplicated
+    // in JS. With live-apply on, the board already reflects the current settings, so the
+    // preview tracks them within ~0.3s.
+    let lastFrame = null;
+    function paintPreview() {
+      const grid = document.getElementById('calPreview');
+      if (!grid || !lastFrame) return;
+      const bri = window.LedSim ? LedSim.bri() : 40;
+      grid.innerHTML = '';
+      for (let i = 0; i < 64; i++) {
+        const px = document.createElement('div');
+        px.className = 'cpx';
+        const hex = '#' + (lastFrame[i] || '000000');
+        px.style.background = window.LedSim ? LedSim.previewColor(hex, bri) : hex;
+        grid.appendChild(px);
+      }
+    }
+    async function pollFramebuffer() {
+      if (document.hidden) return;   // don't hammer the single-client ESP32 server for a preview nobody's viewing
+      try {
+        const r = await fetch('/api/display/framebuffer');
+        if (r.ok) { const d = await r.json(); lastFrame = d.px; paintPreview(); }
+      } catch { /* board momentarily unreachable — keep the last frame */ }
+    }
+    setInterval(pollFramebuffer, 333);   // ~3 fps — smooth enough for scrolling/animation
+    pollFramebuffer();
+
+    // Scroll-color checkbox is only meaningful for the scroll style.
+    function syncStyleUI() {
+      document.getElementById('scrollOptGroup').style.display = (style === 'scroll') ? '' : 'none';
+    }
+
+    function pickStyle(btn) {
+      document.querySelectorAll('.cal-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      style = btn.dataset.style;
+      document.getElementById('styleHint').textContent = HINTS[style];
+      pal.set(STYLE_DEFAULTS[style]);   // load colors for this style (fires onChange → applyDebounced)
+      syncStyleUI();
+      applyDebounced();
+    }
+
+    document.getElementById('speed').addEventListener('input', applyDebounced);
+    document.getElementById('tz').addEventListener('change', applyDebounced);
+    document.getElementById('scrollMono').addEventListener('change', applyDebounced);
+    if (window.LedSim) LedSim.onChange(paintPreview);
+    syncStyleUI();   // set initial visibility for the default style
+
+    function setStatus(msg, isErr) {
+      const el = document.getElementById('status');
+      el.textContent = msg; el.className = 'status' + (isErr ? ' err' : '');
+    }
+
+    async function apply() {
+      const spd = +document.getElementById('speed').value;          // 1-10
+      const ms  = Math.round(150 - (spd - 1) * 14);                  // 1->150ms (slow), 10->24ms (fast)
+      const body = {
+        type: 'calendar', style: style,
+        color1: colors[0], color2: colors[1], color3: colors[2],
+        scroll_mono: document.getElementById('scrollMono').checked,
+        tz: document.getElementById('tz').value,
+        speed: ms
+      };
+      try {
+        const r = await fetch('/api/display/animation', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        setStatus(r.ok ? '✓ Calendar running (' + style + ')' : 'Error: HTTP ' + r.status, !r.ok);
+      } catch { setStatus('Cannot reach board — check WiFi.', true); }
+    }
+
+    async function clearDisplay() {
+      try {
+        const r = await fetch('/api/display/clear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        setStatus(r.ok ? 'Display cleared.' : 'Error: HTTP ' + r.status, !r.ok);
+      } catch { setStatus('Cannot reach board.', true); }
+    }
+  </script>
+</body>
+</html>

@@ -74,93 +74,102 @@ void readAccel(float &ax, float &ay, float &az) {
 }
 
 // ── stepLiquidFrame ───────────────────────────────────────────
-// Simulates fluid sloshing inside the matrix in response to
-// physical board tilt detected by the accelerometer.
+// 2D CLOSED-CONTAINER FLUID.
+//   Gravity is a vector in the matrix plane. Each cell's potential
+//   p = x*gx + y*gy INCREASES along gravity, so the most-downhill cells have the
+//   HIGHEST p. The fluid occupies the top cells by potential (p >= liquidLevel),
+//   and that threshold springs toward
+//   equilibrium with momentum. Tilt any direction → the fluid pools against the
+//   low edge; rotate past a corner → it spills onto the next edge. Full 360°.
+//   (Replaces the old 1D per-column heightfield that could only slosh L/R.)
 //
-// PHYSICS MODEL:
-//   Each column has a float surface height (liquidHeight[x]) and
-//   vertical velocity (liquidVelocity[x]). Each frame:
-//
-//   1. TILT FORCE: atan2(-ay, az) converts the gravity vector
-//      into a tilt angle, which becomes a target height slope.
-//      When you tilt the board right, the fluid "wants" to pile
-//      up on the right side — a higher target height there pulls
-//      the surface up via a spring force.
-//
-//   2. WAVE PROPAGATION: each column also has a restoring force
-//      from its neighbors (shallow water wave equation).
-//      (lh + rh - 2*prev[x]) is a discrete second derivative —
-//      it creates surface tension that spreads waves outward.
-//
-//   3. DAMPING: liquidVelocity is multiplied by liquidDamping
-//      (< 1.0) each frame so the fluid eventually settles.
-//      viscosity param from the API maps to damping coefficient:
-//      lower viscosity = less damping = more sloshy.
-//
-//   4. CONSERVATION: a drift correction keeps the average surface
-//      height at MATRIX_H/2 so the fluid doesn't all pile to one side.
-//
-// RENDERING:
-//   Pixels at or below the surface are lit (teal, brighter at
-//   the surface, darker at depth). Turbulence brightens the
-//   surface pixels — the faster a column is moving, the whiter it is.
+//   1. GRAVITY DIR: derive an in-plane (gx,gy) from the accelerometer and
+//      low-pass it into liquidGX/GY so it doesn't jitter.
+//   2. POTENTIAL: p(x,y) = x*gx + y*gy. The 32 cells with the highest p are
+//      "below the surface" (half full). Teq = the 32nd-largest p.
+//   3. SLOSH: liquidLevel springs toward Teq with velocity + damping
+//      (viscosity). The overshoot when gravity rotates IS the slosh.
+//   4. RENDER: cell is fluid iff p >= liquidLevel. Color by depth via the
+//      shared palette (or a custom top/bottom gradient); froth brightens the
+//      moving surface.
 void stepLiquidFrame() {
   float ax, ay, az;
   if (imuReady) readAccel(ax, ay, az);
   else          { ax = 0.0f; ay = 0.0f; az = 1.0f; }   // flat fallback if IMU failed
 
-  // atan2(-ay, az) gives the board tilt angle in radians.
-  // Dividing by (PI/2) normalizes it to roughly -1..+1:
-  //   0 = flat, +1 = vertical right side down, -1 = vertical left side down.
-  float tilt    = atan2f(-ay, az) / (M_PI * 0.5f);
-  float slopeMax = 3.5f;   // max height difference across the matrix at full tilt
-  float xCenter  = (MATRIX_W - 1) * 0.5f;
+  // ── In-plane gravity direction ──────────────────────────────
+  // IMU axis mapping — CALIBRATED ON HARDWARE 2026-06-08.
+  // gxRaw is negated: tip the board right (clockwise) → fluid pools right.
+  // If up/down ever reads reversed, negate gyRaw the same way.
+  float gxRaw = -ay;  // → matrix +x (right)
+  float gyRaw =  ax;  // → matrix +y (down)
 
-  float prev[MATRIX_W];
-  memcpy(prev, liquidHeight, sizeof(float) * MATRIX_W);   // snapshot before update
-
-  for (int x = 0; x < MATRIX_W; x++) {
-    float lh = prev[x > 0          ? x - 1 : x];   // left neighbor height
-    float rh = prev[x < MATRIX_W-1 ? x + 1 : x];   // right neighbor height
-
-    // Tilt-driven target height: left side goes up when tilting right
-    float xNorm  = (x - xCenter) / xCenter;   // -1 at left edge, +1 at right edge
-    float target = MATRIX_H * 0.5f - tilt * slopeMax * xNorm;
-
-    // Spring force toward tilt target + wave propagation from neighbors
-    liquidVelocity[x] += (target - prev[x]) * 0.12f;           // tilt spring
-    liquidVelocity[x] += (lh + rh - 2.0f * prev[x]) * 0.18f;  // wave spring
-    liquidVelocity[x] *= liquidDamping;   // energy dissipation
-    liquidHeight[x]    = prev[x] + liquidVelocity[x];
+  float mag = sqrtf(gxRaw * gxRaw + gyRaw * gyRaw);
+  if (mag > 0.08f) {                         // board is tilted enough to have an in-plane direction
+    float nx = gxRaw / mag, ny = gyRaw / mag;
+    liquidGX += (nx - liquidGX) * 0.30f;     // low-pass toward the new direction
+    liquidGY += (ny - liquidGY) * 0.30f;
   }
+  // else: board ~flat (gravity into the screen) — keep the last direction.
 
-  // Conservation pass: remove accumulated drift so total fluid volume stays constant
-  float avg = 0;
-  for (int x = 0; x < MATRIX_W; x++) avg += liquidHeight[x];
-  avg /= MATRIX_W;
-  float drift = avg - MATRIX_H * 0.5f;
-  for (int x = 0; x < MATRIX_W; x++)
-    liquidHeight[x] = constrain(liquidHeight[x] - drift, 0.0f, (float)(MATRIX_H - 1));
+  // ── Potential field ─────────────────────────────────────────
+  float pot[NUM_LEDS];
+  for (int y = 0; y < MATRIX_H; y++)
+    for (int x = 0; x < MATRIX_W; x++)
+      pot[y * MATRIX_W + x] = x * liquidGX + y * liquidGY;
 
-  // Render the fluid
+  // Equilibrium threshold = the LIQUID_CELLS-th largest potential (descending
+  // insertion sort — NUM_LEDS is only 64, so this is cheap).
+  const int LIQUID_CELLS = 32;   // half full
+  float sorted[NUM_LEDS];
+  memcpy(sorted, pot, sizeof(pot));
+  for (int i = 1; i < NUM_LEDS; i++) {
+    float v = sorted[i]; int j = i - 1;
+    while (j >= 0 && sorted[j] < v) { sorted[j + 1] = sorted[j]; j--; }
+    sorted[j + 1] = v;
+  }
+  float Teq     = sorted[LIQUID_CELLS - 1];   // 32nd-largest
+  float deepest = sorted[0];                  // most-downhill cell present
+
+  // ── Slosh: spring liquidLevel toward equilibrium with momentum ──
+  float stiffness = 0.18f * constrain(mag, 0.0f, 1.0f);   // stronger tilt = snappier
+  if (stiffness < 0.02f) stiffness = 0.02f;               // always settle eventually
+  liquidLevelVel += (Teq - liquidLevel) * stiffness;
+  liquidLevelVel *= liquidDamping;                        // viscosity
+  liquidLevel    += liquidLevelVel;
+
+  float turb  = constrain(fabsf(liquidLevelVel) * 1.6f, 0.0f, 1.0f);  // froth amount
+  float range = deepest - liquidLevel;                                 // surface→bottom span
+  if (range < 1.0f) range = 1.0f;
+  float surfaceBand = range / MATRIX_H;
+
+  // ── Render ──────────────────────────────────────────────────
   fill_solid(leds, NUM_LEDS, CRGB::Black);
-  for (int x = 0; x < MATRIX_W; x++) {
-    int   surf = (int)liquidHeight[x];
-    // turb: how fast this column is moving. 0=still, 1=very turbulent.
-    float turb = constrain(fabsf(liquidVelocity[x]) * 6.0f, 0.0f, 1.0f);
+  for (int y = 0; y < MATRIX_H; y++) {
+    for (int x = 0; x < MATRIX_W; x++) {
+      float p = pot[y * MATRIX_W + x];
+      if (p < liquidLevel) continue;          // above the surface → empty
 
-    for (int y = surf; y < MATRIX_H; y++) {
-      int   span  = MATRIX_H - surf;
-      // depth: 0 at the surface, 1 at the bottom
-      float depth = (span > 1) ? (float)(y - surf) / (float)(span - 1) : 0.0f;
+      float depth = constrain((p - liquidLevel) / range, 0.0f, 1.0f);  // 0 surface, 1 deep
+      bool  isSurface = (p - liquidLevel) < surfaceBand;
 
-      // Water color: bright teal at surface → dark blue at bottom
-      uint8_t v = (uint8_t)((1.0f - depth * 0.5f) * 200.0f);
-      CRGB col = CRGB(0, v >> 1, v);
+      CRGB col;
+      if (liquidGradient) {
+        // Custom: lerp deep→top by surface proximity (s=1 at surface, 0 deep).
+        float s = 1.0f - depth;
+        col = CRGB(
+          liquidBottomColor.r + (int)((liquidTopColor.r - liquidBottomColor.r) * s),
+          liquidBottomColor.g + (int)((liquidTopColor.g - liquidBottomColor.g) * s),
+          liquidBottomColor.b + (int)((liquidTopColor.b - liquidBottomColor.b) * s));
+      } else {
+        // Palette (reuses fire's activePalette): surface = bright, deep = darker.
+        uint8_t h = (uint8_t)(210.0f - depth * 100.0f);
+        col = heatToColor(h);
+      }
 
-      // Turbulence: add white-ish glow at the surface when the column is moving fast
-      if (y == surf) {
-        uint8_t f = (uint8_t)(turb * 160.0f);
+      // Froth: whiten/boost the moving surface.
+      if (isSurface) {
+        uint8_t f = (uint8_t)(turb * 150.0f);
         col.r = qadd8(col.r, f);
         col.g = qadd8(col.g, f);
         col.b = qadd8(col.b, f);

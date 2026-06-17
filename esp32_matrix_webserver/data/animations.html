@@ -65,9 +65,7 @@
     /* Link-out app cards in the grid */
     .section-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: #444; margin: 8px 0 6px; grid-column: 1 / -1; }
     .anim-card-link { text-decoration: none; color: inherit; }
-    .anim-card-link .anim-card { border-style: dashed; }
     .anim-card-link .anim-card:hover { border-color: #cc88ff; }
-    .anim-card-link .open-hint { font-size: 0.6rem; color: #555; margin-top: 4px; }
   </style>
 </head>
 <body>
@@ -136,13 +134,11 @@
       <div class="name">Sun</div>
       <div class="desc">4 dots orbit a glowing disc</div>
     </div>
-    <div class="section-label">Full-featured apps</div>
     <a href="/fire.html" class="anim-card-link">
       <div class="anim-card">
         <span class="icon">🔥</span>
         <div class="name">Fire</div>
         <div class="desc">Palette, intensity, tendrils, sparks</div>
-        <div class="open-hint">opens full controls →</div>
       </div>
     </a>
     <a href="/liquid.html" class="anim-card-link">
@@ -150,7 +146,6 @@
         <span class="icon">💧</span>
         <div class="name">Liquid</div>
         <div class="desc">Tilt-reactive fluid via accelerometer</div>
-        <div class="open-hint">opens full controls →</div>
       </div>
     </a>
     <a href="/matrix_rain.html" class="anim-card-link">
@@ -158,7 +153,6 @@
         <span class="icon">🖥️</span>
         <div class="name">Matrix Rain</div>
         <div class="desc">Digital rain with color themes</div>
-        <div class="open-hint">opens full controls →</div>
       </div>
     </a>
   </div>
@@ -303,11 +297,15 @@
     <!-- Panel: fireworks -->
     <div class="anim-panel" id="panel-fireworks">
       <div class="group">
+        <label>Preset Shows — <span id="fw-pal-name">Custom</span></label>
+        <div class="df-pal-grid" id="fw-pal-grid"></div>
+      </div>
+      <div class="group">
         <label>Explosion Palette</label>
         <div class="color-row">
-          <div class="picker-group"><label>Color 1</label><input type="color" id="fw-c1" value="#ff3200"></div>
-          <div class="picker-group"><label>Color 2</label><input type="color" id="fw-c2" value="#ffc800"></div>
-          <div class="picker-group"><label>Color 3</label><input type="color" id="fw-c3" value="#0064ff"></div>
+          <div class="picker-group"><label>Color 1</label><input type="color" id="fw-c1" value="#ff3200" oninput="clearFwPreset()"></div>
+          <div class="picker-group"><label>Color 2</label><input type="color" id="fw-c2" value="#ffc800" oninput="clearFwPreset()"></div>
+          <div class="picker-group"><label>Color 3</label><input type="color" id="fw-c3" value="#0064ff" oninput="clearFwPreset()"></div>
         </div>
       </div>
     </div>
@@ -315,11 +313,15 @@
     <!-- Panel: fireworks2 -->
     <div class="anim-panel" id="panel-fireworks2">
       <div class="group">
+        <label>Preset Shows — <span id="fw2-pal-name">Custom</span></label>
+        <div class="df-pal-grid" id="fw2-pal-grid"></div>
+      </div>
+      <div class="group">
         <label>Tip Color Palette</label>
         <div class="color-row">
-          <div class="picker-group"><label>Tip 1</label><input type="color" id="fw2-c1" value="#ff3200"></div>
-          <div class="picker-group"><label>Tip 2</label><input type="color" id="fw2-c2" value="#ffc800"></div>
-          <div class="picker-group"><label>Tip 3</label><input type="color" id="fw2-c3" value="#0064ff"></div>
+          <div class="picker-group"><label>Tip 1</label><input type="color" id="fw2-c1" value="#ff3200" oninput="clearFw2Preset()"></div>
+          <div class="picker-group"><label>Tip 2</label><input type="color" id="fw2-c2" value="#ffc800" oninput="clearFw2Preset()"></div>
+          <div class="picker-group"><label>Tip 3</label><input type="color" id="fw2-c3" value="#0064ff" oninput="clearFw2Preset()"></div>
         </div>
       </div>
     </div>
@@ -372,15 +374,8 @@
           <span style="font-size:.7rem;color:#555">Bright</span>
         </div>
       </div>
-      <div class="group">
-        <label>Board Brightness — <span id="v-sun-bri">40</span></label>
-        <div class="slider-row">
-          <span style="font-size:.7rem;color:#555">Off</span>
-          <input type="range" id="sun-bri" min="0" max="255" value="40" oninput="updateSunBrightness(this.value)">
-          <span style="font-size:.7rem;color:#555">Full</span>
-        </div>
-        <div class="hint">Controls board brightness — the preview above always renders at full brightness.</div>
-      </div>
+      <!-- Board brightness lives in the shared widget (bright.js) at the top of the
+           page — a second control here fought it and bypassed the >100 heat lock. -->
     </div>
 
     <!-- Panel: dancefloor -->
@@ -756,8 +751,6 @@
   // Sun
   const SUN_BX=[3,6,7,6,4,1,0,1], SUN_BY=[0,1,3,6,7,6,4,1];
   let sunSlot=0;
-  let sunPrevBri=40;
-  let sunBriTimer;
 
   function stepPrevSun() {
     prevCells.fill('#000');
@@ -785,21 +778,6 @@
       prevCells[SUN_BY[pos]*8+SUN_BX[pos]]=`rgb(${sunCh(col.r,ringPct)},${sunCh(col.g,ringPct)},${sunCh(col.b,ringPct)})`;
     }
     sunSlot=(sunSlot+1)%8;
-  }
-
-  function updateSunBrightness(val) {
-    sunPrevBri = +val;
-    getEl('v-sun-bri').textContent = val;
-    localStorage.setItem('sun_brightness', String(val));
-    clearTimeout(sunBriTimer);
-    sunBriTimer = setTimeout(async () => {
-      try {
-        await fetch('/api/brightness', {
-          method: 'POST', headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ level: sunPrevBri })
-        });
-      } catch {}
-    }, 200);
   }
 
   // Dance Floor
@@ -1025,15 +1003,53 @@
     spiralPalIdx=null;
   }
 
-  // ── Sun brightness init ───────────────────────────────────────────────────────
-  (function initSunBri() {
-    const saved = localStorage.getItem('sun_brightness');
-    if (saved !== null) {
-      sunPrevBri = +saved;
-      const el = getEl('sun-bri');
-      if (el) { el.value = sunPrevBri; getEl('v-sun-bri').textContent = sunPrevBri; }
-    }
-  })();
+  // ── Fireworks preset palettes (shared list, one grid per fireworks panel) ──────
+  // 3 colors each, matching color1/2/3. Named after real firework shell effects.
+  // Colors are CRGB-direct (this board is RGB order) and chosen to stay visible
+  // at the default brightness 40 (every channel 0 or ≥ ~40).
+  const FW_PRESETS = [
+    ['Classic Burst', '#ff3200', '#ffc800', '#0064ff'],
+    ['Golden Willow', '#ffc832', '#ff8c00', '#c83200'],
+    ['Patriot',       '#ff3200', '#ffffff', '#0064ff'],
+    ['Emerald Rain',  '#00ff64', '#64ffc8', '#00a050'],
+    ['Pink Peony',    '#ff2d78', '#ff96c8', '#b400ff'],
+    ['Ice Crystal',   '#dcebff', '#78c8ff', '#0064ff'],
+    ['Violet Storm',  '#b400ff', '#ff00a0', '#5000ff'],
+    ['Ember Glow',    '#ff6400', '#ff9600', '#c84600'],
+    ['Aurora',        '#00ffc8', '#00c8ff', '#9600ff'],
+    ['White Strobe',  '#ffffff', '#c8dcff', '#ffc8dc'],
+  ];
+  function buildFwPresetGrid(gridId, nameId, pickerIds) {
+    const grid = getEl(gridId);
+    FW_PRESETS.forEach(([name, c1, c2, c3], i) => {
+      const el = document.createElement('div');
+      el.className = 'df-swatch';
+      el.title = name;
+      el.style.background = `linear-gradient(to right,${c1} 33%,${c2} 33% 66%,${c3} 66%)`;
+      el.onclick = () => {
+        grid.querySelectorAll('.df-swatch').forEach((s,j)=>s.classList.toggle('active',j===i));
+        getEl(nameId).textContent = name;
+        getEl(pickerIds[0]).value = c1;
+        getEl(pickerIds[1]).value = c2;
+        getEl(pickerIds[2]).value = c3;
+      };
+      grid.appendChild(el);
+    });
+  }
+  buildFwPresetGrid('fw-pal-grid',  'fw-pal-name',  ['fw-c1','fw-c2','fw-c3']);
+  buildFwPresetGrid('fw2-pal-grid', 'fw2-pal-name', ['fw2-c1','fw2-c2','fw2-c3']);
+  function clearFwPreset() {
+    getEl('fw-pal-grid').querySelectorAll('.df-swatch').forEach(el=>el.classList.remove('active'));
+    getEl('fw-pal-name').textContent='Custom';
+  }
+  function clearFw2Preset() {
+    getEl('fw2-pal-grid').querySelectorAll('.df-swatch').forEach(el=>el.classList.remove('active'));
+    getEl('fw2-pal-name').textContent='Custom';
+  }
+
+  // (The old sun_brightness localStorage key is retired — board brightness is the
+  //  shared bright.js widget, which reads the board's real value from /api/status.)
+  localStorage.removeItem('sun_brightness');
 
   // ── Frostbite presets ─────────────────────────────────────────────────────────
   const FB_PRESETS = [
@@ -1101,14 +1117,22 @@
 
   let selectedType = 'rainbow';
 
-  function selectAnim(card) {
+  // Show one animation's settings panel + preview (no navigation).
+  function showAnim(type) {
     document.querySelectorAll('.anim-card').forEach(c=>c.classList.remove('selected'));
-    card.classList.add('selected');
-    selectedType = card.dataset.type;
+    const card = document.querySelector('.anim-card[data-type="'+type+'"]');
+    if (card) card.classList.add('selected');
+    selectedType = type;
     document.querySelectorAll('.anim-panel').forEach(p=>p.classList.remove('visible'));
-    const panelId = PANEL_MAP[selectedType];
+    const panelId = PANEL_MAP[type];
     if (panelId) getEl(panelId).classList.add('visible');
-    startPreview(selectedType);
+    startPreview(type);
+  }
+
+  // Clicking a card opens that animation as its own dedicated page (?type=X),
+  // so its settings land at the top with no chooser grid to scroll past.
+  function selectAnim(card) {
+    location.search = '?type=' + card.dataset.type;
   }
 
   // ── Speed / Frame Rate sliders ────────────────────────────────────────────────
@@ -1191,11 +1215,24 @@
   }
 
   // ── Boot ──────────────────────────────────────────────────────────────────────
-  getEl('panel-rainbow').classList.add('visible');  // show rainbow panel on load
-  startPreview('rainbow');
-  updateDfCycleInfo();
+  // ?type=X → dedicated single-animation page: hide the chooser grid so the
+  // settings sit at the top (no scrolling), exactly like the Fire/Liquid pages.
+  (function boot() {
+    const type = new URLSearchParams(location.search).get('type');
+    const card = type && document.querySelector('.anim-card[data-type="'+type+'"]');
+    if (card) {
+      document.querySelector('.anim-grid').style.display = 'none';
+      const back = document.querySelector('.back');
+      if (back) { back.setAttribute('href', '/animations.html'); back.textContent = '← All animations'; }
+      showAnim(type);
+    } else {
+      showAnim('rainbow');   // hub default
+    }
+    updateDfCycleInfo();
+  })();
 
   </script>
   </div>
+  <script src="bright.js" data-auto></script>
 </body>
 </html>

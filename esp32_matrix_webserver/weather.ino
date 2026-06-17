@@ -204,6 +204,11 @@ void fetchWeatherIcon(const String& url) {
   WiFiClientSecure sc;
   sc.setInsecure();   // skip cert validation (wttr.in uses HTTPS)
   HTTPClient http;
+  // HTTP/1.0, same reason as fetchWeather: getStreamPtr() is the raw socket, so a
+  // chunked HTTP/1.1 body would interleave chunk-framing lines into the PNG buffer
+  // (corrupting the magic bytes), and keep-alive means readBytes() never hits EOF —
+  // it would block out the full 8s timeout on every fetch, stalling the frame loop.
+  http.useHTTP10(true);
   http.begin(sc, url);
   http.setTimeout(8000);
   if (http.GET() != 200) { http.end(); return; }
@@ -212,8 +217,13 @@ void fetchWeatherIcon(const String& url) {
   uint8_t* buf = (uint8_t*)malloc(MAX_ICON);
   if (!buf) { http.end(); return; }
 
+  // Read exactly Content-Length bytes when the server provides it; HTTP/1.0
+  // closes the connection after the body, so even without a length the read
+  // ends at EOF instead of waiting out the timeout.
   WiFiClient* stream = http.getStreamPtr();
-  int got = stream->readBytes(buf, MAX_ICON);
+  int len  = http.getSize();
+  int want = (len > 0 && len < MAX_ICON) ? len : MAX_ICON;
+  int got  = stream->readBytes(buf, want);
   http.end();
 
   // Reset accumulators before decode
@@ -256,12 +266,12 @@ void fetchWeatherIcon(const String& url) {
 // Fetches current weather from wttr.in as JSON, then parses the
 // fields we need with ArduinoJson.
 //
-// WHY getString() INSTEAD OF STREAMING:
-//   The wttr.in response is 40-50KB of JSON. ArduinoJson's
-//   streaming deserializer sometimes fails mid-parse on large
-//   payloads from slow WiFi connections (the stream stalls and
-//   the parser times out). getString() buffers the whole response
-//   in heap RAM first, then parses it — slower but reliable.
+// WHY STREAM-PARSE WITH A FILTER:
+//   The wttr.in response is 40-50KB of JSON — too big to buffer in heap on this
+//   PSRAM-disabled board (a getString() of the whole body fragmented the heap and
+//   dropped WiFi, unrecoverably once auto-resume kept replaying weather on boot).
+//   We now parse straight from the socket with an ArduinoJson filter, so only the
+//   few fields we keep ever live in RAM. The filter is what makes streaming reliable.
 //
 // WHY atoi() ON STRINGS:
 //   wttr.in sends all numeric values as JSON strings, not numbers.
@@ -270,6 +280,11 @@ void fetchWeatherIcon(const String& url) {
 void fetchWeather() {
   HTTPClient http;
   String url = "http://wttr.in/" + weatherZip + "?format=j1";
+  // HTTP/1.0: forbids chunked transfer encoding. REQUIRED for the stream-parse
+  // below — getStream() is the RAW socket (no de-chunking; only getString()/
+  // writeToStream() de-chunk), and wttr.in chunks HTTP/1.1 responses, which fed
+  // chunk-size framing lines into the parser and broke every fetch.
+  http.useHTTP10(true);
   http.begin(url);
   http.setTimeout(10000);
   int code = http.GET();
@@ -280,10 +295,7 @@ void fetchWeather() {
     return;
   }
 
-  String payload = http.getString();   // buffer full response before parsing
-  http.end();
-  lastWeatherFetch = millis();
-  Serial.printf("Weather payload: %d bytes\n", payload.length());
+  Serial.printf("Weather fetch: free heap before parse %u\n", ESP.getFreeHeap());
 
   // ArduinoJson filter: only keep the fields we actually use.
   // This dramatically reduces RAM usage — the full doc would overflow the heap.
@@ -297,11 +309,14 @@ void fetchWeather() {
   filter["current_condition"][0]["weatherIconUrl"][0]["value"] = true;
 
   JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, payload, DeserializationOption::Filter(filter));
-  if (err) {
-    Serial.printf("Weather JSON err: %s\n", err.c_str());
-    return;
-  }
+  // Stream-parse straight from the socket with the filter — never buffers the full
+  // ~50KB response. PSRAM is disabled, so a big getString() here was fragmenting the
+  // heap and dropping WiFi (it couldn't recover even after a reboot via auto-resume).
+  DeserializationError err = deserializeJson(doc, http.getStream(), DeserializationOption::Filter(filter));
+  http.end();
+  lastWeatherFetch = millis();
+  Serial.printf("Weather fetch: free heap after parse %u, err=%s\n", ESP.getFreeHeap(), err.c_str());
+  if (err) return;
 
   JsonObject cond = doc["current_condition"][0];
   const char* tf  = cond["temp_F"];
@@ -322,6 +337,7 @@ void fetchWeather() {
   weatherHumidity = hu ? atoi(hu) : 0;
   weatherUvIndex  = uv ? atoi(uv) : 0;
   weatherPressure = pr ? atoi(pr) : 0;
+  weatherFetchOk  = true;   // we have real data — step frames switch to the 10-min refresh cadence
 
   Serial.printf("Weather OK: %d°%s code=%d hum=%d%% uv=%d pres=%dhPa\n",
                 weatherTempVal, weatherUnit.c_str(), weatherCode,
@@ -390,10 +406,14 @@ void drawPartlyCloudyIcon(uint8_t f) {
   for (int y = 5; y <= 7; y++)
     for (int x = 0; x <= 2; x++)
       setPixel(x, y, sunC);
-  // Animated glow at the sun-cloud boundary
-  uint8_t p = sin8(f * 6);
-  setPixel(3, 5, CRGB(p, (uint8_t)(p / 2), 0));
-  setPixel(0, 4, CRGB(p, (uint8_t)(p / 2), 0));
+  setPixel(2, 5, CRGB::Black);   // trim the outer corner so the sun reads round, not square
+  // Three glow sparkles arcing over the sun's exposed edge, twinkling out of phase.
+  uint8_t p1 = sin8(f * 6);
+  uint8_t p2 = sin8(f * 6 + 85);
+  uint8_t p3 = sin8(f * 6 + 170);
+  setPixel(3, 5, CRGB(p1, (uint8_t)(p1 / 2), 0));
+  setPixel(0, 4, CRGB(p2, (uint8_t)(p2 / 2), 0));
+  setPixel(2, 4, CRGB(p3, (uint8_t)(p3 / 2), 0));   // added third sparkle
   // Cloud scrolls slowly left-to-right across the top 4 rows
   int cx = (int)((f / 4) % 14) - 3;   // cx cycles from -3 to +10
   CRGB cloudC = CRGB(160, 160, 185);
@@ -526,8 +546,14 @@ void drawMetricLabel(const uint8_t bits[8], int rows, CRGB color) {
 //   2. Phase switch: toggles between data overlay (2s) and icon (3s)
 //   3. Rendering: draws either the icon or the data overlay
 void stepWeatherFrame() {
-  // Refresh weather data every 10 minutes (600000ms)
-  if ((millis() - lastWeatherFetch) >= 600000UL) fetchWeather();
+  // Refresh on request (set by the handler/auto-resume) or every 10 minutes —
+  // but retry every 30s until the FIRST successful fetch, since auto-resume can
+  // start weather before WiFi is up (boot proceeds offline after 25s) and a
+  // failed fetch would otherwise show zeroed data for the full 10-minute gate.
+  // Done here in loop() — never in a request handler or setup() — so the blocking
+  // GET can't stall the web server or boot.
+  uint32_t refreshMs = weatherFetchOk ? 600000UL : 30000UL;
+  if (weatherNeedsFetch || (millis() - lastWeatherFetch) >= refreshMs) { weatherNeedsFetch = false; fetchWeather(); }
 
   // Phase timer: show data for 2s, then icon for 3s, repeat
   uint32_t elapsed = millis() - weatherPhaseStart;
@@ -783,7 +809,9 @@ void drawThunderIcon2(uint8_t f) {
 // ── stepWeather2Frame ─────────────────────────────────────────
 void stepWeather2Frame() {
   static uint8_t w2f = 0;
-  if ((millis() - lastWeatherFetch) >= 600000UL) fetchWeather();
+  // Same retry policy as stepWeatherFrame: 30s until first success, then 10 min.
+  uint32_t refreshMs = weatherFetchOk ? 600000UL : 30000UL;
+  if (weatherNeedsFetch || (millis() - lastWeatherFetch) >= refreshMs) { weatherNeedsFetch = false; fetchWeather(); }
 
   w2f++;
   fill_solid(leds, NUM_LEDS, CRGB::Black);

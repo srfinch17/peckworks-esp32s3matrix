@@ -44,13 +44,20 @@
         <button class="pal-btn"        onclick="selectPalette(this,'blue')">🌊 Ocean</button>
         <button class="pal-btn"        onclick="selectPalette(this,'green')">🧪 Slime</button>
         <button class="pal-btn"        onclick="selectPalette(this,'purple')">🔮 Plasma</button>
+        <button class="pal-btn"        onclick="selectPalette(this,'custom')">🎨 Custom</button>
       </div>
     </div>
 
+    <div class="group" id="gradient-group" style="display:none">
+      <label>Custom gradient</label>
+      <div id="palSlot"></div>
+      <div class="hint">Top = surface / froth · Bottom = deep</div>
+    </div>
+
     <div class="group">
-      <label>Viscosity — <span id="v-vis">5</span></label>
+      <label>Viscosity — <span id="v-vis">9</span></label>
       <div class="slider-row">
-        <input type="range" id="viscosity" min="0" max="10" value="5"
+        <input type="range" id="viscosity" min="0" max="10" value="9"
                oninput="document.getElementById('v-vis').textContent = this.value">
       </div>
       <div class="hint">0 = water (sloshy &amp; wavy) &nbsp;·&nbsp; 10 = honey (thick &amp; slow)</div>
@@ -64,18 +71,36 @@
     <div class="status" id="status"></div>
 
     <p class="note">
-      Tilt the board left or right to slosh the liquid.<br>
+      Tilt the board any direction — the liquid pools to the low edge and
+      spills to the next edge as you rotate.<br>
       Turbulent areas appear brighter and frothy at the surface.
     </p>
   </div>
 
+  <script src="palette.js"></script>
   <script>
     let theme = 'classic';
+
+    // Shared palette (S2) for the Custom gradient: [Top, Bottom].
+    const pal = Palette.mount('#palSlot', {
+      count: 2, labels: ['Top', 'Bottom'], defaults: ['#e6faff', '#0028a0']
+    });
+
+    // Each liquid moves like its real substance: water sloshes freely (thin),
+    // lava is thick and slow. Selecting a preset sets a matching viscosity
+    // (0 = runny/sloshy, 10 = thick/sluggish); you can still adjust it after.
+    const VIS_BY_THEME = { blue: 1, purple: 2, green: 6, classic: 9 };
 
     function selectPalette(btn, t) {
       document.querySelectorAll('.pal-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       theme = t;
+      document.getElementById('gradient-group').style.display = (t === 'custom') ? 'block' : 'none';
+      if (t in VIS_BY_THEME) {
+        const v = VIS_BY_THEME[t];
+        document.getElementById('viscosity').value = v;
+        document.getElementById('v-vis').textContent = v;
+      }
     }
 
     function setStatus(msg, isErr) {
@@ -86,11 +111,20 @@
 
     async function sendLiquid() {
       const viscosity = +document.getElementById('viscosity').value;
+      const body = { type: 'liquid', viscosity, speed: 50 };
+      if (theme === 'custom') {
+        const c = pal.get();   // [top, bottom]
+        body.gradient = true;
+        body.top      = c[0];
+        body.bottom   = c[1];
+      } else {
+        body.theme = theme;
+      }
       try {
         const r = await fetch('/api/display/animation', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'liquid', theme, viscosity, speed: 50 })
+          body: JSON.stringify(body)
         });
         setStatus(r.ok ? '✓ Liquid running — tilt to slosh' : 'Error: HTTP ' + r.status, !r.ok);
       } catch {
@@ -112,5 +146,6 @@
     }
   </script>
   </div>
+  <script src="bright.js" data-auto></script>
 </body>
 </html>
