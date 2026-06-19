@@ -881,6 +881,7 @@ void loop() {
     else if (animationName == "timer_text") stepTimerTextFrame();
     else if (animationName == "clock")      stepClockFrame();
     else if (animationName == "matrix_rain") stepMatrixFrame();
+    else if (animationName == "snow")       stepSnowFrame();
     else if (animationName == "dancefloor") runDanceFloorFrame();
     else if (animationName == "spiral")    runSpiralFrame();
     else if (animationName == "starfield") runStarfieldFrame();
