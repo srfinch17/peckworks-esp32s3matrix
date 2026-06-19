@@ -132,7 +132,7 @@ static const char* const KNOWN_ANIMS[] = {
   "fire", "rainbow", "breathe", "wave", "solid", "liquid", "imu", "chiptemp",
   "weather", "weather2", "timer_fill", "timer_snow", "timer_text", "clock",
   "matrix_rain", "dancefloor", "spiral", "starfield", "fireworks", "fireworks2",
-  "comet", "sun", "frostbite", "calendar", "sound", "presence"
+  "comet", "sun", "frostbite", "calendar", "sound", "presence", "snow"
 };
 
 // Applies an animation command from a JSON body. Shared by the HTTP handler
@@ -206,6 +206,19 @@ bool applyAnimationBody(const String& body) {
     else if (theme == "purple") { matrixTrailColor = CRGB(160, 0, 220); matrixHeadColor = CRGB(230, 200, 255); }
     else                        { matrixTrailColor = CRGB(0, 180, 20);  matrixHeadColor = CRGB::White; }   // classic green
     initMatrixDrops();   // stagger drop start positions so they don't all begin at row 0
+  }
+
+  if (animationName == "snow") {
+    // confetti:false (default) → one random bri-5-safe hue tints every flake AND
+    // the floor. confetti:true → each flake random; floor stays neutral white.
+    snowConfetti = doc["confetti"] | false;
+    if (snowConfetti) {
+      snowFloorColor = CRGB(210, 220, 255);   // dim neutral snow-white bank
+    } else {
+      snowFlakeColor = SNOW_PALETTE[random(0, SNOW_PALETTE_LEN)];
+      snowFloorColor = snowFlakeColor;          // cohesive single-hue snowfall
+    }
+    initSnow();
   }
 
   if (animationName == "clock") {
