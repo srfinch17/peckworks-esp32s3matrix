@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Snow</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; padding: 20px; }
+    .wrap { max-width: 760px; margin: 0 auto; }
+    .back { color: #555; text-decoration: none; font-size: 0.85rem; display: inline-block; margin-bottom: 16px; }
+    .back:hover { color: #999; }
+    h1 { font-size: 1.3rem; color: #5599ff; margin-bottom: 20px; }
+    .layout { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; }
+    .preview-wrap { flex: 0 0 auto; }
+    .preview-label { font-size: 0.68rem; color: #444; text-align: center; margin-top: 8px; text-transform: uppercase; letter-spacing: 0.07em; }
+    canvas { display: block; border-radius: 8px; border: 1px solid #1e1e1e; image-rendering: pixelated; }
+    .controls { flex: 1; min-width: 240px; max-width: 380px; }
+    .group { margin-bottom: 20px; }
+    .group > label { display: block; font-size: 0.72rem; color: #777; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 9px; }
+    .themes { display: flex; gap: 8px; flex-wrap: wrap; }
+    .theme-btn { background: #161616; color: #888; border: 1px solid #2a2a2a; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-size: 0.8rem; transition: all 0.12s; }
+    .theme-btn:hover { border-color: #3a3a3a; color: #aaa; }
+    .theme-btn[data-mode="single"].active   { border-color: #2266cc; color: #5599ff; }
+    .theme-btn[data-mode="confetti"].active  { border-color: #aa3399; color: #ff66cc; }
+    .slider-row { display: flex; align-items: center; gap: 10px; }
+    input[type=range] { flex: 1; accent-color: #5599ff; cursor: pointer; }
+    .val { font-size: 0.85rem; color: #666; min-width: 28px; text-align: right; }
+    .hint { font-size: 0.68rem; color: #444; margin-top: 5px; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+    .btn-apply { background: #112a44; color: #5599ff; border: 1px solid #2266cc; border-radius: 7px; padding: 10px 22px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: background 0.12s; }
+    .btn-apply:hover { background: #163a5c; }
+    .btn-stop { background: #1a1a1a; color: #aaa; border: 1px solid #333; border-radius: 7px; padding: 10px 18px; cursor: pointer; font-size: 0.85rem; }
+    .btn-stop:hover { background: #222; }
+    .status { font-size: 0.78rem; margin-top: 14px; min-height: 1.2em; color: #5599ff; }
+    .status.err { color: #ff5555; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+  <a href="/" class="back">← Home</a>
+  <h1>❄️ Snow</h1>
+
+  <div class="layout">
+    <div class="preview-wrap">
+      <canvas id="preview" width="288" height="288"></canvas>
+      <div class="preview-label">Browser preview</div>
+    </div>
+
+    <div class="controls">
+      <div class="group">
+        <label>Color</label>
+        <div class="themes">
+          <button class="theme-btn active" data-mode="single">Single hue</button>
+          <button class="theme-btn"        data-mode="confetti">Confetti</button>
+        </div>
+        <div class="hint">Single hue = one random bri-5-safe color per launch (re-rolls each Apply). Confetti = every flake its own color.</div>
+      </div>
+
+      <div class="group">
+        <label>Speed — <span id="v-speed">10</span> fps</label>
+        <div class="slider-row">
+          <span style="font-size:.68rem;color:#555">Slow</span>
+          <input type="range" id="speed" min="5" max="25" value="10">
+          <span style="font-size:.68rem;color:#555">Fast</span>
+        </div>
+        <div class="hint">Gentler = more like real snow. Flakes also vary their own speed randomly.</div>
+      </div>
+
+      <div id="brightnessSlot"></div>
+
+      <div class="actions">
+        <button class="btn-apply" onclick="applyToDisplay()">Apply to Display</button>
+        <button class="btn-stop"  onclick="stopDisplay()">Stop / Clear</button>
+      </div>
+
+      <div class="status" id="status"></div>
+    </div>
+  </div>
+
+  <script src="ledsim.js"></script>
+  <script src="bright.js" data-auto></script>
+  <script>
+    const W = 8, H = 8, CELL = 36, FLAKES = 6;
+
+    // Mirrors SNOW_PALETTE / SNOW_FLOOR_TOP in anim_snow.ino exactly.
+    const PALETTE = [
+      [255, 255, 255], [255, 40, 40], [255, 130, 0], [255, 200, 40],
+      [80, 255, 40], [60, 255, 140], [0, 230, 230], [60, 140, 255],
+      [40, 70, 255], [160, 40, 255], [255, 60, 230], [255, 80, 150]
+    ];
+    const FLOOR_TOP = [7, 7, 6, 7, 7, 6, 7, 7];
+
+    let mode      = 'single';            // 'single' | 'confetti'
+    let speedMs   = Math.round(1000 / 10);
+    let hue       = PALETTE[1];          // single-hue: chosen color (re-rolled on Apply / toggle)
+    let floorRGB  = hue;
+
+    function rollHue() {
+      hue      = PALETTE[Math.floor(Math.random() * PALETTE.length)];
+      floorRGB = mode === 'confetti' ? [210, 220, 255] : hue;
+    }
+    function flakeColor() {
+      return mode === 'confetti' ? PALETTE[Math.floor(Math.random() * PALETTE.length)] : hue;
+    }
+
+    // Dim the preview to the shared brightness (bright.js widget) via the shared model.
+    function dim(v) { return window.LedSim ? LedSim.effective(v, LedSim.bri()) : v; }
+
+    function spawn(stagger) {
+      return {
+        x: Math.floor(Math.random() * W),
+        y: stagger ? -Math.floor(Math.random() * H + 1) : -1,
+        tick: 0,
+        speed: Math.floor(Math.random() * 3) + 1,   // 1–3 ticks per step
+        color: flakeColor()
+      };
+    }
+    let flakes = Array.from({ length: FLAKES }, () => spawn(true));
+
+    function step() {
+      for (let i = 0; i < flakes.length; i++) {
+        const f = flakes[i];
+        f.tick++;
+        if (f.tick >= f.speed) { f.tick = 0; f.y++; }
+        if (f.y >= FLOOR_TOP[f.x]) flakes[i] = spawn(false);
+      }
+    }
+
+    const canvas = document.getElementById('preview');
+    const ctx    = canvas.getContext('2d');
+
+    function px(x, y, rgb) {
+      ctx.fillStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+      ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
+    }
+
+    function render() {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W * CELL, H * CELL);
+
+      // Fixed snow bank
+      for (let x = 0; x < W; x++)
+        for (let y = FLOOR_TOP[x]; y < H; y++) px(x, y, floorRGB);
+
+      // Flakes (canvas always full brightness; board brightness only affects LEDs)
+      for (const f of flakes)
+        if (f.y >= 0 && f.y < FLOOR_TOP[f.x]) px(f.x, f.y, f.color);
+    }
+
+    let lastStep = 0;
+    function animate(ts) {
+      if (ts - lastStep >= speedMs) { lastStep = ts; step(); render(); }
+      requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+
+    // ── UI wiring ─────────────────────────────────────────────
+
+    function setStatus(msg, isErr) {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = 'status' + (isErr ? ' err' : '');
+    }
+
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        mode = btn.dataset.mode;
+        rollHue();
+      });
+    });
+
+    document.getElementById('speed').addEventListener('input', e => {
+      speedMs = Math.round(1000 / +e.target.value);
+      document.getElementById('v-speed').textContent = e.target.value;
+    });
+
+    async function applyToDisplay() {
+      rollHue();   // re-roll the single hue each Apply, mirroring the board's per-launch seed
+      try {
+        const r = await fetch('/api/display/animation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'snow', confetti: mode === 'confetti', speed: speedMs })
+        });
+        setStatus(r.ok ? '✓ Applied to display.' : 'Error: HTTP ' + r.status, !r.ok);
+      } catch {
+        setStatus('Cannot reach board — check WiFi connection.', true);
+      }
+    }
+
+    async function stopDisplay() {
+      try {
+        const r = await fetch('/api/display/clear', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}'
+        });
+        setStatus(r.ok ? 'Display cleared.' : 'Error: HTTP ' + r.status, !r.ok);
+      } catch {
+        setStatus('Cannot reach board — check WiFi connection.', true);
+      }
+    }
+  </script>
+  </div>
+</body>
+</html>
