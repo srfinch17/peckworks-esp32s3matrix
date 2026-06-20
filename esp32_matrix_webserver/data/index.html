@@ -36,11 +36,6 @@
 </head>
 <body>
   <div class="wrap">
-    <header>
-      <h1>ESP32-S3 Matrix</h1>
-      <p class="subtitle">Web control panel — served directly from the board</p>
-    </header>
-
     <div class="apps">
     <a href="/text.html" class="card">
       <span class="icon">✏️</span>
@@ -140,5 +135,6 @@
     // Brightness — shared widget (bright.js). One global value across all pages.
     MatrixBright.mount('#brightnessSlot', { onStatus: setStatus });
   </script>
+  <script src="header.js" data-auto></script>
 </body>
 </html>
