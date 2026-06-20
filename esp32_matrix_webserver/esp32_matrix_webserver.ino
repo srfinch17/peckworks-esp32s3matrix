@@ -738,6 +738,8 @@ void setup() {
   server.on("/api/presence",             HTTP_GET,  handlePresenceGet);
   server.on("/api/presence",             HTTP_POST, handlePresencePost);
   server.on("/api/grid-test/set",        HTTP_POST, handleGridTest);
+  server.on("/api/settings",              HTTP_GET,  handleSettingsGet);
+  server.on("/api/settings",              HTTP_POST, handleSettingsPost);
   server.onNotFound([]() {
     String path = server.uri();
     if (LittleFS.exists(path)) {
