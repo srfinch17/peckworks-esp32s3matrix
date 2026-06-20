@@ -756,6 +756,7 @@ void setup() {
   server.on("/api/grid-test/set",        HTTP_POST, handleGridTest);
   server.on("/api/settings",              HTTP_GET,  handleSettingsGet);
   server.on("/api/settings",              HTTP_POST, handleSettingsPost);
+  server.on("/api/idle/arm",              HTTP_POST, handleIdleArm);
   server.onNotFound([]() {
     String path = server.uri();
     if (LittleFS.exists(path)) {
@@ -953,4 +954,6 @@ void loop() {
       }
     }
   }
+
+  idleTick();   // idle_engine.ino — dead-man's switch screensaver
 }

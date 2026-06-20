@@ -32,6 +32,7 @@ static String escapeJson(const String& s) {
 // POST /api/display/clear
 // Stops all animations and text, blanks all LEDs.
 void handleClear() {
+  idleNoteActivity(false);   // a real command — disarm idle / cancel screensaver
   stopAll();
   fill_solid(leds, NUM_LEDS, CRGB::Black);
   FastLED.show();
@@ -42,6 +43,7 @@ void handleClear() {
 // POST /api/brightness — body: {"level": 0-255}
 // Sets the global FastLED brightness. Takes effect immediately.
 void handleBrightness() {
+  idleNoteActivity(false);   // a real command — disarm idle / cancel screensaver
   JsonDocument doc;
   if (deserializeJson(doc, server.arg("plain")) != DeserializationError::Ok) {
     sendJson(400, "{\"error\":\"Invalid JSON\"}");
@@ -62,6 +64,7 @@ void handleBrightness() {
 // Params: text, color (hex), color2 (hex), gradient (bool),
 //         small (bool), tiny (bool), scroll_speed (ms per tick)
 void handleText() {
+  idleNoteActivity(false);   // a real command — disarm idle / cancel screensaver
   JsonDocument doc;
   if (deserializeJson(doc, server.arg("plain")) != DeserializationError::Ok) {
     sendJson(400, "{\"error\":\"Invalid JSON\"}");
@@ -428,6 +431,7 @@ bool applyAnimationBody(const String& body) {
 
 // POST /api/display/animation — HTTP wrapper: apply, persist for auto-resume, respond.
 void handleAnimation() {
+  idleNoteActivity(false);   // a real command — disarm idle / cancel screensaver
   String body = server.arg("plain");
   if (!applyAnimationBody(body)) { sendJson(400, "{\"error\":\"Invalid JSON or unknown animation type\"}"); return; }
   // Presence-data mode is transient (like text): presenceJson resets to idle on
@@ -443,6 +447,7 @@ void handleAnimation() {
 // Lets the caller paint arbitrary pixels by sending a full 8×8 color grid.
 // Each cell is a hex string like "#FF0000". Stops all animations first.
 void handleMatrix() {
+  idleNoteActivity(false);   // a real command — disarm idle / cancel screensaver
   JsonDocument doc;
   if (deserializeJson(doc, server.arg("plain")) != DeserializationError::Ok) {
     sendJson(400, "{\"error\":\"Invalid JSON — body may exceed buffer\"}");
@@ -508,6 +513,8 @@ void handleFrames() {
     sendJson(400, "{\"error\":\"frames must be an array of 1-" + String(MAX_PLAY_FRAMES) + " strings\"}");
     return;
   }
+  bool idleContent = doc["idle"] | false;   // host goof/Zz pushes set this true
+  idleNoteActivity(idleContent);
   // Pass 1: validate every frame before committing anything.
   for (JsonVariant v : arr) {
     const char* hex = v.as<const char*>();
@@ -549,6 +556,7 @@ void handleFrames() {
 // or a {value, unit, color} object (scrolls the temperature as text).
 // Used by early web UI; prefer matrix_set_animation type=chiptemp for new code.
 void handleTemperature() {
+  idleNoteActivity(false);   // a real command — disarm idle / cancel screensaver
   JsonDocument doc;
   if (deserializeJson(doc, server.arg("plain")) != DeserializationError::Ok) {
     sendJson(400, "{\"error\":\"Invalid JSON\"}");
@@ -622,6 +630,7 @@ void handleSensorAccelerometer() {
 // Hot-swaps the data overlay while the weather animation is already running.
 // Useful for cycling through metrics without restarting the animation.
 void handleWeatherMode() {
+  idleNoteActivity(false);   // a real command — disarm idle / cancel screensaver
   JsonDocument doc;
   if (deserializeJson(doc, server.arg("plain")) != DeserializationError::Ok) {
     sendJson(400, "{\"error\":\"Invalid JSON\"}");
@@ -795,6 +804,7 @@ void handleSettingsPost() {
 // Static display — no animation loop. Changing brightness via /api/brightness
 // re-renders whatever is already in leds[] at the new brightness level.
 void handleGridTest() {
+  idleNoteActivity(false);   // a real command — disarm idle / cancel screensaver
   JsonDocument doc;
   if (deserializeJson(doc, server.arg("plain")) != DeserializationError::Ok) {
     sendJson(400, "{\"error\":\"Invalid JSON\"}");
@@ -820,4 +830,11 @@ void handleGridTest() {
 
   FastLED.show();
   sendJson(200, "{\"status\":\"ok\",\"mode\":\"" + gridTestMode + "\",\"brightness\":" + String(brightness) + "}");
+}
+
+// POST /api/idle/arm — Claude's Stop hook calls this when a turn ends. Arms the
+// dead-man's switch so the board will screensaver once it goes quiet.
+void handleIdleArm() {
+  idleArm();
+  sendJson(200, "{\"status\":\"ok\",\"armed\":true}");
 }
