@@ -141,6 +141,22 @@ uint32_t resumeDirtyMs = 0;
 // an all-lit panel pulls ~3-4A and can brown out USB power (see PITFALLS).
 uint8_t  resumeBri     = 40;
 
+// ── Board settings (NVS-backed) ──────────────────────────────
+// The struct + global live HERE in the main ino (not settings.ino) so they are
+// visible to setup() and every later-concatenated .ino. The load/save/json logic
+// lives in settings.ino. There is deliberately NO "default brightness" field — it
+// is unified with the live/auto-resume brightness (the NVS "bri" key).
+struct Settings {
+  bool     idleOn;        // master switch for the screensaver engine
+  String   idleApps;      // CSV of enabled screensaver type names
+  uint32_t idleAfterS;    // seconds of board silence before screensaver starts
+  uint32_t idleRotS;      // seconds between screensaver re-picks
+  uint8_t  idleBri;       // brightness during the screensaver
+  String   bootAnim;      // pinned boot animation type ("" = auto-resume)
+  String   tz;            // POSIX TZ for the clock ("" = none)
+};
+Settings settings;
+
 // ── Animation control ────────────────────────────────────────
 uint8_t  brightness      = 40;      // global FastLED brightness (0-255)
 bool     animationActive = false;   // true while any animation is running

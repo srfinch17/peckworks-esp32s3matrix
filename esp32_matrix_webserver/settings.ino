@@ -10,24 +10,14 @@
 // See Task 1 Step 2. Bump ONLY for a deliberate breaking change that must reset
 // users to defaults; normal additions are pure merges and need no bump.
 
-struct Settings {
-  bool     idleOn;        // master switch for the screensaver engine
-  String   idleApps;      // CSV of enabled screensaver type names
-  uint32_t idleAfterS;    // seconds of board silence before screensaver starts
-  uint32_t idleRotS;      // seconds between screensaver re-picks
-  uint8_t  idleBri;       // brightness during the screensaver
-  String   bootAnim;      // pinned boot animation type ("" = auto-resume)
-  String   tz;            // POSIX TZ for the clock ("" = none)
-};
-// NOTE: there is deliberately NO separate "default brightness" field. It is
-// unified with the existing live/auto-resume brightness (the NVS "bri" key) so
-// it can never become an inert parallel value — see settingsToJson/applySettingsJson.
+// The `struct Settings` and the `Settings settings;` global are defined in the MAIN
+// ino (esp32_matrix_webserver.ino) so they are visible to setup() and all files.
+// This file holds only the logic. "default brightness" is unified with the existing
+// live/auto-resume brightness (NVS "bri" key) — see settingsToJson/applySettingsJson.
 
 // The rotation universe (mirrors mcp_server/idle.ts IDLE_APPS). Keep aligned.
 static const char* IDLE_APPS_DEFAULT =
   "fire,matrix_rain,clock,fireworks,frostbite,snow,dancefloor";
-
-Settings settings;
 
 void loadSettings() {
   // Per-key defaulting: read if present, else write the default. isKey() avoids
