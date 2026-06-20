@@ -17,7 +17,7 @@
 
 // The rotation universe (mirrors mcp_server/idle.ts IDLE_APPS). Keep aligned.
 static const char* IDLE_APPS_DEFAULT =
-  "fire,matrix_rain,clock,fireworks,frostbite,snow,dancefloor";
+  "fire,matrix_rain,clock,fireworks,frostbite,snow,dancefloor,claudesweep";
 
 void loadSettings() {
   // Per-key defaulting: read if present, else write the default. isKey() avoids
