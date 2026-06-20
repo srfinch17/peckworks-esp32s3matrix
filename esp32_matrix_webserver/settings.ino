@@ -80,8 +80,12 @@ bool applySettingsJson(const String& body) {
   if (!doc["boot_animation"].isNull())   settings.bootAnim   = String((const char*)(doc["boot_animation"] | settings.bootAnim.c_str()));
   if (!doc["timezone"].isNull()) {
     settings.tz = String((const char*)(doc["timezone"] | settings.tz.c_str()));
-    // Task 4 wires tz live (calls configTzTime to apply to the running NTP client).
-    // For now the stored value will take effect after the user restarts the clock animation.
+    // Live-apply: update the running NTP client so the clock reflects the new TZ
+    // immediately without restarting the animation (matches clock/calendar handler pattern).
+    if (settings.tz.length()) {
+      clockTZ = settings.tz;
+      configTzTime(clockTZ.c_str(), "pool.ntp.org", "time.nist.gov");
+    }
   }
   saveSettings();
   // default_brightness: unified with the live brightness. Apply immediately AND
