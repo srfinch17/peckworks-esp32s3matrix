@@ -687,6 +687,7 @@ void handleStatus() {
   json += "\"fw_version\":\""  + String(FW_VERSION) + "\"";
   json += ",\"fw_built\":\""   + String(__DATE__ " " __TIME__) + "\"";
   json += ",\"web_version\":\"" + escapeJson(webVersion) + "\"";
+  json += ",\"settings_version\":" + String(SETTINGS_VERSION);
   json += ",\"brightness\":" + String(brightness);
 
   if (textActive) {
@@ -758,6 +759,21 @@ void handlePresencePost() {
   presenceJson = "";
   serializeJson(doc, presenceJson);
   sendJson(200, "{\"status\":\"ok\"}");
+}
+
+// GET /api/settings — full current settings as JSON.
+void handleSettingsGet() {
+  sendJson(200, settingsToJson());
+}
+
+// POST /api/settings — partial update; only provided keys change. Persists + applies.
+// (applySettingsJson already applies brightness/tz live — no extra FastLED call here.)
+void handleSettingsPost() {
+  if (!applySettingsJson(server.arg("plain"))) {
+    sendJson(400, "{\"error\":\"Invalid JSON\"}");
+    return;
+  }
+  sendJson(200, settingsToJson());     // echo the new full settings
 }
 
 // POST /api/grid-test/set — body: {"mode": "color"|"brightness", "brightness": 0-255}
