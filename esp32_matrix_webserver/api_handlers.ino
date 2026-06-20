@@ -778,6 +778,9 @@ void handleSettingsGet() {
 // POST /api/settings — partial update; only provided keys change. Persists + applies.
 // (applySettingsJson already applies brightness/tz live — no extra FastLED call here.)
 void handleSettingsPost() {
+  idleNoteActivity(false);   // a settings save is a deliberate user action: disarm any
+                             // running screensaver so a default_brightness change can't
+                             // fight the screensaver's own dimming.
   if (!applySettingsJson(server.arg("plain"))) {
     sendJson(400, "{\"error\":\"Invalid JSON\"}");
     return;
