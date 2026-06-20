@@ -1,0 +1,29 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Claude Sweep</title>
+<style>
+  body{font-family:system-ui,sans-serif;background:#111;color:#eee;margin:0;padding:16px}
+  label{display:block;margin:12px 0 4px} input[type=range]{width:100%}
+  button{background:#ffb000;color:#111;border:0;border-radius:8px;padding:12px 18px;font-size:1rem;font-weight:600;margin-top:14px}
+  a{color:#9cf} #status{margin-left:10px;color:#7f7}
+</style></head><body>
+<p><a href="/">&larr; Back</a></p>
+<h1>🟠 Claude Sweep</h1>
+<p>A CRT/radar sweep around the border with Claude living inside.</p>
+<label>Sweep color</label>
+<input type="color" id="color" value="#ffb000">
+<label>Speed <output id="spd_o"></output></label>
+<input type="range" id="speed" min="1" max="5" value="2">
+<button id="go">Launch &#9654;</button><span id="status"></span>
+<script>
+const $=id=>document.getElementById(id);
+// The firmware `speed` field is MS-PER-FRAME (clamped [10,10000]). Posting a raw
+// 1-5 would become e.g. 2ms→clamped to 10ms ≈ 100fps (a blur — this exact bug has
+// bitten the project). Map the 1-5 slider to ms here, matching the MCP's msMap.
+const MS={1:150,2:100,3:66,4:40,5:20};
+const so=$("spd_o"); const sync=()=>so.value=$("speed").value; $("speed").addEventListener("input",sync); sync();
+$("go").addEventListener("click",async()=>{
+  await fetch("/api/display/animation",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({type:"claudesweep",color:$("color").value,speed:MS[+$("speed").value]})});
+  $("status").textContent="Launched ✓"; setTimeout(()=>$("status").textContent="",1500);
+});
+</script></body></html>
