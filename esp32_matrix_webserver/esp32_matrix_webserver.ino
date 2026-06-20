@@ -70,6 +70,8 @@
 // Reported by GET /api/status so we can tell which firmware is actually flashed.
 #include "version.h"
 
+#define SETTINGS_VERSION 1   // board settings schema version (see settings.ino)
+
 // Version string read from the uploaded web bundle (data/version.json) at boot.
 // Lets /api/status report firmware-vs-web drift in a single call. "unknown" =
 // the LittleFS upload predates versioning (re-upload to start tracking).
@@ -138,6 +140,22 @@ uint32_t resumeDirtyMs = 0;
 // to 255 for calibration) can never be what the board boots back into — at 255
 // an all-lit panel pulls ~3-4A and can brown out USB power (see PITFALLS).
 uint8_t  resumeBri     = 40;
+
+// ── Board settings (NVS-backed) ──────────────────────────────
+// The struct + global live HERE in the main ino (not settings.ino) so they are
+// visible to setup() and every later-concatenated .ino. The load/save/json logic
+// lives in settings.ino. There is deliberately NO "default brightness" field — it
+// is unified with the live/auto-resume brightness (the NVS "bri" key).
+struct Settings {
+  bool     idleOn;        // master switch for the screensaver engine
+  String   idleApps;      // CSV of enabled screensaver type names
+  uint32_t idleAfterS;    // seconds of board silence before screensaver starts
+  uint32_t idleRotS;      // seconds between screensaver re-picks
+  uint8_t  idleBri;       // brightness during the screensaver
+  String   bootAnim;      // pinned boot animation type ("" = auto-resume)
+  String   tz;            // POSIX TZ for the clock ("" = none)
+};
+Settings settings;
 
 // ── Animation control ────────────────────────────────────────
 uint8_t  brightness      = 40;      // global FastLED brightness (0-255)
@@ -736,6 +754,9 @@ void setup() {
   server.on("/api/presence",             HTTP_GET,  handlePresenceGet);
   server.on("/api/presence",             HTTP_POST, handlePresencePost);
   server.on("/api/grid-test/set",        HTTP_POST, handleGridTest);
+  server.on("/api/settings",              HTTP_GET,  handleSettingsGet);
+  server.on("/api/settings",              HTTP_POST, handleSettingsPost);
+  server.on("/api/idle/arm",              HTTP_POST, handleIdleArm);
   server.onNotFound([]() {
     String path = server.uri();
     if (LittleFS.exists(path)) {
@@ -772,10 +793,18 @@ void setup() {
   // run offline while the watchdog retries. Clock/calendar self-heal (SNTP syncs
   // once WiFi appears); weather retries on a short cadence until its first
   // successful fetch (see stepWeatherFrame).
+  loadSettings();   // settings.ino — load persisted settings (merge-on-boot)
+
+  // Brightness: restore the last committed value (this IS "default_brightness").
   brightness = prefs.getUChar("bri", brightness);
   resumeBri  = brightness;
   FastLED.setBrightness(brightness);
-  if (prefs.isKey("kind") && prefs.getString("kind", "") == "anim") {   // isKey: avoid harmless NOT_FOUND error log on fresh NVS
+
+  // Boot display: a pinned boot_animation wins; otherwise fall back to auto-resume.
+  if (settings.bootAnim.length()) {
+    Serial.println("Boot: applying pinned boot animation: " + settings.bootAnim);
+    applyAnimationBody("{\"type\":\"" + settings.bootAnim + "\"}");
+  } else if (prefs.isKey("kind") && prefs.getString("kind", "") == "anim") {
     String body = prefs.isKey("animbody") ? prefs.getString("animbody", "") : "";
     if (body.length()) {
       Serial.println("Auto-resume: restoring last animation.");
@@ -925,4 +954,6 @@ void loop() {
       }
     }
   }
+
+  idleTick();   // idle_engine.ino — dead-man's switch screensaver
 }
