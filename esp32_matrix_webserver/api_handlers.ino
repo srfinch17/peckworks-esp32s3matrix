@@ -443,8 +443,14 @@ void handleAnimation() {
   if (!applyAnimationBody(body)) { sendJson(400, "{\"error\":\"Invalid JSON or unknown animation type\"}"); return; }
   // Presence-data mode is transient (like text): presenceJson resets to idle on
   // reboot, so resuming "presence" would come up on an empty screen.
+  // Transient flag skips auto-resume (used by wait-role launches).
   // Debounced auto-resume (flushed from loop() after ~8s) — see esp32_matrix_webserver.ino.
-  if (animationName != "presence") {
+  bool transientLaunch = false;
+  {
+    JsonDocument tdoc;
+    if (deserializeJson(tdoc, body) == DeserializationError::Ok) transientLaunch = tdoc["transient"] | false;
+  }
+  if (animationName != "presence" && !transientLaunch) {
     resumeKind = "anim"; resumeBody = body; resumeDirty = true; resumeDirtyMs = millis();
   }
   sendJson(200, "{\"status\":\"ok\",\"animation\":\"" + animationName + "\"}");
