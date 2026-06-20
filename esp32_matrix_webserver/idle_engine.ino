@@ -10,7 +10,6 @@ static bool     screensaverOn     = false;  // currently rotating
 static uint32_t idleLastActivityMs= 0;      // last command received (idle or not)
 static uint32_t idleNextPickMs    = 0;      // when to pick the next app
 static String   idleLastPick      = "";     // avoid immediate repeats
-static uint8_t  briBeforeIdle     = 40;     // restore target if a real command interrupts
 
 // Split the enabled-apps CSV into a temp list and pick one at random (no repeat).
 static String idlePickType() {
@@ -86,12 +85,11 @@ void idleTick() {
   uint32_t now = millis();
   if (!screensaverOn) {
     if (idleArmed && (now - idleLastActivityMs) > (uint32_t)settings.idleAfterS * 1000UL) {
-      briBeforeIdle = brightness;
       screensaverOn = true;
-      idleNextPickMs = 0;   // pick immediately
+      idleNextPickMs = now;  // pick immediately (subtraction form: (now - now) == 0)
     }
   }
-  if (screensaverOn && now >= idleNextPickMs) {
+  if (screensaverOn && (now - idleNextPickMs) < 0x80000000UL) {
     String t = idlePickType();
     if (t.length()) idleLaunch(t);
     idleNextPickMs = now + (uint32_t)settings.idleRotS * 1000UL;
