@@ -35,7 +35,7 @@ static const char* CLAUDE6_OPEN[5] = {
   "######",
   "#.##.#",
   "######",
-  "##..##"
+  ".#..#."
 };
 // Blink frame: eyes closed (row 2 filled).
 static const char* CLAUDE6_BLINK[5] = {
@@ -43,7 +43,7 @@ static const char* CLAUDE6_BLINK[5] = {
   "######",
   "######",
   "######",
-  "##..##"
+  ".#..#."
 };
 static const CRGB CLAUDE_ORANGE = CRGB(0xFF, 0x6A, 0x14);
 
