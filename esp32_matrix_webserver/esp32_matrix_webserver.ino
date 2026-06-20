@@ -70,6 +70,8 @@
 // Reported by GET /api/status so we can tell which firmware is actually flashed.
 #include "version.h"
 
+#define SETTINGS_VERSION 1   // board settings schema version (see settings.ino)
+
 // Version string read from the uploaded web bundle (data/version.json) at boot.
 // Lets /api/status report firmware-vs-web drift in a single call. "unknown" =
 // the LittleFS upload predates versioning (re-upload to start tracking).
@@ -772,10 +774,18 @@ void setup() {
   // run offline while the watchdog retries. Clock/calendar self-heal (SNTP syncs
   // once WiFi appears); weather retries on a short cadence until its first
   // successful fetch (see stepWeatherFrame).
+  loadSettings();   // settings.ino — load persisted settings (merge-on-boot)
+
+  // Brightness: restore the last committed value (this IS "default_brightness").
   brightness = prefs.getUChar("bri", brightness);
   resumeBri  = brightness;
   FastLED.setBrightness(brightness);
-  if (prefs.isKey("kind") && prefs.getString("kind", "") == "anim") {   // isKey: avoid harmless NOT_FOUND error log on fresh NVS
+
+  // Boot display: a pinned boot_animation wins; otherwise fall back to auto-resume.
+  if (settings.bootAnim.length()) {
+    Serial.println("Boot: applying pinned boot animation: " + settings.bootAnim);
+    applyAnimationBody("{\"type\":\"" + settings.bootAnim + "\"}");
+  } else if (prefs.isKey("kind") && prefs.getString("kind", "") == "anim") {
     String body = prefs.isKey("animbody") ? prefs.getString("animbody", "") : "";
     if (body.length()) {
       Serial.println("Auto-resume: restoring last animation.");
