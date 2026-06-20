@@ -335,6 +335,9 @@ CRGB     cometColor2    = CRGB(255, 100,   0);
 CRGB     cometColor3    = CRGB(200,  50,   0);
 CRGB     cometColor4    = CRGB( 80,  10,   0);
 
+// ── Claudesweep ───────────────────────────────────────────────────────────────
+CRGB     sweepColor     = CRGB(0xFF, 0xB0, 0x00);   // claudesweep border hue (amber CRT default)
+
 // ── Sun ───────────────────────────────────────────────────────────────────────
 CRGB     sunColor1      = CRGB(255, 183,   0);
 CRGB     sunColor2      = CRGB(255, 102,   0);
@@ -917,6 +920,7 @@ void loop() {
     else if (animationName == "fireworks")  stepFireworksFrame();
     else if (animationName == "fireworks2") stepFireworks2Frame();
     else if (animationName == "comet")      runCometFrame();
+    else if (animationName == "claudesweep") stepClaudeSweepFrame();
     else if (animationName == "sun")       runSunFrame();
     else if (animationName == "frostbite") runFrostbiteFrame();
     else if (animationName == "calendar")  stepCalendarFrame();

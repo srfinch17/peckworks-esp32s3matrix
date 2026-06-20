@@ -135,7 +135,8 @@ static const char* const KNOWN_ANIMS[] = {
   "fire", "rainbow", "breathe", "wave", "solid", "liquid", "imu", "chiptemp",
   "weather", "weather2", "timer_fill", "timer_snow", "timer_text", "clock",
   "matrix_rain", "dancefloor", "spiral", "starfield", "fireworks", "fireworks2",
-  "comet", "sun", "frostbite", "calendar", "sound", "presence", "snow"
+  "comet", "sun", "frostbite", "calendar", "sound", "presence", "snow",
+  "claudesweep"
 };
 
 // Applies an animation command from a JSON body. Shared by the HTTP handler
@@ -222,6 +223,12 @@ bool applyAnimationBody(const String& body) {
       snowFloorColor = snowFlakeColor;          // cohesive single-hue snowfall
     }
     initSnow();
+  }
+
+  if (animationName == "claudesweep") {
+    // color: sweep hue (default amber). speed: ms/frame (MCP maps 1-5 -> ms).
+    if (!doc["color"].isNull()) sweepColor = hexToColor(doc["color"].as<String>());
+    resetClaudeSweep();   // re-seed the ring (function: visible across files)
   }
 
   if (animationName == "clock") {
