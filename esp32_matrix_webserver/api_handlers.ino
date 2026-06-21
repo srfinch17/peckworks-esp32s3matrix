@@ -801,24 +801,31 @@ void handleSettingsPost() {
   sendJson(200, settingsToJson());     // echo the new full settings
 }
 
-// POST /api/grid-test/set — body: {"mode": "color"|"brightness", "brightness": 0-255}
+// POST /api/grid-test/set — body: {"mode": <mode>, "brightness": 0-255, ...}
 //
-// Diagnostic app. Two static test patterns to calibrate what the board can display.
+// Calibration Lab back-end. Renders one of several static test patterns so the
+// Lab UI (data/calibrate.html) can measure what the board actually displays.
+// Static display — no animation loop; leds[] is redrawn only when called.
 //
-// "color" mode: fills 64 pixels with R = (linear_index + 1) * 4, capped at 255.
-//   Pixel [row, col] (1-indexed, left=1, top=1):
-//     linear_index = (row-1)*8 + (col-1)
-//     [1,1]=R4  [1,2]=R8 ... [1,8]=R32
-//     [2,1]=R36 ...          [2,8]=R64
-//     ...
-//     [8,8]=R255
-//   Run at full brightness (255) to find the minimum R value that lights the LED.
+// Ramp modes (channel = (linear_index+1)*4, capped 255; [1,1]=4 → [8,8]=255):
+//   "color"/"ramp_r" — red ramp     "ramp_g" — green ramp     "ramp_b" — blue ramp
+//   Run at full brightness to find the first cell (= min channel value) that lights.
 //
-// "brightness" mode: all 64 pixels = (255,0,0). Drag the brightness slider to find
-//   the global brightness threshold below which LEDs go dark.
+// Sweep modes (all 64 pixels at full channel; dim via "brightness" to find cutoff):
+//   "brightness"/"sweep_r" — full red    "sweep_g" — full green    "sweep_b" — full blue
 //
-// Static display — no animation loop. Changing brightness via /api/brightness
-// re-renders whatever is already in leds[] at the new brightness level.
+// "patch_rgb" — three vertical bands for white-balance comparison: cols 0-1 red,
+//   3-4 green, 6-7 blue (gaps dark). Each band's value is "pr"/"pg"/"pb" (default
+//   255) so the UI can tune each until the three look equally bright.
+//
+// "gamma" — 8-row grey ramp (row 0 dimmest → row 7 brightest white) to judge whether
+//   perceived steps are evenly spaced.
+//
+// "pixel" — a single white pixel at linear index "index" (0-63) for per-pixel
+//   uniformity inspection.
+//
+// Calibration brightness is transient: handleGridTest sets only the live `brightness`
+// (never `resumeBri`), so a 255 all-lit test can never become the NVS boot value.
 void handleGridTest() {
   idleNoteActivity(false);   // a real command — disarm idle / cancel screensaver
   JsonDocument doc;
@@ -835,13 +842,43 @@ void handleGridTest() {
 
   FastLED.setBrightness(brightness);
 
-  if (gridTestMode == "color") {
-    for (int i = 0; i < NUM_LEDS; i++) {
-      uint8_t r = (uint8_t)constrain((i + 1) * 4, 0, 255);
-      leds[i] = CRGB(r, 0, 0);
-    }
-  } else {
+  // Per-channel ramp value for linear index i (steps of 4, capped at 255).
+  auto rampVal = [](int i) -> uint8_t { return (uint8_t)constrain((i + 1) * 4, 0, 255); };
+
+  fill_solid(leds, NUM_LEDS, CRGB::Black);
+
+  if (gridTestMode == "color" || gridTestMode == "ramp_r") {
+    for (int i = 0; i < NUM_LEDS; i++) leds[i] = CRGB(rampVal(i), 0, 0);
+  } else if (gridTestMode == "ramp_g") {
+    for (int i = 0; i < NUM_LEDS; i++) leds[i] = CRGB(0, rampVal(i), 0);
+  } else if (gridTestMode == "ramp_b") {
+    for (int i = 0; i < NUM_LEDS; i++) leds[i] = CRGB(0, 0, rampVal(i));
+  } else if (gridTestMode == "brightness" || gridTestMode == "sweep_r") {
     fill_solid(leds, NUM_LEDS, CRGB(255, 0, 0));
+  } else if (gridTestMode == "sweep_g") {
+    fill_solid(leds, NUM_LEDS, CRGB(0, 255, 0));
+  } else if (gridTestMode == "sweep_b") {
+    fill_solid(leds, NUM_LEDS, CRGB(0, 0, 255));
+  } else if (gridTestMode == "patch_rgb") {
+    // Three equal-value patches (R | gap | G | gap | B) for white balance. The UI
+    // sends pr/pg/pb so each band can be tuned until the three look equally bright.
+    uint8_t pr = (uint8_t)constrain((int)(doc["pr"] | 255), 0, 255);
+    uint8_t pg = (uint8_t)constrain((int)(doc["pg"] | 255), 0, 255);
+    uint8_t pb = (uint8_t)constrain((int)(doc["pb"] | 255), 0, 255);
+    for (int y = 0; y < 8; y++) {
+      setPixel(0, y, CRGB(pr,0,0)); setPixel(1, y, CRGB(pr,0,0));
+      setPixel(3, y, CRGB(0,pg,0)); setPixel(4, y, CRGB(0,pg,0));
+      setPixel(6, y, CRGB(0,0,pb)); setPixel(7, y, CRGB(0,0,pb));
+    }
+  } else if (gridTestMode == "gamma") {
+    // 8-step grey ramp, one value per row (row 0 dimmest), equal R=G=B per row.
+    for (int y = 0; y < 8; y++) {
+      uint8_t v = (uint8_t)constrain((y + 1) * 32 - 1, 0, 255);
+      for (int x = 0; x < 8; x++) setPixel(x, y, CRGB(v, v, v));
+    }
+  } else if (gridTestMode == "pixel") {
+    int idx = constrain((int)(doc["index"] | 0), 0, NUM_LEDS - 1);
+    leds[idx] = CRGB(255, 255, 255);
   }
 
   FastLED.show();
