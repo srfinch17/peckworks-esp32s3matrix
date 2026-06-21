@@ -1,11 +1,17 @@
 {
   "version": 1,
-  "measured_at": "",
+  "measured_at": "2026-06-21",
   "board": "esp32-s3-matrix",
   "floors": { "r": 1, "g": 1, "b": 1 },
-  "white_balance": { "r": 1.0, "g": 1.0, "b": 1.0 },
-  "gamma": 1.0,
-  "palette": {},
-  "steps": 0,
+  "white_balance": { "r": 1.0, "g": 0.863, "b": 1.0 },
+  "gamma": 2.0,
+  "palette": {
+    "amber": "#ffb000",
+    "cyan": "#00ffe6",
+    "magenta": "#ff14a0",
+    "orange": "#ff5008",
+    "white": "#ffffff"
+  },
+  "steps": 20,
   "pixel_trim": null
 }
