@@ -119,8 +119,29 @@ String presenceJson = "{\"intent\":\"idle\"}";
 // ============================================================
 
 // FastLED LED buffer — one CRGB (24-bit RGB) per physical LED.
-// FastLED.show() copies this array to the WS2812B strip.
+// FastLED stays registered to THIS buffer. matrixShow() backs it up to
+// ledsBackup[], corrects it in place, shows, then restores — so the calibration
+// correction reaches the panel but never compounds on read-back animations.
 CRGB     leds[NUM_LEDS];
+
+// ── LED calibration (Phase 3 correction layer) ───────────────
+// Measured profile from data/calibration.json (Phase 2). Identity = do-nothing,
+// so an absent/unparseable file never breaks rendering. See calibration.ino.
+struct CalibrationProfile {
+  uint8_t floorR = 1, floorG = 1, floorB = 1;        // min value a nonzero channel is lifted to
+  float   gainR = 1.0f, gainG = 1.0f, gainB = 1.0f;  // white-balance gains (<=1.0, never amplify)
+  float   gamma = 1.0f;                               // perceptual exponent for ramps
+};
+CalibrationProfile calib;          // populated by loadCalibration() at boot
+uint8_t  gammaLUT[256];            // gammaLUT[v] = round(255*(v/255)^calib.gamma)
+CRGB     ledsBackup[NUM_LEDS];     // matrixShow() stashes the uncorrected leds[] here, then restores
+
+// Phase 3 correction pipeline (bodies in calibration.ino). Declared here in the
+// main ino so every later-concatenated .ino resolves them regardless of order.
+void loadCalibration();
+void buildGammaLUT();
+void applyCalibration(CRGB* buf);
+void matrixShow();
 
 // Built-in Arduino WebServer — handles HTTP on port 80.
 WebServer server(80);
@@ -154,6 +175,7 @@ struct Settings {
   uint8_t  idleBri;       // brightness during the screensaver
   String   bootAnim;      // pinned boot animation type ("" = auto-resume)
   String   tz;            // POSIX TZ for the clock ("" = none)
+  bool     calibCorrection; // apply the measured LED calibration correction (default true)
 };
 Settings settings;
 
@@ -740,6 +762,8 @@ void setup() {
   }
   Serial.println("Firmware v" FW_VERSION " (built " __DATE__ " " __TIME__ "), web bundle v" + webVersion);
 
+  loadCalibration();   // calibration.ino — measured profile into `calib` + gammaLUT (identity if absent)
+
   server.on("/",                          HTTP_GET,  handleRoot);
   server.on("/api/display/clear",         HTTP_POST, handleClear);
   server.on("/api/brightness",            HTTP_POST, handleBrightness);
@@ -929,7 +953,7 @@ void loop() {
     else if (animationName == "sound")     stepSoundFrame();
     else if (animationName == "presence")  runPresenceFrame();
     else if (animationName == "frames")    stepFramesFrame();
-    FastLED.show();
+    matrixShow();
   }
 
   // Text scroll tick — same millis() pattern as animation above.
@@ -942,7 +966,7 @@ void loop() {
         scrollOffset  = 0;
         lastScrollMs  = now;
         renderScrollFrame();
-        FastLED.show();
+        matrixShow();
       }
     } else if (now - lastScrollMs >= scrollSpeed) {
       lastScrollMs = now;
@@ -953,10 +977,10 @@ void loop() {
         scrollPausing      = true;
         scrollPauseUntilMs = now + 1000;
         fill_solid(leds, NUM_LEDS, CRGB::Black);
-        FastLED.show();
+        matrixShow();
       } else {
         renderScrollFrame();
-        FastLED.show();
+        matrixShow();
       }
     }
   }

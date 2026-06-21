@@ -54,7 +54,7 @@ void handleBrightness() {
   brightness = (uint8_t)level;
   resumeBri  = brightness;   // only user-committed brightness persists to NVS (not grid-test's 255)
   FastLED.setBrightness(brightness);
-  FastLED.show();
+  matrixShow();
   resumeDirty = true; resumeDirtyMs = millis();   // debounced auto-resume save (avoids NVS churn on slider drags)
   sendJson(200, "{\"status\":\"ok\",\"brightness\":" + String(brightness) + "}");
 }
@@ -95,7 +95,7 @@ void handleText() {
   textActive     = true;
 
   renderScrollFrame();   // render the first frame immediately
-  FastLED.show();
+  matrixShow();
   sendJson(200, "{\"status\":\"ok\",\"text\":\"" + escapeJson(scrollText) + "\"}");
 }
 
@@ -483,7 +483,7 @@ void handleMatrix() {
       setPixel(x, y, hexToColor(row[x].as<String>()));
     }
   }
-  FastLED.show();
+  matrixShow();
   sendJson(200, "{\"status\":\"ok\"}");
 }
 
@@ -560,7 +560,7 @@ void handleFrames() {
   animationActive = true;
 
   stepFramesFrame();   // show the first frame immediately
-  FastLED.show();
+  matrixShow();
   sendJson(200, "{\"status\":\"ok\",\"frames\":" + String(n) + "}");
 }
 
@@ -587,7 +587,7 @@ void handleTemperature() {
         setPixel(x, y, hexToColor(row[x].as<String>()));
       }
     }
-    FastLED.show();
+    matrixShow();
   } else {
     // Text mode: scroll the temperature value as a number string
     float  value = doc["value"] | 0.0f;
@@ -603,7 +603,7 @@ void handleTemperature() {
     textActive     = true;
 
     renderScrollFrame();
-    FastLED.show();
+    matrixShow();
   }
 
   sendJson(200, "{\"status\":\"ok\"}");
@@ -918,6 +918,7 @@ void handleCalibrationPost() {
   if (!f) { sendJson(500, "{\"error\":\"Cannot open file for write\"}"); return; }
   f.print(body);
   f.close();
+  loadCalibration();   // re-measured profile goes live immediately (no reboot)
   sendJson(200, "{\"status\":\"ok\"}");
 }
 
