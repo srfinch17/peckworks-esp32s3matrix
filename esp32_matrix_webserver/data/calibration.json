@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "measured_at": "",
+  "board": "esp32-s3-matrix",
+  "floors": { "r": 1, "g": 1, "b": 1 },
+  "white_balance": { "r": 1.0, "g": 1.0, "b": 1.0 },
+  "gamma": 1.0,
+  "palette": {},
+  "steps": 0,
+  "pixel_trim": null
+}

@@ -848,6 +848,42 @@ void handleGridTest() {
   sendJson(200, "{\"status\":\"ok\",\"mode\":\"" + gridTestMode + "\",\"brightness\":" + String(brightness) + "}");
 }
 
+// GET /api/calibration — return the measured calibration profile (LittleFS
+// /calibration.json), or identity defaults if the file is absent/unreadable.
+// Identity defaults = "do nothing": floors 1, gains 1.0, gamma 1.0, no palette —
+// so a board with no measured profile renders exactly as it does today.
+static const char CALIB_IDENTITY[] =
+  "{\"version\":1,\"measured_at\":\"\",\"board\":\"esp32-s3-matrix\","
+  "\"floors\":{\"r\":1,\"g\":1,\"b\":1},"
+  "\"white_balance\":{\"r\":1.0,\"g\":1.0,\"b\":1.0},"
+  "\"gamma\":1.0,\"palette\":{},\"steps\":0,\"pixel_trim\":null}";
+
+void handleCalibrationGet() {
+  if (LittleFS.exists("/calibration.json")) {
+    File f = LittleFS.open("/calibration.json", "r");
+    if (f) { server.streamFile(f, "application/json"); f.close(); return; }
+  }
+  sendJson(200, String(CALIB_IDENTITY));
+}
+
+// POST /api/calibration — overwrite /calibration.json on LittleFS with the body.
+// Best-effort: the Calibration Lab saves measured results here; the repo copy is
+// committed separately so a later LittleFS upload stays byte-identical. Validates
+// the body parses as JSON before persisting — never write garbage to the profile.
+void handleCalibrationPost() {
+  String body = server.arg("plain");
+  JsonDocument doc;
+  if (deserializeJson(doc, body) != DeserializationError::Ok) {
+    sendJson(400, "{\"error\":\"Invalid JSON\"}");
+    return;
+  }
+  File f = LittleFS.open("/calibration.json", "w");
+  if (!f) { sendJson(500, "{\"error\":\"Cannot open file for write\"}"); return; }
+  f.print(body);
+  f.close();
+  sendJson(200, "{\"status\":\"ok\"}");
+}
+
 // POST /api/idle/arm — Claude's Stop hook calls this when a turn ends. Arms the
 // dead-man's switch so the board will screensaver once it goes quiet.
 void handleIdleArm() {

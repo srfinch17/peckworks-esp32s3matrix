@@ -757,6 +757,8 @@ void setup() {
   server.on("/api/presence",             HTTP_GET,  handlePresenceGet);
   server.on("/api/presence",             HTTP_POST, handlePresencePost);
   server.on("/api/grid-test/set",        HTTP_POST, handleGridTest);
+  server.on("/api/calibration",          HTTP_GET,  handleCalibrationGet);
+  server.on("/api/calibration",          HTTP_POST, handleCalibrationPost);
   server.on("/api/settings",              HTTP_GET,  handleSettingsGet);
   server.on("/api/settings",              HTTP_POST, handleSettingsPost);
   server.on("/api/idle/arm",              HTTP_POST, handleIdleArm);
