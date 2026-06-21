@@ -70,6 +70,10 @@
           <label>Default boot animation</label>
           <input type="text" id="boot_animation" placeholder="(blank = resume last)">
         </div>
+        <div class="group">
+          <label class="row"><span>LED calibration correction</span><input type="checkbox" id="calibration_correction"></label>
+          <p style="font-size:0.72rem;color:#666;margin-top:6px;">Apply the measured color/brightness correction from the Calibration Lab. Turn off to A/B compare.</p>
+        </div>
       </div>
 
       <div class="panel">
@@ -108,6 +112,7 @@ async function load(){
   $("default_brightness").value=s.default_brightness;
   $("boot_animation").value=s.boot_animation||"";
   $("timezone").value=s.timezone||"";
+  $("calibration_correction").checked=s.calibration_correction!==false;
   renderApps(s.idle_apps);
   bindOut("idle_after_secs","after_o");bindOut("idle_rotate_secs","rot_o");
   bindOut("idle_brightness","ibri_o");bindOut("default_brightness","dbri_o");
@@ -119,7 +124,8 @@ $("f").addEventListener("submit",async e=>{
     idle_enabled:$("idle_enabled").checked, idle_apps:apps,
     idle_after_secs:+$("idle_after_secs").value, idle_rotate_secs:+$("idle_rotate_secs").value,
     idle_brightness:+$("idle_brightness").value, default_brightness:+$("default_brightness").value,
-    boot_animation:$("boot_animation").value.trim(), timezone:$("timezone").value.trim()
+    boot_animation:$("boot_animation").value.trim(), timezone:$("timezone").value.trim(),
+    calibration_correction:$("calibration_correction").checked
   };
   await fetch("/api/settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
   $("status").textContent="Saved ✓"; setTimeout(()=>$("status").textContent="",1500);
