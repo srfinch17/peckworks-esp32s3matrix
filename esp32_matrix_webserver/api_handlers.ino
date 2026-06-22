@@ -76,7 +76,7 @@ void handleText() {
   // Populate all the scroll_* globals used by renderScrollFrame()
   scrollText = String(doc["text"] | "HELLO");
   scrollText.toUpperCase();   // font only has uppercase glyphs
-  scrollColor    = hexToColor(String(doc["color"]  | "#FFFFFF"));
+  scrollColor    = hexToColor(String(doc["color"]  | "#FFFFE8"));   // neutral white (locked under correction)
   scrollColor2   = hexToColor(String(doc["color2"] | "#FF4400"));
   scrollColor3   = hexToColor(String(doc["color3"] | "#00CC64"));
   scrollColor4   = hexToColor(String(doc["color4"] | "#0064FF"));
@@ -239,7 +239,7 @@ bool applyAnimationBody(const String& body) {
     // Accept color1/2/3 (the shared MCP convention) as aliases for the named
     // keys the web clock page sends. color1=hours, color2=minutes, color3=colon.
     clockColorHours  = hexToColor(String(doc["colorHours"]   | (doc["color1"] | "#FF3300")));
-    clockColorColon  = hexToColor(String(doc["colorColon"]   | (doc["color3"] | "#FFFFFF")));
+    clockColorColon  = hexToColor(String(doc["colorColon"]   | (doc["color3"] | "#FFFFE8")));
     clockColorMins   = hexToColor(String(doc["colorMinutes"] | (doc["color2"] | "#00CCFF")));
     clockPrevHour    = -1;
     clockPrevMin     = -1;
@@ -303,15 +303,15 @@ bool applyAnimationBody(const String& body) {
     if (animationName == "timer_snow") {
       timerColor1     = CRGB(0, 40, 255);       // blue snowflakes
       timerColor2     = CRGB(220, 240, 255);    // near-white snow at the top
-      timerColorColon = CRGB::White;
+      timerColorColon = NEUTRAL_WHITE;
     } else if (animationName == "timer_text") {
       timerColor1     = CRGB(255, 200, 0);      // minutes: yellow
       timerColor2     = CRGB(255, 100, 0);      // seconds: orange
-      timerColorColon = CRGB::White;
+      timerColorColon = NEUTRAL_WHITE;
     } else {
       timerColor1     = CRGB(255, 200, 0);      // fill start: yellow
       timerColor2     = CRGB(255, 0, 0);        // fill end: red
-      timerColorColon = CRGB::White;
+      timerColorColon = NEUTRAL_WHITE;
     }
 
     // User-supplied colors override the defaults
@@ -608,7 +608,7 @@ void handleTemperature() {
     // Text mode: scroll the temperature value as a number string
     float  value = doc["value"] | 0.0f;
     String unit  = String(doc["unit"] | "F");
-    CRGB   color = hexToColor(String(doc["color"] | "#FFFFFF"));
+    CRGB   color = hexToColor(String(doc["color"] | "#FFFFE8"));   // neutral white (locked under correction)
 
     scrollText     = String((int)round(value)) + unit;
     scrollColor    = color;
