@@ -4,51 +4,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>System — ESP32 Matrix</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, -apple-system, sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; padding: 20px; }
-    .wrap { max-width: 720px; margin: 0 auto; }
-    .back { color: #555; text-decoration: none; font-size: 0.85rem; display: inline-block; margin-bottom: 16px; }
-    .back:hover { color: #999; }
-    h1 { font-size: 1.4rem; color: #88bbff; letter-spacing: -0.02em; margin-bottom: 4px; }
-    .subtitle { color: #555; font-size: 0.82rem; margin-bottom: 24px; }
-    .apps { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
-    .card { background: #161616; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px 16px; text-align: center; text-decoration: none; color: #e0e0e0; display: block; transition: border-color 0.15s, transform 0.1s; }
-    .card:hover { border-color: #444; transform: translateY(-2px); }
-    .card .icon { font-size: 2.4rem; display: block; margin-bottom: 10px; }
-    .card .name { font-weight: 600; font-size: 0.95rem; margin-bottom: 4px; }
-    .card .desc { font-size: 0.72rem; color: #666; line-height: 1.4; }
-  </style>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230d0d0d'/%3E%3Ccircle cx='4' cy='4' r='1.5' fill='%2300ff88'/%3E%3Ccircle cx='12' cy='4' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='8' cy='8' r='1.5' fill='%2322ddff'/%3E%3Ccircle cx='4' cy='12' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='12' cy='12' r='1.5' fill='%2300ff88'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="app.css">
 </head>
 <body>
-  <div class="wrap">
-    <a href="/" class="back">← Home</a>
-    <h1>⚙️ System</h1>
-    <p class="subtitle">Diagnostics and calibration tools</p>
+  <div class="wrap" style="--accent-page:#88bbff">
+  <h1>⚙️ System</h1>
 
-    <div class="apps">
-      <a href="/temp.html" class="card">
-        <span class="icon">🌡️</span>
-        <div class="name">Chip Temp</div>
-        <div class="desc">ESP32 chip temperature with pulsing gradient display</div>
-      </a>
-      <a href="/calibrate.html" class="card">
-        <span class="icon">🔬</span>
-        <div class="name">Calibration Lab</div>
-        <div class="desc">Measure the board's real color/brightness behavior into calibration.json</div>
-      </a>
-      <a href="/imu.html" class="card">
-        <span class="icon">📐</span>
-        <div class="name">IMU</div>
-        <div class="desc">Live accelerometer bar graphs — ax, ay, az</div>
-      </a>
-      <a href="/settings.html" class="card">
-        <span class="icon">⚙️</span>
-        <div class="name">Settings</div>
-        <div class="desc">Idle screensaver, default brightness, boot animation, timezone</div>
-      </a>
-    </div>
+  <div class="apps">
+    <a href="/settings.html" class="card"><span class="icon">⚙️</span><div class="name">Settings</div><div class="desc">Idle screensaver, default brightness, boot animation, timezone</div></a>
+    <a href="/calibrate.html" class="card"><span class="icon">🔬</span><div class="name">Calibration Lab</div><div class="desc">Measure the board's real color/brightness into calibration.json</div></a>
+    <a href="/temp.html" class="card"><span class="icon">🌡️</span><div class="name">Chip Temp</div><div class="desc">ESP32 chip temperature with pulsing gradient display</div></a>
+    <a href="/imu.html" class="card"><span class="icon">📐</span><div class="name">IMU</div><div class="desc">Live accelerometer bar graphs — ax, ay, az</div></a>
   </div>
+
+  </div>
+  <script src="backnav.js" data-auto data-parent="/" data-label="Home"></script>
   <script src="header.js" data-auto></script>
 </body>
 </html>
