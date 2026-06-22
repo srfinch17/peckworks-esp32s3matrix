@@ -4,185 +4,142 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Emoji — ESP32 Matrix</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, -apple-system, sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; padding: 20px; }
-    .wrap { max-width: 760px; margin: 0 auto; }
-    .back { color: #555; text-decoration: none; font-size: 0.85rem; display: inline-block; margin-bottom: 16px; }
-    .back:hover { color: #999; }
-    h1 { font-size: 1.3rem; color: #ffcc00; margin-bottom: 4px; }
-    .subtitle { color: #555; font-size: 0.82rem; margin-bottom: 20px; }
-    .panel { background: #161616; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
-    .panel-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #666; margin-bottom: 16px; }
-    .group { margin-bottom: 20px; }
-    .group:last-child { margin-bottom: 0; }
-    .group > label { display: block; font-size: 0.72rem; color: #777; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 9px; }
-    select {
-      background: #1e1e1e; color: #e0e0e0; border: 1px solid #333;
-      border-radius: 7px; padding: 10px 14px; font-size: 1.1rem;
-      width: 100%; max-width: 360px; cursor: pointer;
-    }
-    select:focus { outline: none; border-color: #ffcc00; }
-    .layout { display: flex; gap: 32px; align-items: flex-start; flex-wrap: wrap; margin-top: 20px; }
-    .col-label { font-size: 0.68rem; color: #444; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; text-align: center; }
-    .source-emoji { font-size: 4.5rem; line-height: 1; text-align: center; min-width: 80px; }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(8, 28px);
-      grid-template-rows: repeat(8, 28px);
-      gap: 2px;
-    }
-    .pixel { border-radius: 3px; background: #0a0a0a; }
-    /* Brightness slider row */
-    .bri-row { display: flex; align-items: center; gap: 12px; margin-top: 18px; flex-wrap: wrap; }
-    .bri-row label { font-size: 0.72rem; color: #777; text-transform: uppercase; letter-spacing: 0.07em; white-space: nowrap; }
-    .bri-row input[type=range] { flex: 1; min-width: 120px; max-width: 240px; accent-color: #ffcc00; cursor: pointer; }
-    .bri-val { font-size: 0.85rem; color: #888; min-width: 28px; text-align: right; }
-    .bri-hint { font-size: 0.68rem; color: #3a3a3a; margin-top: 6px; }
-    .actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
-    button {
-      background: #1e1e1e; color: #ccc; border: 1px solid #333;
-      border-radius: 7px; padding: 9px 22px; cursor: pointer;
-      font-size: 0.88rem; transition: background 0.12s;
-    }
-    button:hover { background: #272727; }
-    button.send { border-color: #ffcc00; color: #ffcc00; }
-    button.send:hover { background: #1a1600; }
-    .status { font-size: 0.78rem; min-height: 1.2em; color: #00cc66; }
-    .status.err { color: #ff5555; }
-    canvas { display: none; }
-  </style>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230d0d0d'/%3E%3Ccircle cx='4' cy='4' r='1.5' fill='%2300ff88'/%3E%3Ccircle cx='12' cy='4' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='8' cy='8' r='1.5' fill='%2322ddff'/%3E%3Ccircle cx='4' cy='12' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='12' cy='12' r='1.5' fill='%2300ff88'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="app.css">
 </head>
 <body>
-  <div class="wrap">
-  <a href="/" class="back">← Back</a>
+  <div class="wrap" style="--accent-page:#ffb000">
   <h1>😊 Emoji</h1>
   <p class="subtitle">Pick an emoji — preview reflects exact board output at the current brightness</p>
 
   <div class="panel">
-    <div class="panel-title">Select Emoji</div>
-
-    <div class="group">
-      <label for="emojiSelect">Emoji</label>
-      <select id="emojiSelect" onchange="onEmojiChange()">
-        <optgroup label="Faces">
-          <option value="😀">😀  Grinning</option>
-          <option value="😊">😊  Smiling</option>
-          <option value="😍">😍  Heart Eyes</option>
-          <option value="😂">😂  Tears of Joy</option>
-          <option value="🥹">🥹  Holding Back Tears</option>
-          <option value="😢">😢  Crying</option>
-          <option value="😡">😡  Angry</option>
-          <option value="🤔">🤔  Thinking</option>
-          <option value="😎">😎  Cool</option>
-          <option value="🤩">🤩  Star-Struck</option>
-          <option value="😴">😴  Sleeping</option>
-          <option value="🤗">🤗  Hugging</option>
-          <option value="🥳">🥳  Partying</option>
-          <option value="😱">😱  Shocked</option>
-          <option value="🤯">🤯  Mind Blown</option>
-          <option value="🤑">🤑  Money-Mouth</option>
-        </optgroup>
-        <optgroup label="Hearts &amp; Symbols">
-          <option value="❤️">❤️  Red Heart</option>
-          <option value="🧡">🧡  Orange Heart</option>
-          <option value="💛">💛  Yellow Heart</option>
-          <option value="💚">💚  Green Heart</option>
-          <option value="💙">💙  Blue Heart</option>
-          <option value="💜">💜  Purple Heart</option>
-          <option value="🖤">🖤  Black Heart</option>
-          <option value="💕">💕  Two Hearts</option>
-          <option value="💥">💥  Explosion</option>
-          <option value="⭐">⭐  Star</option>
-          <option value="🌟">🌟  Glowing Star</option>
-          <option value="✨">✨  Sparkles</option>
-          <option value="💎">💎  Diamond</option>
-        </optgroup>
-        <optgroup label="Animals">
-          <option value="🐶">🐶  Dog</option>
-          <option value="🐱">🐱  Cat</option>
-          <option value="🐭">🐭  Mouse</option>
-          <option value="🐸">🐸  Frog</option>
-          <option value="🐧">🐧  Penguin</option>
-          <option value="🦁">🦁  Lion</option>
-          <option value="🦊">🦊  Fox</option>
-          <option value="🐻">🐻  Bear</option>
-          <option value="🐼">🐼  Panda</option>
-          <option value="🦋">🦋  Butterfly</option>
-          <option value="🦄">🦄  Unicorn</option>
-        </optgroup>
-        <optgroup label="Food">
-          <option value="🍎">🍎  Apple</option>
-          <option value="🍊">🍊  Orange</option>
-          <option value="🍋">🍋  Lemon</option>
-          <option value="🍓">🍓  Strawberry</option>
-          <option value="🍕">🍕  Pizza</option>
-          <option value="🎂">🎂  Birthday Cake</option>
-          <option value="🍦">🍦  Ice Cream</option>
-          <option value="🍩">🍩  Donut</option>
-          <option value="🍺">🍺  Beer</option>
-          <option value="☕">☕  Coffee</option>
-        </optgroup>
-        <optgroup label="Activities &amp; Objects">
-          <option value="🎉">🎉  Party Popper</option>
-          <option value="🎊">🎊  Confetti</option>
-          <option value="🎁">🎁  Gift</option>
-          <option value="🔥">🔥  Fire</option>
-          <option value="🚀">🚀  Rocket</option>
-          <option value="🎮">🎮  Game Controller</option>
-          <option value="🎵">🎵  Music Note</option>
-          <option value="🌈">🌈  Rainbow</option>
-          <option value="☀️">☀️  Sun</option>
-          <option value="🌙">🌙  Moon</option>
-          <option value="❄️">❄️  Snowflake</option>
-          <option value="⚡">⚡  Lightning</option>
-          <option value="🏆">🏆  Trophy</option>
-          <option value="💀">💀  Skull</option>
-        </optgroup>
-        <optgroup label="Gestures">
-          <option value="👍">👍  Thumbs Up</option>
-          <option value="👎">👎  Thumbs Down</option>
-          <option value="👋">👋  Waving Hand</option>
-          <option value="🤝">🤝  Handshake</option>
-          <option value="🙌">🙌  Raising Hands</option>
-          <option value="💪">💪  Flexed Bicep</option>
-          <option value="🫶">🫶  Heart Hands</option>
-          <option value="👏">👏  Clapping</option>
-          <option value="🤞">🤞  Fingers Crossed</option>
-        </optgroup>
-      </select>
-    </div>
-
-    <div class="layout">
-      <div>
-        <div class="col-label">Source</div>
-        <div class="source-emoji" id="sourceEmoji">😀</div>
-      </div>
-      <div>
-        <div class="col-label">Board Preview</div>
-        <div class="grid" id="pixelGrid"></div>
+    <div class="subcard">
+      <div class="subhead">Select Emoji</div>
+      <div class="row">
+        <select id="emojiSelect" onchange="onEmojiChange()"
+                style="background:#1e1e1e;color:#e0e0e0;border:1px solid #333;border-radius:7px;padding:10px 14px;font-size:1.1rem;width:100%;max-width:360px;cursor:pointer">
+          <optgroup label="Faces">
+            <option value="😀">😀  Grinning</option>
+            <option value="😊">😊  Smiling</option>
+            <option value="😍">😍  Heart Eyes</option>
+            <option value="😂">😂  Tears of Joy</option>
+            <option value="🥹">🥹  Holding Back Tears</option>
+            <option value="😢">😢  Crying</option>
+            <option value="😡">😡  Angry</option>
+            <option value="🤔">🤔  Thinking</option>
+            <option value="😎">😎  Cool</option>
+            <option value="🤩">🤩  Star-Struck</option>
+            <option value="😴">😴  Sleeping</option>
+            <option value="🤗">🤗  Hugging</option>
+            <option value="🥳">🥳  Partying</option>
+            <option value="😱">😱  Shocked</option>
+            <option value="🤯">🤯  Mind Blown</option>
+            <option value="🤑">🤑  Money-Mouth</option>
+          </optgroup>
+          <optgroup label="Hearts &amp; Symbols">
+            <option value="❤️">❤️  Red Heart</option>
+            <option value="🧡">🧡  Orange Heart</option>
+            <option value="💛">💛  Yellow Heart</option>
+            <option value="💚">💚  Green Heart</option>
+            <option value="💙">💙  Blue Heart</option>
+            <option value="💜">💜  Purple Heart</option>
+            <option value="🖤">🖤  Black Heart</option>
+            <option value="💕">💕  Two Hearts</option>
+            <option value="💥">💥  Explosion</option>
+            <option value="⭐">⭐  Star</option>
+            <option value="🌟">🌟  Glowing Star</option>
+            <option value="✨">✨  Sparkles</option>
+            <option value="💎">💎  Diamond</option>
+          </optgroup>
+          <optgroup label="Animals">
+            <option value="🐶">🐶  Dog</option>
+            <option value="🐱">🐱  Cat</option>
+            <option value="🐭">🐭  Mouse</option>
+            <option value="🐸">🐸  Frog</option>
+            <option value="🐧">🐧  Penguin</option>
+            <option value="🦁">🦁  Lion</option>
+            <option value="🦊">🦊  Fox</option>
+            <option value="🐻">🐻  Bear</option>
+            <option value="🐼">🐼  Panda</option>
+            <option value="🦋">🦋  Butterfly</option>
+            <option value="🦄">🦄  Unicorn</option>
+          </optgroup>
+          <optgroup label="Food">
+            <option value="🍎">🍎  Apple</option>
+            <option value="🍊">🍊  Orange</option>
+            <option value="🍋">🍋  Lemon</option>
+            <option value="🍓">🍓  Strawberry</option>
+            <option value="🍕">🍕  Pizza</option>
+            <option value="🎂">🎂  Birthday Cake</option>
+            <option value="🍦">🍦  Ice Cream</option>
+            <option value="🍩">🍩  Donut</option>
+            <option value="🍺">🍺  Beer</option>
+            <option value="☕">☕  Coffee</option>
+          </optgroup>
+          <optgroup label="Activities &amp; Objects">
+            <option value="🎉">🎉  Party Popper</option>
+            <option value="🎊">🎊  Confetti</option>
+            <option value="🎁">🎁  Gift</option>
+            <option value="🔥">🔥  Fire</option>
+            <option value="🚀">🚀  Rocket</option>
+            <option value="🎮">🎮  Game Controller</option>
+            <option value="🎵">🎵  Music Note</option>
+            <option value="🌈">🌈  Rainbow</option>
+            <option value="☀️">☀️  Sun</option>
+            <option value="🌙">🌙  Moon</option>
+            <option value="❄️">❄️  Snowflake</option>
+            <option value="⚡">⚡  Lightning</option>
+            <option value="🏆">🏆  Trophy</option>
+            <option value="💀">💀  Skull</option>
+          </optgroup>
+          <optgroup label="Gestures">
+            <option value="👍">👍  Thumbs Up</option>
+            <option value="👎">👎  Thumbs Down</option>
+            <option value="👋">👋  Waving Hand</option>
+            <option value="🤝">🤝  Handshake</option>
+            <option value="🙌">🙌  Raising Hands</option>
+            <option value="💪">💪  Flexed Bicep</option>
+            <option value="🫶">🫶  Heart Hands</option>
+            <option value="👏">👏  Clapping</option>
+            <option value="🤞">🤞  Fingers Crossed</option>
+          </optgroup>
+        </select>
       </div>
     </div>
 
-    <!-- Brightness — shared widget (bright.js). The preview tracks the global brightness. -->
-    <div id="brightnessSlot"></div>
-    <div class="bri-hint" id="bri-hint">Preview shows exact board output at the current brightness.</div>
+    <div class="subcard">
+      <div class="subhead">Preview</div>
+      <div class="layout" style="gap:32px">
+        <div class="preview-frame">
+          <div id="sourceEmoji" style="font-size:4.5rem;line-height:1;text-align:center;min-width:80px;padding:8px">😀</div>
+          <div class="preview-label">Source</div>
+        </div>
+        <div class="preview-frame">
+          <div class="grid" id="pixelGrid" style="display:grid;grid-template-columns:repeat(8,28px);grid-template-rows:repeat(8,28px);gap:2px;background:#000;border-radius:6px"></div>
+          <div class="preview-label">Board Preview</div>
+        </div>
+      </div>
 
-    <!-- Vibrance: punch saturation so colors survive the shrink to 8×8 -->
-    <div class="bri-row">
-      <label>Vibrance — <span id="v-vib">60</span></label>
-      <input type="range" id="vib-slider" min="0" max="100" value="60" oninput="onVibrance(this.value)">
-      <span class="bri-val">color punch</span>
+      <!-- Brightness — shared widget (bright.js). The preview tracks the global brightness. -->
+      <div id="brightnessSlot" style="margin-top:16px"></div>
+      <div class="hint" id="bri-hint">Preview shows exact board output at the current brightness.</div>
+
+      <!-- Vibrance: punch saturation so colors survive the shrink to 8×8 -->
+      <div class="row" style="margin-top:14px">
+        <label>Vibrance — <span id="v-vib">60</span></label>
+        <input type="range" id="vib-slider" min="0" max="100" value="60" oninput="onVibrance(this.value)">
+        <span class="val">color punch</span>
+      </div>
+      <div class="hint">Higher = bolder, fewer colors (reads better at 8×8). Lower = truer to the original.</div>
     </div>
-    <div class="bri-hint">Higher = bolder, fewer colors (reads better at 8×8). Lower = truer to the original.</div>
 
     <div class="actions">
-      <button class="send" onclick="sendToBoard()">Send to Board</button>
+      <button class="btn-primary" onclick="sendToBoard()">Send to Board</button>
     </div>
     <div class="status" id="status"></div>
   </div>
 
-  <canvas id="renderCanvas" width="192" height="192"></canvas>
+  <canvas id="renderCanvas" width="192" height="192" style="display:none"></canvas>
 
   <script src="ledsim.js"></script>
   <script src="bright.js" data-auto></script>
@@ -369,7 +326,7 @@
       for (let y = 0; y < 8; y++) {
         for (let x = 0; x < 8; x++) {
           const px = document.createElement('div');
-          px.className = 'pixel';
+          px.style.borderRadius = '3px';
           px.style.background = LedSim.previewColor(boardMatrix[y][x], LedSim.bri());
           grid.appendChild(px);
         }
@@ -425,6 +382,7 @@
     })();
   </script>
   </div>
+  <script src="backnav.js" data-auto data-parent="/" data-label="Home"></script>
   <script src="header.js" data-auto></script>
 </body>
 </html>
