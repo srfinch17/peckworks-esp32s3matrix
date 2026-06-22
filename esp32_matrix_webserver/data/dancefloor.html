@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dance Floor</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230d0d0d'/%3E%3Ccircle cx='4' cy='4' r='1.5' fill='%2300ff88'/%3E%3Ccircle cx='12' cy='4' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='8' cy='8' r='1.5' fill='%2322ddff'/%3E%3Ccircle cx='4' cy='12' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='12' cy='12' r='1.5' fill='%2300ff88'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="wrap" style="--accent-page:#c98bff">
+  <h1>🪩 Dance Floor</h1>
+
+  <div class="panel">
+    <div class="layout">
+      <div class="preview-frame">
+        <canvas id="prev" class="preview" width="240" height="240"></canvas>
+        <div class="preview-label">Live preview</div>
+      </div>
+
+      <div class="controls">
+        <div class="subcard">
+          <div class="subhead">Palette — <span id="df-pal-num">0</span> · <span id="df-pal-name">Neon Classic</span></div>
+          <div class="df-pal-grid" id="df-pal-grid"></div>
+        </div>
+
+        <div class="subcard">
+          <div class="subhead">Timing</div>
+          <div class="row"><label>Color Hold — <span id="v-df-hold">12</span> frames <span id="df-cycle-info" style="font-size:.65rem;color:var(--text-faint);font-weight:400;text-transform:none;letter-spacing:0"></span></label></div>
+          <div class="row"><span style="font-size:.68rem;color:#555">Fast</span><input type="range" id="df-hold" min="4" max="40" value="12"><span style="font-size:.68rem;color:#555">Slow</span></div>
+        </div>
+
+        <div class="subcard">
+          <div class="subhead">Motion</div>
+          <div class="row"><label>Frame Rate — <span id="v-speed">5</span> fps</label></div>
+          <div class="row"><span style="font-size:.68rem;color:#555">Slow</span><input type="range" id="speed" min="1" max="50" value="5"><span style="font-size:.68rem;color:#555">Fast</span></div>
+        </div>
+
+        <div class="actions">
+          <button class="btn-primary" onclick="applyAnimation()">Apply to Display</button>
+          <button class="btn-secondary" onclick="stopDisplay()">Stop / Clear</button>
+          <span class="live-dot">applies live</span>
+        </div>
+        <div class="status" id="status"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="palettes.js"></script>
+  <script src="previews.js"></script>
+  <script>
+    let live = true, liveTimer = null, dfPaletteIdx = 0;
+    const getEl = id => document.getElementById(id);
+    function setStatus(m, e) { const el = getEl('status'); el.textContent = m; el.className = 'status' + (e ? ' err' : ''); }
+    function liveApply() { clearTimeout(liveTimer); liveTimer = setTimeout(applyAnimation, 180); }
+
+    buildDfPalGrid(getEl('df-pal-grid'), (i, pal) => {
+      dfPaletteIdx = i;
+      getEl('df-pal-num').textContent = i;
+      getEl('df-pal-name').textContent = pal[0];
+      MatrixPreview.setDancefloorPalette(i);
+      if (live) liveApply();
+    }, 0);
+
+    function updateCycleInfo() {
+      const fps = +getEl('speed').value, hold = +getEl('df-hold').value;
+      getEl('df-cycle-info').textContent = '(≈ ' + (hold / fps).toFixed(1) + ' sec per color)';
+    }
+    getEl('df-hold').addEventListener('input', e => {
+      getEl('v-df-hold').textContent = e.target.value;
+      updateCycleInfo();
+      if (live) liveApply();
+    });
+    getEl('speed').addEventListener('input', e => {
+      getEl('v-speed').textContent = e.target.value;
+      updateCycleInfo();
+      if (live) liveApply();
+    });
+
+    function buildPayload() {
+      const body = { type: 'dancefloor', speed: Math.round(1000 / +getEl('speed').value) };
+      body.palette = dfPaletteIdx;
+      body.hold = +getEl('df-hold').value;
+      return body;
+    }
+
+    async function applyAnimation() {
+      try {
+        const r = await fetch('/api/display/animation', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(buildPayload())
+        });
+        setStatus(r.ok ? '✓ Running: dancefloor' : 'Error: HTTP ' + r.status, !r.ok);
+      } catch { setStatus('Cannot reach board — check WiFi connection.', true); }
+    }
+    async function stopDisplay() {
+      try {
+        const r = await fetch('/api/display/clear', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}'
+        });
+        setStatus(r.ok ? 'Display cleared.' : 'Error: HTTP ' + r.status, !r.ok);
+      } catch { setStatus('Cannot reach board — check WiFi connection.', true); }
+    }
+
+    updateCycleInfo();
+    MatrixPreview.start(getEl('prev'), 'dancefloor');
+  </script>
+  </div>
+  <script src="backnav.js" data-auto data-parent="/animations.html" data-label="Animations"></script>
+  <script src="bright.js" data-auto></script>
+  <script src="header.js" data-auto></script>
+</body>
+</html>

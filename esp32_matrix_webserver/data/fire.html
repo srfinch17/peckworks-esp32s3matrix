@@ -4,113 +4,57 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Fire Controller</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, -apple-system, sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; padding: 20px; }
-    .wrap { max-width: 760px; margin: 0 auto; }
-    .back { color: #555; text-decoration: none; font-size: 0.85rem; display: inline-block; margin-bottom: 16px; }
-    .back:hover { color: #999; }
-    h1 { font-size: 1.3rem; color: #ff6600; margin-bottom: 20px; }
-    .layout { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; }
-    .preview-wrap { flex: 0 0 auto; }
-    .preview-label { font-size: 0.68rem; color: #444; text-align: center; margin-top: 8px; text-transform: uppercase; letter-spacing: 0.07em; }
-    canvas { display: block; border-radius: 8px; border: 1px solid #1e1e1e; image-rendering: pixelated; }
-    .controls { flex: 1; min-width: 240px; max-width: 380px; }
-    .group { margin-bottom: 20px; }
-    .group > label { display: block; font-size: 0.72rem; color: #777; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 9px; }
-    .themes { display: flex; gap: 8px; flex-wrap: wrap; }
-    .theme-btn { background: #161616; color: #888; border: 1px solid #2a2a2a; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-size: 0.8rem; transition: all 0.12s; }
-    .theme-btn:hover { border-color: #3a3a3a; color: #aaa; }
-    .theme-btn.active                    { background: #1e1e1e; color: #ccc; border-color: #555; }
-    .theme-btn[data-theme="classic"].active { border-color: #cc4400; color: #ff7733; }
-    .theme-btn[data-theme="blue"].active    { border-color: #2266cc; color: #5599ff; }
-    .theme-btn[data-theme="green"].active   { border-color: #226633; color: #44cc66; }
-    .theme-btn[data-theme="purple"].active  { border-color: #552288; color: #aa66ff; }
-    .slider-row { display: flex; align-items: center; gap: 10px; }
-    input[type=range] { flex: 1; accent-color: #ff6600; cursor: pointer; }
-    .val { font-size: 0.85rem; color: #666; min-width: 28px; text-align: right; }
-    .hint { font-size: 0.68rem; color: #444; margin-top: 5px; }
-    .toggle-row { display: flex; align-items: center; gap: 8px; cursor: pointer; }
-    .toggle-row input[type=checkbox] { width: 15px; height: 15px; accent-color: #ff6600; cursor: pointer; }
-    .toggle-row span { font-size: 0.82rem; color: #888; }
-    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
-    .btn-apply { background: #7a2200; color: #ff8855; border: 1px solid #aa3300; border-radius: 7px; padding: 10px 22px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: background 0.12s; }
-    .btn-apply:hover { background: #882500; }
-    .btn-stop { background: #1a1a1a; color: #aaa; border: 1px solid #333; border-radius: 7px; padding: 10px 18px; cursor: pointer; font-size: 0.85rem; }
-    .btn-stop:hover { background: #222; }
-    .status { font-size: 0.78rem; margin-top: 14px; min-height: 1.2em; color: #00cc66; }
-    .status.err { color: #ff5555; }
-  </style>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230d0d0d'/%3E%3Ccircle cx='4' cy='4' r='1.5' fill='%2300ff88'/%3E%3Ccircle cx='12' cy='4' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='8' cy='8' r='1.5' fill='%2322ddff'/%3E%3Ccircle cx='4' cy='12' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='12' cy='12' r='1.5' fill='%2300ff88'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="app.css">
 </head>
 <body>
-  <div class="wrap">
-  <a href="/" class="back">← Home</a>
-  <h1>🔥 Fire Controller</h1>
+  <div class="wrap" style="--accent-page:#ff6600">
+  <h1>🔥 Fire</h1>
 
-  <div class="layout">
-    <div class="preview-wrap">
-      <!-- 8 cells × 36px = 288px canvas — matches the 8×8 LED matrix -->
-      <canvas id="preview" width="288" height="288"></canvas>
-      <div class="preview-label">Browser preview</div>
-    </div>
+  <div class="panel">
+    <div class="layout">
+      <div class="preview-frame">
+        <!-- 8 cells × 36px = 288px canvas — matches the 8×8 LED matrix -->
+        <canvas id="preview" class="preview" width="288" height="288"></canvas>
+        <div class="preview-label">Live preview</div>
+      </div>
 
-    <div class="controls">
-      <div class="group">
-        <label>Theme</label>
-        <div class="themes">
-          <button class="theme-btn active" data-theme="classic">Classic</button>
-          <button class="theme-btn"        data-theme="blue">Blue</button>
-          <button class="theme-btn"        data-theme="green">Green</button>
-          <button class="theme-btn"        data-theme="purple">Purple</button>
+      <div class="controls">
+        <div class="subcard">
+          <div class="subhead">Theme</div>
+          <div class="chips">
+            <button class="chip active" data-theme="classic">Classic</button>
+            <button class="chip"        data-theme="blue">Blue</button>
+            <button class="chip"        data-theme="green">Green</button>
+            <button class="chip"        data-theme="purple">Purple</button>
+          </div>
         </div>
-      </div>
 
-      <div class="group">
-        <label>Intensity — <span id="v-intensity">6</span> / 10</label>
-        <div class="slider-row">
-          <input type="range" id="intensity" min="1" max="10" value="6">
+        <div class="subcard">
+          <div class="subhead">Motion</div>
+          <div class="row"><label>Intensity — <span id="v-intensity">6</span> / 10</label></div>
+          <div class="row"><input type="range" id="intensity" min="1" max="10" value="6"></div>
+          <div class="hint">Higher = hotter sparks, brighter flames</div>
+
+          <div class="row" style="margin-top:12px"><label>Tendrils — <span id="v-tendrils">0</span> / 10</label></div>
+          <div class="row"><input type="range" id="tendrils" min="0" max="10" value="0"></div>
+          <div class="hint">0 = broad roaring flame &nbsp;&nbsp; 10 = wispy tendrils</div>
+
+          <div class="row" style="margin-top:12px"><label>Speed — <span id="v-speed">15</span> fps</label></div>
+          <div class="row"><span style="font-size:.68rem;color:#555">Slow</span><input type="range" id="speed" min="5" max="33" value="15"><span style="font-size:.68rem;color:#555">Fast</span></div>
+
+          <div class="row" style="margin-top:12px"><label>Sparks — <span id="v-sparks">0</span> / 10</label></div>
+          <div class="row"><input type="range" id="sparks" min="0" max="10" value="0"></div>
+          <div class="hint">0 = none &nbsp;&nbsp; 10 = lots of floating sparks above the flame</div>
         </div>
-        <div class="hint">Higher = hotter sparks, brighter flames</div>
-      </div>
 
-      <div class="group">
-        <label>Tendrils — <span id="v-tendrils">0</span> / 10</label>
-        <div class="slider-row">
-          <input type="range" id="tendrils" min="0" max="10" value="0">
+        <div class="actions">
+          <button class="btn-primary" onclick="applyToDisplay()">Apply to Display</button>
+          <button class="btn-secondary" onclick="stopDisplay()">Stop / Clear</button>
+          <span class="live-dot">applies live</span>
         </div>
-        <div class="hint">0 = broad roaring flame &nbsp;&nbsp; 10 = wispy tendrils</div>
+        <div class="status" id="status"></div>
       </div>
-
-      <div class="group">
-        <label>Speed — <span id="v-speed">15</span> fps</label>
-        <div class="slider-row">
-          <span style="font-size:.68rem;color:#555">Slow</span>
-          <input type="range" id="speed" min="5" max="33" value="15">
-          <span style="font-size:.68rem;color:#555">Fast</span>
-        </div>
-      </div>
-
-      <div class="group">
-        <label>Sparks — <span id="v-sparks">0</span> / 10</label>
-        <div class="slider-row">
-          <input type="range" id="sparks" min="0" max="10" value="0">
-        </div>
-        <div class="hint">0 = none &nbsp;&nbsp; 10 = lots of floating sparks above the flame</div>
-      </div>
-
-      <div class="group">
-        <label class="toggle-row">
-          <input type="checkbox" id="autosync">
-          <span>Auto-sync (send to display on every change)</span>
-        </label>
-      </div>
-
-      <div class="actions">
-        <button class="btn-apply" onclick="applyToDisplay()">Apply to Display</button>
-        <button class="btn-stop"  onclick="stopDisplay()">Stop / Clear</button>
-      </div>
-
-      <div class="status" id="status"></div>
     </div>
   </div>
 
@@ -143,8 +87,16 @@
     let intensity     = 6;
     let tendrils      = 0;
     let speedMs       = Math.round(1000 / 15);  // 15fps default
-    let autoSync      = false;
+    let live          = true;                   // live-apply: send on every change (default on)
+    let liveTimer     = null;                   // debounce timer for live-apply POSTs
     let sparkRate = 0; // 0 = off, 1–10 = spawn frequency
+
+    // Debounced "send to board on change" — keeps a slider drag from POST-storming
+    // the board (one POST ~180ms after the last move) while still feeling live.
+    function liveApply() {
+      clearTimeout(liveTimer);
+      liveTimer = setTimeout(applyToDisplay, 180);
+    }
 
     // Spark particle system — mirrors stepSparks() in the firmware.
     // Each entry: { x, y, vx, vy, life, maxLife }
@@ -297,44 +249,39 @@
       el.className = 'status' + (isErr ? ' err' : '');
     }
 
-    // Theme buttons
-    document.querySelectorAll('.theme-btn').forEach(btn => {
+    // Theme chips
+    document.querySelectorAll('.chip[data-theme]').forEach(btn => {
       btn.addEventListener('click', () => {
-        document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.chip[data-theme]').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         theme = btn.dataset.theme;
-        if (autoSync) applyToDisplay();
+        if (live) liveApply();
       });
     });
 
     document.getElementById('intensity').addEventListener('input', e => {
       intensity = +e.target.value;
       document.getElementById('v-intensity').textContent = intensity;
-      if (autoSync) applyToDisplay();
+      if (live) liveApply();
     });
 
     document.getElementById('tendrils').addEventListener('input', e => {
       tendrils = +e.target.value;
       document.getElementById('v-tendrils').textContent = tendrils;
-      if (autoSync) applyToDisplay();
+      if (live) liveApply();
     });
 
     document.getElementById('speed').addEventListener('input', e => {
       speedMs = Math.round(1000 / +e.target.value);
       document.getElementById('v-speed').textContent = e.target.value;
-      if (autoSync) applyToDisplay();
+      if (live) liveApply();
     });
 
     document.getElementById('sparks').addEventListener('input', e => {
       sparkRate = +e.target.value;
       document.getElementById('v-sparks').textContent = sparkRate;
       if (sparkRate === 0) sparkParticles = []; // clear preview sparks on disable
-      if (autoSync) applyToDisplay();
-    });
-
-    document.getElementById('autosync').addEventListener('change', e => {
-      autoSync = e.target.checked;
-      if (autoSync) applyToDisplay(); // immediately send current settings
+      if (live) liveApply();
     });
 
     // ── API calls ─────────────────────────────────────────────────────────────
@@ -373,6 +320,7 @@
     }
   </script>
   </div>
+  <script src="backnav.js" data-auto data-parent="/animations.html" data-label="Animations"></script>
   <script src="bright.js" data-auto></script>
   <script src="header.js" data-auto></script>
 </body>

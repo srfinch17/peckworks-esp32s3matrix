@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Comet</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230d0d0d'/%3E%3Ccircle cx='4' cy='4' r='1.5' fill='%2300ff88'/%3E%3Ccircle cx='12' cy='4' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='8' cy='8' r='1.5' fill='%2322ddff'/%3E%3Ccircle cx='4' cy='12' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='12' cy='12' r='1.5' fill='%2300ff88'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="wrap" style="--accent-page:#c98bff">
+  <h1>☄️ Comet</h1>
+
+  <div class="panel">
+    <div class="layout">
+      <div class="preview-frame">
+        <canvas id="prev" class="preview" width="240" height="240"></canvas>
+        <div class="preview-label">Live preview</div>
+      </div>
+
+      <div class="controls">
+        <div class="subcard">
+          <div class="subhead">Palette — <span id="cm-pal-num">—</span> · <span id="cm-pal-name">Custom</span></div>
+          <div class="df-pal-grid" id="cm-pal-grid"></div>
+        </div>
+
+        <div class="subcard">
+          <div class="subhead">Colors</div>
+          <div class="color-row">
+            <div class="picker-group"><label>Heart</label><input type="color" id="comet-c1" value="#ffc832"></div>
+            <div class="picker-group"><label>Shell</label><input type="color" id="comet-c2" value="#ff6400"></div>
+            <div class="picker-group"><label>Tail</label><input type="color" id="comet-c3" value="#c83200"></div>
+            <div class="picker-group"><label>Far</label><input type="color" id="comet-c4" value="#500a00"></div>
+          </div>
+        </div>
+
+        <div class="subcard">
+          <div class="subhead">Motion</div>
+          <div class="row"><label>Frame Rate — <span id="v-speed">5</span> fps</label></div>
+          <div class="row"><span style="font-size:.68rem;color:#555">Slow</span><input type="range" id="speed" min="1" max="50" value="5"><span style="font-size:.68rem;color:#555">Fast</span></div>
+        </div>
+
+        <div class="actions">
+          <button class="btn-primary" onclick="applyAnimation()">Apply to Display</button>
+          <button class="btn-secondary" onclick="stopDisplay()">Stop / Clear</button>
+          <span class="live-dot">applies live</span>
+        </div>
+        <div class="status" id="status"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="palettes.js"></script>
+  <script src="previews.js"></script>
+  <script>
+    let live = true, liveTimer = null;
+    const getEl = id => document.getElementById(id);
+    function setStatus(m, e) { const el = getEl('status'); el.textContent = m; el.className = 'status' + (e ? ' err' : ''); }
+    function liveApply() { clearTimeout(liveTimer); liveTimer = setTimeout(applyAnimation, 180); }
+
+    function clearCometPreset() { getEl('cm-pal-num').textContent = '—'; getEl('cm-pal-name').textContent = 'Custom'; }
+
+    buildDfPalGrid(getEl('cm-pal-grid'), (i, pal) => {
+      getEl('comet-c1').value = pal[1];
+      getEl('comet-c2').value = pal[2];
+      getEl('comet-c3').value = pal[3];
+      getEl('comet-c4').value = pal[4];
+      getEl('cm-pal-num').textContent = i;
+      getEl('cm-pal-name').textContent = pal[0];
+      if (live) liveApply();
+    }, -1);
+
+    ['comet-c1', 'comet-c2', 'comet-c3', 'comet-c4'].forEach(id =>
+      getEl(id).addEventListener('input', () => { clearCometPreset(); if (live) liveApply(); }));
+    getEl('speed').addEventListener('input', e => {
+      getEl('v-speed').textContent = e.target.value;
+      if (live) liveApply();
+    });
+
+    function buildPayload() {
+      const body = { type: 'comet', speed: Math.round(1000 / +getEl('speed').value) };
+      body.color1 = getEl('comet-c1').value;
+      body.color2 = getEl('comet-c2').value;
+      body.color3 = getEl('comet-c3').value;
+      body.color4 = getEl('comet-c4').value;
+      return body;
+    }
+
+    async function applyAnimation() {
+      try {
+        const r = await fetch('/api/display/animation', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(buildPayload())
+        });
+        setStatus(r.ok ? '✓ Running: comet' : 'Error: HTTP ' + r.status, !r.ok);
+      } catch { setStatus('Cannot reach board — check WiFi connection.', true); }
+    }
+    async function stopDisplay() {
+      try {
+        const r = await fetch('/api/display/clear', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}'
+        });
+        setStatus(r.ok ? 'Display cleared.' : 'Error: HTTP ' + r.status, !r.ok);
+      } catch { setStatus('Cannot reach board — check WiFi connection.', true); }
+    }
+
+    MatrixPreview.start(getEl('prev'), 'comet');
+  </script>
+  </div>
+  <script src="backnav.js" data-auto data-parent="/animations.html" data-label="Animations"></script>
+  <script src="bright.js" data-auto></script>
+  <script src="header.js" data-auto></script>
+</body>
+</html>

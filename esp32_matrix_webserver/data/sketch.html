@@ -4,80 +4,40 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sketch — ESP32 Matrix</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, -apple-system, sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; padding: 20px; }
-    .wrap { max-width: 760px; margin: 0 auto; }
-    .back { color: #555; text-decoration: none; font-size: 0.85rem; display: inline-block; margin-bottom: 16px; }
-    .back:hover { color: #999; }
-    h1 { font-size: 1.3rem; color: #ff9ed8; margin-bottom: 20px; }
-    .panel { background: #161616; border: 1px solid #2a2a2a; border-radius: 12px; padding: 22px; }
-    .editor { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
-    /* 8×8 paint grid */
-    .grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; width: 320px; max-width: 80vw; aspect-ratio: 1; background: #050505; padding: 3px; border-radius: 8px; touch-action: none; user-select: none; }
-    .cell { border-radius: 3px; background: #000; cursor: crosshair; }
-    .cell:hover { outline: 1px solid #444; }
-    /* board preview */
-    .preview-col { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-    #preview { image-rendering: pixelated; border-radius: 8px; background: #050505; width: 144px; height: 144px; }
-    .preview-label { font-size: 0.62rem; color: #555; text-transform: uppercase; letter-spacing: .08em; text-align: center; }
-    /* tools */
-    .tools { margin-top: 20px; }
-    .tool-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
-    .tool-row label { font-size: 0.78rem; color: #888; }
-    input[type=color] { width: 46px; height: 34px; border: 1px solid #333; border-radius: 6px; background: none; cursor: pointer; padding: 2px; }
-    .swatches { display: flex; gap: 6px; flex-wrap: wrap; }
-    .swatch { width: 26px; height: 26px; border-radius: 6px; border: 2px solid #2a2a2a; cursor: pointer; transition: transform .1s; }
-    .swatch:hover { transform: scale(1.12); }
-    .swatch.active { border-color: #fff; }
-    button { background: #1e1e1e; color: #ccc; border: 1px solid #333; border-radius: 7px; padding: 9px 16px; cursor: pointer; font-size: 0.85rem; transition: background 0.12s; }
-    button:hover { background: #272727; }
-    .btn-send { background: #3a1230; color: #ff9ed8; border-color: #6a2057; font-weight: 600; }
-    .btn-send:hover { background: #4a1840; }
-    .btn-eraser.active { background: #333; color: #fff; border-color: #666; }
-    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
-    .status { font-size: 0.78rem; margin-top: 14px; min-height: 1.2em; color: #00cc66; }
-    .status.err { color: #ff5555; }
-    hr.sep { border: none; border-top: 1px solid #222; margin: 20px 0; }
-    .gallery { display: flex; gap: 6px; flex-wrap: wrap; }
-    .thumb { width: 36px; height: 36px; image-rendering: pixelated; border-radius: 5px; border: 2px solid #2a2a2a; background: #0a0a0a; cursor: pointer; transition: transform .1s, border-color .12s; }
-    .thumb:hover { transform: scale(1.14); border-color: #ff9ed8; }
-  </style>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230d0d0d'/%3E%3Ccircle cx='4' cy='4' r='1.5' fill='%2300ff88'/%3E%3Ccircle cx='12' cy='4' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='8' cy='8' r='1.5' fill='%2322ddff'/%3E%3Ccircle cx='4' cy='12' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='12' cy='12' r='1.5' fill='%2300ff88'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="app.css">
 </head>
 <body>
-  <div class="wrap">
-    <a href="/" class="back">← Home</a>
+  <div class="wrap" style="--accent-page:#b050ff">
     <h1>🎨 Sketch</h1>
 
     <div class="panel">
-      <div class="editor">
-        <div class="grid" id="grid"></div>
-        <div class="preview-col">
-          <canvas id="preview" width="8" height="8"></canvas>
+      <div class="layout">
+        <div id="grid" style="display:grid;grid-template-columns:repeat(8,1fr);gap:2px;width:320px;max-width:80vw;aspect-ratio:1;background:#050505;padding:3px;border-radius:8px;touch-action:none;user-select:none"></div>
+        <div class="preview-frame">
+          <canvas id="preview" class="preview" width="8" height="8" style="width:144px;height:144px"></canvas>
           <div class="preview-label">Board preview<br>(at current brightness)</div>
         </div>
       </div>
 
-      <hr class="sep">
-
-      <div class="tools">
-        <div class="tool-row">
+      <div class="subcard" style="margin-top:16px">
+        <div class="subhead">Tools</div>
+        <div class="color-row" style="margin-bottom:12px">
           <label>Color</label>
           <input type="color" id="picker" value="#ff3030">
-          <div class="swatches" id="swatches"></div>
-          <button class="btn-eraser" id="eraser" onclick="toggleEraser()">Eraser</button>
+          <div class="chips" id="swatches"></div>
+          <button class="btn-secondary" id="eraser" onclick="toggleEraser()">Eraser</button>
         </div>
-        <div class="actions">
-          <button class="btn-send" onclick="sendToBoard()">Send to Board</button>
-          <button onclick="fillAll()">Fill</button>
-          <button onclick="clearGrid()">Clear</button>
+        <div class="actions" style="margin-top:0">
+          <button class="btn-primary" onclick="sendToBoard()">Send to Board</button>
+          <button class="btn-secondary" onclick="fillAll()">Fill</button>
+          <button class="btn-secondary" onclick="clearGrid()">Clear</button>
         </div>
       </div>
 
-      <hr class="sep">
-      <div class="tools">
-        <div class="tool-row"><label>Starter images — click one to load, then edit</label></div>
-        <div class="gallery" id="gallery"></div>
+      <div class="subcard">
+        <div class="subhead">Starter images — click one to load, then edit</div>
+        <div class="chips" id="gallery" style="gap:6px"></div>
       </div>
 
       <div class="status" id="status"></div>
@@ -108,8 +68,11 @@
     // ── Build the grid ──────────────────────────────────────────
     for (let i = 0; i < N * N; i++) {
       const c = document.createElement('div');
-      c.className = 'cell';
       c.dataset.i = i;
+      c.style.borderRadius = '3px';
+      c.style.background = '#000';
+      c.style.cursor = 'crosshair';
+      c.style.aspectRatio = '1';
       gridEl.appendChild(c);
       cellEls.push(c);
     }
@@ -157,7 +120,10 @@
     const swEl = document.getElementById('swatches');
     SWATCHES.forEach(hex => {
       const s = document.createElement('div');
-      s.className = 'swatch'; s.style.background = hex; s.title = hex;
+      s.style.width = '26px'; s.style.height = '26px'; s.style.borderRadius = '6px';
+      s.style.border = '2px solid #2a2a2a'; s.style.cursor = 'pointer';
+      s.dataset.sw = '1';
+      s.style.background = hex; s.title = hex;
       s.onclick = () => {
         erasing = false; document.getElementById('eraser').classList.remove('active');
         curColor = hex; document.getElementById('picker').value = hex;
@@ -166,7 +132,10 @@
       swEl.appendChild(s);
     });
     function markSwatch() {
-      [...swEl.children].forEach(s => s.classList.toggle('active', s.style.background && rgbToHex(s.style.background) === curColor.toLowerCase()));
+      [...swEl.children].forEach(s => {
+        const on = s.style.background && rgbToHex(s.style.background) === curColor.toLowerCase();
+        s.style.borderColor = on ? '#fff' : '#2a2a2a';
+      });
     }
     function rgbToHex(rgb) {
       const m = rgb.match(/\d+/g); if (!m) return rgb;
@@ -281,7 +250,12 @@
       STARTERS.forEach(s => {
         const m = expand(s.rows);
         const cv = document.createElement('canvas');
-        cv.width = cv.height = N; cv.className = 'thumb'; cv.title = s.name;
+        cv.width = cv.height = N;
+        cv.style.width = '36px'; cv.style.height = '36px';
+        cv.style.imageRendering = 'pixelated'; cv.style.borderRadius = '5px';
+        cv.style.border = '2px solid #2a2a2a'; cv.style.background = '#0a0a0a';
+        cv.style.cursor = 'pointer';
+        cv.title = s.name;
         const cx = cv.getContext('2d');
         m.forEach((hex, i) => { cx.fillStyle = (hex === OFF) ? '#0a0a0a' : hex; cx.fillRect(i % N, (i / N) | 0, 1, 1); });
         cv.addEventListener('click', () => loadImage(m));
@@ -294,6 +268,7 @@
     drawPreview();
     renderGallery();
   </script>
+  <script src="backnav.js" data-auto data-parent="/" data-label="Home"></script>
   <script src="header.js" data-auto></script>
 </body>
 </html>

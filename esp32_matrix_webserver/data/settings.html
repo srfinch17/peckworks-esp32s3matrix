@@ -4,92 +4,76 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Settings — ESP32 Matrix</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, -apple-system, sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; padding: 20px; }
-    .wrap { max-width: 720px; margin: 0 auto; }
-    .back { color: #555; text-decoration: none; font-size: 0.85rem; display: inline-block; margin-bottom: 16px; }
-    .back:hover { color: #999; }
-    h1 { font-size: 1.4rem; color: #88bbff; letter-spacing: -0.02em; margin-bottom: 4px; }
-    .subtitle { color: #555; font-size: 0.82rem; margin-bottom: 24px; }
-    .panel { background: #161616; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
-    .panel-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #666; margin-bottom: 16px; }
-    .group { margin-bottom: 18px; }
-    .group:last-child { margin-bottom: 0; }
-    .group > label { display: block; font-size: 0.78rem; color: #aaa; margin-bottom: 8px; }
-    .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    input[type=range] { width: 100%; accent-color: #88bbff; cursor: pointer; }
-    input[type=text] { width: 100%; background: #0d0d0d; border: 1px solid #333; border-radius: 6px; color: #e0e0e0; padding: 8px 10px; font-size: 0.85rem; }
-    input[type=checkbox] { accent-color: #88bbff; width: 16px; height: 16px; cursor: pointer; }
-    output { font-size: 0.85rem; color: #88bbff; min-width: 32px; text-align: right; }
-    .apps { display: flex; flex-wrap: wrap; gap: 10px 16px; }
-    .apps label { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #bbb; }
-    .actions { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
-    button { background: #112a44; color: #88bbff; border: 1px solid #2266cc; border-radius: 7px; padding: 10px 22px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: background 0.12s; }
-    button:hover { background: #163a5c; }
-    #status { font-size: 0.82rem; color: #00cc66; min-height: 1.2em; }
-  </style>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230d0d0d'/%3E%3Ccircle cx='4' cy='4' r='1.5' fill='%2300ff88'/%3E%3Ccircle cx='12' cy='4' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='8' cy='8' r='1.5' fill='%2322ddff'/%3E%3Ccircle cx='4' cy='12' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='12' cy='12' r='1.5' fill='%2300ff88'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="app.css">
 </head>
 <body>
-  <div class="wrap">
-    <a href="/" class="back">← Home</a>
+  <div class="wrap" style="--accent-page:#88bbff">
     <h1>⚙️ Settings</h1>
     <p class="subtitle">Board settings — persisted on the board, survive a reflash</p>
 
     <form id="f">
       <div class="panel">
         <div class="panel-title">Idle screensaver</div>
-        <div class="group">
-          <label class="row"><span>Enabled</span><input type="checkbox" id="idle_enabled"></label>
+        <div class="subcard">
+          <div class="row"><label>Enabled</label><input type="checkbox" id="idle_enabled"></div>
         </div>
-        <div class="group">
-          <label>Rotation apps</label>
-          <div class="apps" id="apps"></div>
+        <div class="subcard">
+          <div class="subhead">Rotation apps</div>
+          <div class="chips" id="apps"></div>
         </div>
-        <div class="group">
-          <label class="row"><span>Start after <output id="after_o"></output> s</span></label>
-          <input type="range" id="idle_after_secs" min="5" max="900" step="5">
+        <div class="subcard">
+          <div class="row"><label>Start after <output id="after_o"></output> s</label></div>
+          <div class="row"><input type="range" id="idle_after_secs" min="5" max="900" step="5"></div>
         </div>
-        <div class="group">
-          <label class="row"><span>Re-pick every <output id="rot_o"></output> s</span></label>
-          <input type="range" id="idle_rotate_secs" min="10" max="900" step="5">
+        <div class="subcard">
+          <div class="row"><label>Re-pick every <output id="rot_o"></output> s</label></div>
+          <div class="row"><input type="range" id="idle_rotate_secs" min="10" max="900" step="5"></div>
         </div>
-        <div class="group">
-          <label class="row"><span>Idle brightness <output id="ibri_o"></output></span></label>
-          <input type="range" id="idle_brightness" min="1" max="60">
+        <div class="subcard">
+          <div class="row"><label>Idle brightness <output id="ibri_o"></output></label></div>
+          <div class="row"><input type="range" id="idle_brightness" min="1" max="60"></div>
         </div>
       </div>
 
       <div class="panel">
         <div class="panel-title">Display</div>
-        <div class="group">
-          <label class="row"><span>Default brightness <output id="dbri_o"></output></span></label>
-          <input type="range" id="default_brightness" min="0" max="255">
+        <div class="subcard">
+          <div class="row"><label>Default brightness <output id="dbri_o"></output></label></div>
+          <div class="row"><input type="range" id="default_brightness" min="0" max="255"></div>
         </div>
-        <div class="group">
-          <label>Default boot animation</label>
-          <input type="text" id="boot_animation" placeholder="(blank = resume last)">
+        <div class="subcard">
+          <div class="subhead">Default boot animation</div>
+          <div class="row"><input type="text" id="boot_animation" placeholder="(blank = resume last)"></div>
         </div>
-        <div class="group">
-          <label class="row"><span>LED calibration correction</span><input type="checkbox" id="calibration_correction"></label>
-          <p style="font-size:0.72rem;color:#666;margin-top:6px;">Apply the measured color/brightness correction from the Calibration Lab. Turn off to A/B compare.</p>
+        <div class="subcard">
+          <div class="row"><label>LED calibration correction</label><input type="checkbox" id="calibration_correction"></div>
+          <p class="hint">Apply the measured color/brightness correction from the Calibration Lab. Turn off to A/B compare.</p>
         </div>
       </div>
 
       <div class="panel">
         <div class="panel-title">Clock</div>
-        <div class="group">
-          <label>Timezone (POSIX TZ)</label>
-          <input type="text" id="timezone" placeholder="e.g. MST7MDT,M3.2.0,M11.1.0">
+        <div class="subcard">
+          <div class="subhead">Timezone (POSIX TZ)</div>
+          <div class="row"><input type="text" id="timezone" placeholder="e.g. MST7MDT,M3.2.0,M11.1.0"></div>
         </div>
       </div>
 
       <div class="actions">
-        <button type="submit">Save</button>
-        <span id="status"></span>
+        <button type="submit" class="btn-primary">Save</button>
+        <span class="status" id="status"></span>
       </div>
     </form>
   </div>
+  <style>
+    /* settings-specific: full-width text/range inputs + inline-row checkboxes */
+    #f input[type=text] { width: 100%; background: #0d0d0d; border: 1px solid #333; border-radius: 6px; color: var(--text); padding: 8px 10px; font-size: 0.85rem; font-family: inherit; }
+    #f input[type=range] { width: 100%; flex: 1 1 100%; }
+    #f .row { justify-content: space-between; }
+    #f output { font-size: 0.85rem; color: var(--accent-page); min-width: 32px; text-align: right; font-variant-numeric: tabular-nums; }
+    #apps label { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-dim); }
+  </style>
   <script>
 const APPS=["fire","matrix_rain","clock","fireworks","frostbite","snow","dancefloor","claudesweep"];
 const $=id=>document.getElementById(id);
@@ -132,6 +116,7 @@ $("f").addEventListener("submit",async e=>{
 });
 load();
   </script>
+  <script src="backnav.js" data-auto data-parent="/system.html" data-label="System"></script>
   <script src="header.js" data-auto></script>
 </body>
 </html>

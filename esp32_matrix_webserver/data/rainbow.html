@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rainbow</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230d0d0d'/%3E%3Ccircle cx='4' cy='4' r='1.5' fill='%2300ff88'/%3E%3Ccircle cx='12' cy='4' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='8' cy='8' r='1.5' fill='%2322ddff'/%3E%3Ccircle cx='4' cy='12' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='12' cy='12' r='1.5' fill='%2300ff88'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="wrap" style="--accent-page:#c98bff">
+  <h1>🌈 Rainbow</h1>
+
+  <div class="panel">
+    <div class="layout">
+      <div class="preview-frame">
+        <canvas id="prev" class="preview" width="240" height="240"></canvas>
+        <div class="preview-label">Live preview</div>
+      </div>
+
+      <div class="controls">
+        <div class="subcard">
+          <div class="subhead">Mode</div>
+          <div class="chips">
+            <button class="chip active" id="rn-mode-rainbow" onclick="setMode('rainbow')">Full Rainbow</button>
+            <button class="chip"        id="rn-mode-palette" onclick="setMode('palette')">Palette</button>
+          </div>
+          <div id="rn-palette-section" style="display:none;margin-top:12px">
+            <label>Palette — <span id="rn-pal-num">0</span> · <span id="rn-pal-name">Neon Classic</span></label>
+            <div class="df-pal-grid" id="rn-pal-grid"></div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn-primary" onclick="applyAnimation()">Apply to Display</button>
+          <button class="btn-secondary" onclick="stopDisplay()">Stop / Clear</button>
+          <span class="live-dot">applies live</span>
+        </div>
+        <div class="status" id="status"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="palettes.js"></script>
+  <script src="previews.js"></script>
+  <script>
+    let rnMode = 'rainbow', rnPalIdx = 0, live = true, liveTimer = null;
+    const getEl = id => document.getElementById(id);
+    function setStatus(m, e) { const el = getEl('status'); el.textContent = m; el.className = 'status' + (e ? ' err' : ''); }
+    function liveApply() { clearTimeout(liveTimer); liveTimer = setTimeout(applyAnimation, 180); }
+
+    function setMode(m) {
+      rnMode = m;
+      getEl('rn-mode-rainbow').classList.toggle('active', m === 'rainbow');
+      getEl('rn-mode-palette').classList.toggle('active', m === 'palette');
+      getEl('rn-palette-section').style.display = m === 'palette' ? '' : 'none';
+      MatrixPreview.setRainbowMode(m);
+      if (live) liveApply();
+    }
+
+    buildDfPalGrid(getEl('rn-pal-grid'), (i, pal) => {
+      rnPalIdx = i;
+      getEl('rn-pal-num').textContent = i;
+      getEl('rn-pal-name').textContent = pal[0];
+      MatrixPreview.setRainbowPalette(i);
+      if (live) liveApply();
+    }, 0);
+
+    function buildPayload() {
+      const body = { type: 'rainbow' };
+      if (rnMode === 'palette') {
+        const pal = DF_PAL[rnPalIdx];
+        body.usePalette = true;
+        body.color1 = pal[1]; body.color2 = pal[2]; body.color3 = pal[3]; body.color4 = pal[4];
+      }
+      return body;
+    }
+
+    async function applyAnimation() {
+      try {
+        const r = await fetch('/api/display/animation', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(buildPayload())
+        });
+        setStatus(r.ok ? '✓ Running: rainbow' : 'Error: HTTP ' + r.status, !r.ok);
+      } catch { setStatus('Cannot reach board — check WiFi connection.', true); }
+    }
+    async function stopDisplay() {
+      try {
+        const r = await fetch('/api/display/clear', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}'
+        });
+        setStatus(r.ok ? 'Display cleared.' : 'Error: HTTP ' + r.status, !r.ok);
+      } catch { setStatus('Cannot reach board — check WiFi connection.', true); }
+    }
+
+    MatrixPreview.start(getEl('prev'), 'rainbow');
+  </script>
+  </div>
+  <script src="backnav.js" data-auto data-parent="/animations.html" data-label="Animations"></script>
+  <script src="bright.js" data-auto></script>
+  <script src="header.js" data-auto></script>
+</body>
+</html>

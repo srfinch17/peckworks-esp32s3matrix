@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sun</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230d0d0d'/%3E%3Ccircle cx='4' cy='4' r='1.5' fill='%2300ff88'/%3E%3Ccircle cx='12' cy='4' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='8' cy='8' r='1.5' fill='%2322ddff'/%3E%3Ccircle cx='4' cy='12' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='12' cy='12' r='1.5' fill='%2300ff88'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="wrap" style="--accent-page:#c98bff">
+  <h1>☀️ Sun</h1>
+
+  <div class="panel">
+    <div class="layout">
+      <div class="preview-frame">
+        <canvas id="prev" class="preview" width="240" height="240"></canvas>
+        <div class="preview-label">Live preview</div>
+      </div>
+
+      <div class="controls">
+        <div class="subcard">
+          <div class="subhead">Color Presets</div>
+          <div class="presets-grid cols5" id="sun-presets"></div>
+          <div class="row" style="margin-top:10px"><label>Colors</label></div>
+          <div class="color-row">
+            <div class="picker-group"><label>Sun</label><input type="color" id="sun-c1" value="#ffb700"></div>
+            <div class="picker-group"><label>Ring 1</label><input type="color" id="sun-c2" value="#ff6600"></div>
+            <div class="picker-group"><label>Ring 2</label><input type="color" id="sun-c3" value="#ff3300"></div>
+            <div class="picker-group"><label>Ring 3</label><input type="color" id="sun-c4" value="#cc1100"></div>
+            <div class="picker-group"><label>Ring 4</label><input type="color" id="sun-c5" value="#880000"></div>
+          </div>
+        </div>
+
+        <div class="subcard">
+          <div class="subhead">Brightness</div>
+          <div class="row"><label>Sun Intensity — <span id="v-sun-disc">78</span>%</label></div>
+          <div class="row"><span style="font-size:.68rem;color:#555">Dim</span><input type="range" id="sun-disc" min="0" max="100" value="78"><span style="font-size:.68rem;color:#555">Bright</span></div>
+          <div class="row" style="margin-top:12px"><label>Orbit Intensity — <span id="v-sun-ring">78</span>%</label></div>
+          <div class="row"><span style="font-size:.68rem;color:#555">Dim</span><input type="range" id="sun-ring" min="0" max="100" value="78"><span style="font-size:.68rem;color:#555">Bright</span></div>
+        </div>
+
+        <div class="subcard">
+          <div class="subhead">Motion</div>
+          <div class="row"><label>Frame Rate — <span id="v-speed">5</span> fps</label></div>
+          <div class="row"><span style="font-size:.68rem;color:#555">Slow</span><input type="range" id="speed" min="1" max="50" value="5"><span style="font-size:.68rem;color:#555">Fast</span></div>
+        </div>
+
+        <div class="actions">
+          <button class="btn-primary" onclick="applyAnimation()">Apply to Display</button>
+          <button class="btn-secondary" onclick="stopDisplay()">Stop / Clear</button>
+          <span class="live-dot">applies live</span>
+        </div>
+        <div class="status" id="status"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="palettes.js"></script>
+  <script src="previews.js"></script>
+  <script>
+    let live = true, liveTimer = null;
+    const getEl = id => document.getElementById(id);
+    function setStatus(m, e) { const el = getEl('status'); el.textContent = m; el.className = 'status' + (e ? ' err' : ''); }
+    function liveApply() { clearTimeout(liveTimer); liveTimer = setTimeout(applyAnimation, 180); }
+
+    const sunPresetsEl = getEl('sun-presets');
+    SUN_PRESETS.forEach((p, i) => {
+      const el = document.createElement('div');
+      el.className = 'preset-swatch' + (i === 0 ? ' active' : '');
+      el.title = p.name;
+      el.style.background = `linear-gradient(135deg,${p.c1} 40%,${p.c2} 70%,${p.c3})`;
+      el.onclick = () => applySunPreset(i);
+      sunPresetsEl.appendChild(el);
+    });
+    function applySunPreset(i) {
+      const p = SUN_PRESETS[i];
+      getEl('sun-c1').value = p.c1; getEl('sun-c2').value = p.c2;
+      getEl('sun-c3').value = p.c3; getEl('sun-c4').value = p.c4; getEl('sun-c5').value = p.c5;
+      sunPresetsEl.querySelectorAll('.preset-swatch').forEach((el, j) => el.classList.toggle('active', j === i));
+      if (live) liveApply();
+    }
+    function clearSunPreset() {
+      sunPresetsEl.querySelectorAll('.preset-swatch').forEach(el => el.classList.remove('active'));
+    }
+
+    ['sun-c1', 'sun-c2', 'sun-c3', 'sun-c4', 'sun-c5'].forEach(id =>
+      getEl(id).addEventListener('input', () => { clearSunPreset(); if (live) liveApply(); }));
+    getEl('sun-disc').addEventListener('input', e => {
+      getEl('v-sun-disc').textContent = e.target.value;
+      if (live) liveApply();
+    });
+    getEl('sun-ring').addEventListener('input', e => {
+      getEl('v-sun-ring').textContent = e.target.value;
+      if (live) liveApply();
+    });
+    getEl('speed').addEventListener('input', e => {
+      getEl('v-speed').textContent = e.target.value;
+      if (live) liveApply();
+    });
+
+    function buildPayload() {
+      const body = { type: 'sun', speed: Math.round(1000 / +getEl('speed').value) };
+      body.color1 = getEl('sun-c1').value;
+      body.color2 = getEl('sun-c2').value;
+      body.color3 = getEl('sun-c3').value;
+      body.color4 = getEl('sun-c4').value;
+      body.color5 = getEl('sun-c5').value;
+      body.discBri = +getEl('sun-disc').value;
+      body.ringBri = +getEl('sun-ring').value;
+      return body;
+    }
+
+    async function applyAnimation() {
+      try {
+        const r = await fetch('/api/display/animation', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(buildPayload())
+        });
+        setStatus(r.ok ? '✓ Running: sun' : 'Error: HTTP ' + r.status, !r.ok);
+      } catch { setStatus('Cannot reach board — check WiFi connection.', true); }
+    }
+    async function stopDisplay() {
+      try {
+        const r = await fetch('/api/display/clear', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}'
+        });
+        setStatus(r.ok ? 'Display cleared.' : 'Error: HTTP ' + r.status, !r.ok);
+      } catch { setStatus('Cannot reach board — check WiFi connection.', true); }
+    }
+
+    MatrixPreview.start(getEl('prev'), 'sun');
+  </script>
+  </div>
+  <script src="backnav.js" data-auto data-parent="/animations.html" data-label="Animations"></script>
+  <script src="bright.js" data-auto></script>
+  <script src="header.js" data-auto></script>
+</body>
+</html>

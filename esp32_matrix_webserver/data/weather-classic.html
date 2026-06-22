@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Icon + Temp — Weather</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230d0d0d'/%3E%3Ccircle cx='4' cy='4' r='1.5' fill='%2300ff88'/%3E%3Ccircle cx='12' cy='4' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='8' cy='8' r='1.5' fill='%2322ddff'/%3E%3Ccircle cx='4' cy='12' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='12' cy='12' r='1.5' fill='%2300ff88'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="wrap" style="--accent-page:#22ddff">
+  <h1>🌤 Icon + Temp</h1>
+
+  <div class="panel">
+    <div class="subcard">
+      <div class="subhead">Location</div>
+      <div class="row">
+        <label for="zipcode">ZIP Code</label>
+        <input type="text" id="zipcode" value="85013" maxlength="10" placeholder="ZIP or city"
+               style="background:#1a1a1a;border:1px solid #333;border-radius:7px;color:#e0e0e0;font-size:1rem;padding:8px 12px;width:160px;outline:none">
+      </div>
+    </div>
+
+    <div class="subcard">
+      <div class="subhead">Temperature Units</div>
+      <div class="chips">
+        <button class="chip active" id="btn-F" onclick="selectUnit('F')">°F</button>
+        <button class="chip"        id="btn-C" onclick="selectUnit('C')">°C</button>
+      </div>
+    </div>
+
+    <div class="subcard">
+      <div class="subhead">Get Weather Info</div>
+      <div class="chips" style="gap:10px">
+        <button class="chip" id="wxbtn-temp"     onclick="sendWeather('temp')">🌡️ Get Temp</button>
+        <button class="chip" id="wxbtn-humidity" onclick="sendWeather('humidity')">💧 Get Humidity</button>
+        <button class="chip" id="wxbtn-uv"       onclick="sendWeather('uv')">☀️ Get UV Index</button>
+        <button class="chip" id="wxbtn-pressure" onclick="sendWeather('pressure')">🔵 Get Pressure</button>
+      </div>
+      <div class="hint">Each button fetches fresh data and shows only that reading on the matrix. Data comes from wttr.in — no API key needed.</div>
+    </div>
+
+    <div class="subcard" id="preview" style="display:none">
+      <div class="subhead">Latest Reading</div>
+      <div class="row">
+        <span style="font-size:2.4rem" id="wx-icon">—</span>
+        <span style="font-size:0.8rem; color:#555" id="wx-desc">—</span>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px">
+        <div style="background:#1a1a1a;border-radius:8px;padding:10px 14px">
+          <div style="font-size:0.68rem;color:#555;text-transform:uppercase;letter-spacing:0.06em">Temperature</div>
+          <div style="font-size:1.2rem;font-weight:700;font-family:monospace;margin-top:2px;color:#ff9944" id="wx-temp">—</div>
+        </div>
+        <div style="background:#1a1a1a;border-radius:8px;padding:10px 14px">
+          <div style="font-size:0.68rem;color:#555;text-transform:uppercase;letter-spacing:0.06em">Humidity</div>
+          <div style="font-size:1.2rem;font-weight:700;font-family:monospace;margin-top:2px;color:#00ccff" id="wx-hum">—</div>
+        </div>
+        <div style="background:#1a1a1a;border-radius:8px;padding:10px 14px">
+          <div style="font-size:0.68rem;color:#555;text-transform:uppercase;letter-spacing:0.06em">UV Index</div>
+          <div style="font-size:1.2rem;font-weight:700;font-family:monospace;margin-top:2px;color:#ffcc00" id="wx-uv">—</div>
+        </div>
+        <div style="background:#1a1a1a;border-radius:8px;padding:10px 14px">
+          <div style="font-size:0.68rem;color:#555;text-transform:uppercase;letter-spacing:0.06em">Pressure</div>
+          <div style="font-size:1.2rem;font-weight:700;font-family:monospace;margin-top:2px;color:#bb66ff" id="wx-pres">—</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn-secondary" onclick="clearDisplay()">Clear Display</button>
+    </div>
+
+    <div class="status" id="status"></div>
+  </div>
+
+  <script>
+    let unit = 'F';
+    let activeMode = null;
+
+    const CATEGORY_ICONS = ['☀️','⛅','☁️','🌫️','🌧️','❄️','⛈️'];
+    const CATEGORY_NAMES = ['Sunny','Partly Cloudy','Cloudy','Foggy','Rainy','Snowy','Thunderstorm'];
+    const MODE_LABELS = { temp: 'Temperature', humidity: 'Humidity', uv: 'UV Index', pressure: 'Pressure' };
+
+    function selectUnit(u) {
+      unit = u;
+      document.getElementById('btn-F').classList.toggle('active', u === 'F');
+      document.getElementById('btn-C').classList.toggle('active', u === 'C');
+      // Live-apply the unit change only when a reading is already on the board.
+      if (activeMode) sendWeather(activeMode);
+    }
+
+    function setStatus(msg, isErr) {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = 'status' + (isErr ? ' err' : '');
+    }
+
+    function setActiveButton(mode) {
+      ['temp','humidity','uv','pressure'].forEach(m => {
+        document.getElementById('wxbtn-' + m).classList.toggle('active', m === mode);
+      });
+      activeMode = mode;
+    }
+
+    async function sendWeather(mode) {
+      const zip = document.getElementById('zipcode').value.trim() || '85013';
+      setStatus('Fetching weather… (takes a few seconds)', false);
+      setActiveButton(mode);
+      try {
+        const r = await fetch('/api/display/animation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'weather', zipcode: zip, units: unit, data_mode: mode, speed: 80 })
+        });
+        if (r.ok) {
+          setStatus('✓ Showing ' + (MODE_LABELS[mode] || mode) + ' on display', false);
+          setTimeout(fetchPreview, 1200);
+        } else {
+          setStatus('Error: HTTP ' + r.status, true);
+          setActiveButton(null);
+        }
+      } catch {
+        setStatus('Cannot reach board — check WiFi.', true);
+        setActiveButton(null);
+      }
+    }
+
+    async function clearDisplay() {
+      try {
+        const r = await fetch('/api/display/clear', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}'
+        });
+        if (r.ok) {
+          setStatus('Display cleared.', false);
+          setActiveButton(null);
+          document.getElementById('preview').style.display = 'none';
+        } else {
+          setStatus('Error: HTTP ' + r.status, true);
+        }
+      } catch {
+        setStatus('Cannot reach board.', true);
+      }
+    }
+
+    async function fetchPreview() {
+      try {
+        const r = await fetch('/api/sensors/weather');
+        const d = await r.json();
+        const cat = d.category || 0;
+        document.getElementById('wx-icon').textContent = CATEGORY_ICONS[cat] || '☀️';
+        document.getElementById('wx-desc').textContent = (CATEGORY_NAMES[cat] || '') + '  ·  ZIP ' + (d.zip || '');
+        document.getElementById('wx-temp').textContent = (d.temp  || '—') + '°' + (d.unit || 'F');
+        document.getElementById('wx-hum').textContent  = (d.humidity  != null ? d.humidity  + '%' : '—');
+        document.getElementById('wx-uv').textContent   = (d.uvIndex   != null ? d.uvIndex        : '—');
+        document.getElementById('wx-pres').textContent = (d.pressure  != null ? d.pressure + ' hPa' : '—');
+        document.getElementById('preview').style.display = 'block';
+      } catch { /* silently skip */ }
+    }
+  </script>
+  </div>
+  <script src="backnav.js" data-auto data-parent="/weather.html" data-label="Weather"></script>
+  <script src="bright.js" data-auto></script>
+  <script src="header.js" data-auto></script>
+</body>
+</html>
