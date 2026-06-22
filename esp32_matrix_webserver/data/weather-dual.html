@@ -4,107 +4,74 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Weather 2</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, -apple-system, sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; padding: 20px; }
-    .wrap { max-width: 760px; margin: 0 auto; }
-    .back { color: #555; text-decoration: none; font-size: 0.85rem; display: inline-block; margin-bottom: 16px; }
-    .back:hover { color: #999; }
-    h1 { font-size: 1.3rem; color: #44aaff; margin-bottom: 24px; }
-    .panel { background: #161616; border: 1px solid #2a2a2a; border-radius: 12px; padding: 24px; max-width: 520px; margin-bottom: 16px; }
-    .group { margin-bottom: 18px; }
-    .group label { display: block; font-size: 0.75rem; color: #777; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; }
-    input[type=text] { background: #1a1a1a; border: 1px solid #333; border-radius: 7px; color: #e0e0e0; font-size: 1rem; padding: 8px 12px; width: 160px; outline: none; }
-    input[type=text]:focus { border-color: #44aaff; }
-    .toggle-row { display: flex; gap: 8px; }
-    .tog-btn { border: 2px solid #333; border-radius: 8px; padding: 8px 20px; cursor: pointer; font-size: 0.85rem; font-weight: 700; background: #1a1a1a; color: #888; transition: border-color 0.12s, color 0.12s; }
-    .tog-btn.active { border-color: #44aaff; color: #fff; }
-    .df-pal-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; }
-    .df-swatch { height: 18px; border-radius: 3px; cursor: pointer; border: 2px solid transparent; transition: border-color 0.1s; }
-    .df-swatch.active { border-color: #44aaff; }
-    .color-pair { display: flex; gap: 16px; }
-    .picker-group { display: flex; flex-direction: column; gap: 5px; }
-    .picker-group label { font-size: 0.68rem; color: #666; text-transform: uppercase; letter-spacing: .06em; }
-    input[type=color] { width: 44px; height: 32px; border: 1px solid #333; border-radius: 6px; background: none; cursor: pointer; padding: 2px; }
-    .icon-strip { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-    .icon-tile { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-    .icon-tile canvas { border-radius: 4px; image-rendering: pixelated; }
-    .icon-tile .tile-label { font-size: 0.6rem; color: #555; text-align: center; width: 56px; }
-    .icon-tile.current canvas { box-shadow: 0 0 0 2px #44aaff; }
-    .main-preview { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 8px; }
-    .main-preview canvas { border-radius: 6px; image-rendering: pixelated; }
-    .main-preview .cur-cond { font-size: 0.7rem; color: #555; }
-    .launch-btn { background: #0d2a55; color: #88bbff; border: 1px solid #1a4080; border-radius: 8px; padding: 12px 28px; cursor: pointer; font-size: 0.9rem; font-weight: 700; transition: background 0.12s; }
-    .launch-btn:hover { background: #122f60; }
-    .status { font-size: 0.78rem; margin-top: 12px; min-height: 1.2em; color: #00cc66; }
-    .status.err { color: #ff5555; }
-    .note { font-size: 0.72rem; color: #555; margin-top: 14px; line-height: 1.5; }
-  </style>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230d0d0d'/%3E%3Ccircle cx='4' cy='4' r='1.5' fill='%2300ff88'/%3E%3Ccircle cx='12' cy='4' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='8' cy='8' r='1.5' fill='%2322ddff'/%3E%3Ccircle cx='4' cy='12' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='12' cy='12' r='1.5' fill='%2300ff88'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="app.css">
 </head>
 <body>
-<div class="wrap">
-  <a href="/" class="back">← Home</a>
+<div class="wrap" style="--accent-page:#22ddff">
   <h1>🌦️ Weather 2</h1>
 
   <div class="panel">
-    <div class="group">
-      <label>ZIP Code</label>
-      <input type="text" id="zipcode" value="85013" maxlength="10" placeholder="ZIP or city">
-    </div>
-
-    <div class="group">
-      <label>Temperature Units</label>
-      <div class="toggle-row">
-        <button class="tog-btn active" id="btn-F" onclick="selectUnit('F')">°F</button>
-        <button class="tog-btn"        id="btn-C" onclick="selectUnit('C')">°C</button>
+    <div class="subcard">
+      <div class="subhead">Location</div>
+      <div class="row">
+        <label for="zipcode">ZIP Code</label>
+        <input type="text" id="zipcode" value="85013" maxlength="10" placeholder="ZIP or city"
+               style="background:#1a1a1a;border:1px solid #333;border-radius:7px;color:#e0e0e0;font-size:1rem;padding:8px 12px;width:160px;outline:none">
       </div>
     </div>
 
-    <div class="group">
-      <label>Color Palette — sets digit colors</label>
-      <div class="df-pal-grid" id="w2-pal-grid"></div>
+    <div class="subcard">
+      <div class="subhead">Temperature Units</div>
+      <div class="chips">
+        <button class="chip active" id="btn-F" onclick="selectUnit('F')">°F</button>
+        <button class="chip"        id="btn-C" onclick="selectUnit('C')">°C</button>
+      </div>
     </div>
 
-    <div class="group">
-      <label>Digit Colors</label>
-      <div class="color-pair">
+    <div class="subcard">
+      <div class="subhead">Color Palette — sets digit colors</div>
+      <div class="df-pal-grid" id="w2-pal-grid"></div>
+      <div class="color-row" style="margin-top:10px">
         <div class="picker-group">
           <label>Tens</label>
-          <input type="color" id="w2-c1" value="#ffa500" oninput="clearW2Preset()">
+          <input type="color" id="w2-c1" value="#ffa500" oninput="clearW2Preset(); if (live) liveApply();">
         </div>
         <div class="picker-group">
           <label>Units</label>
-          <input type="color" id="w2-c2" value="#ffdc50" oninput="clearW2Preset()">
+          <input type="color" id="w2-c2" value="#ffdc50" oninput="clearW2Preset(); if (live) liveApply();">
         </div>
       </div>
     </div>
 
-    <div class="group">
-      <label>Icon Previews</label>
-      <div class="icon-strip" id="icon-strip">
-        <div class="icon-tile" id="tile-0"><canvas id="cv0" width="56" height="56"></canvas><div class="tile-label">Sunny</div></div>
-        <div class="icon-tile" id="tile-1"><canvas id="cv1" width="56" height="56"></canvas><div class="tile-label">Partly Cloudy</div></div>
-        <div class="icon-tile" id="tile-2"><canvas id="cv2" width="56" height="56"></canvas><div class="tile-label">Cloudy</div></div>
-        <div class="icon-tile" id="tile-3"><canvas id="cv3" width="56" height="56"></canvas><div class="tile-label">Foggy</div></div>
-        <div class="icon-tile" id="tile-4"><canvas id="cv4" width="56" height="56"></canvas><div class="tile-label">Rainy</div></div>
-        <div class="icon-tile" id="tile-5"><canvas id="cv5" width="56" height="56"></canvas><div class="tile-label">Snowy</div></div>
-        <div class="icon-tile" id="tile-6"><canvas id="cv6" width="56" height="56"></canvas><div class="tile-label">Thunder</div></div>
+    <div class="subcard">
+      <div class="subhead">Icon Previews</div>
+      <div class="icon-strip" id="icon-strip" style="display:flex;gap:8px;flex-wrap:wrap">
+        <div class="icon-tile" id="tile-0" style="display:flex;flex-direction:column;align-items:center;gap:4px"><canvas id="cv0" width="56" height="56" style="border-radius:4px;image-rendering:pixelated"></canvas><div class="tile-label" style="font-size:0.6rem;color:#555;text-align:center;width:56px">Sunny</div></div>
+        <div class="icon-tile" id="tile-1" style="display:flex;flex-direction:column;align-items:center;gap:4px"><canvas id="cv1" width="56" height="56" style="border-radius:4px;image-rendering:pixelated"></canvas><div class="tile-label" style="font-size:0.6rem;color:#555;text-align:center;width:56px">Partly Cloudy</div></div>
+        <div class="icon-tile" id="tile-2" style="display:flex;flex-direction:column;align-items:center;gap:4px"><canvas id="cv2" width="56" height="56" style="border-radius:4px;image-rendering:pixelated"></canvas><div class="tile-label" style="font-size:0.6rem;color:#555;text-align:center;width:56px">Cloudy</div></div>
+        <div class="icon-tile" id="tile-3" style="display:flex;flex-direction:column;align-items:center;gap:4px"><canvas id="cv3" width="56" height="56" style="border-radius:4px;image-rendering:pixelated"></canvas><div class="tile-label" style="font-size:0.6rem;color:#555;text-align:center;width:56px">Foggy</div></div>
+        <div class="icon-tile" id="tile-4" style="display:flex;flex-direction:column;align-items:center;gap:4px"><canvas id="cv4" width="56" height="56" style="border-radius:4px;image-rendering:pixelated"></canvas><div class="tile-label" style="font-size:0.6rem;color:#555;text-align:center;width:56px">Rainy</div></div>
+        <div class="icon-tile" id="tile-5" style="display:flex;flex-direction:column;align-items:center;gap:4px"><canvas id="cv5" width="56" height="56" style="border-radius:4px;image-rendering:pixelated"></canvas><div class="tile-label" style="font-size:0.6rem;color:#555;text-align:center;width:56px">Snowy</div></div>
+        <div class="icon-tile" id="tile-6" style="display:flex;flex-direction:column;align-items:center;gap:4px"><canvas id="cv6" width="56" height="56" style="border-radius:4px;image-rendering:pixelated"></canvas><div class="tile-label" style="font-size:0.6rem;color:#555;text-align:center;width:56px">Thunder</div></div>
       </div>
     </div>
 
-    <div class="group">
-      <label>Display Preview</label>
-      <div class="main-preview">
-        <canvas id="cv-main" width="144" height="144"></canvas>
-        <div class="cur-cond" id="cur-cond">—</div>
+    <div class="subcard">
+      <div class="subhead">Display Preview</div>
+      <div class="main-preview" style="display:flex;flex-direction:column;align-items:center;gap:8px">
+        <canvas id="cv-main" width="144" height="144" style="border-radius:6px;image-rendering:pixelated"></canvas>
+        <div class="cur-cond hint" id="cur-cond" style="margin-top:0">—</div>
       </div>
     </div>
 
-    <button class="launch-btn" onclick="sendWeather2()">Launch on Display</button>
+    <div class="actions">
+      <button class="btn-primary" onclick="sendWeather2()">Launch on Display</button>
+      <span class="live-dot">applies live</span>
+    </div>
     <div class="status" id="status"></div>
-    <p class="note">Fetches weather on launch. Refreshes every 10 min. Degree symbol is always cyan.</p>
+    <p class="hint">Fetches weather on launch. Refreshes every 10 min. Degree symbol is always cyan.</p>
   </div>
-</div>
 
 <script>
 // ── Helpers ───────────────────────────────────────────────────
@@ -120,6 +87,12 @@ let w2Unit = 'F';
 let currentCat = 0;
 let currentTemp = 72;
 let frame = 0;
+let live = true;
+let liveTimer = null;
+function liveApply() {
+  clearTimeout(liveTimer);
+  liveTimer = setTimeout(sendWeather2, 180);
+}
 
 // Ray sparkle state: [{phase,delay}] for 5 fixed positions
 const rays = [
@@ -407,6 +380,7 @@ const DF_PAL = [
       w2PalIdx = i;
       $('w2-c1').value = c1;
       $('w2-c2').value = c3;
+      if (live) liveApply();
     };
     grid.appendChild(el);
   });
@@ -422,6 +396,7 @@ function selectUnit(u) {
   w2Unit = u;
   $('btn-F').classList.toggle('active', u==='F');
   $('btn-C').classList.toggle('active', u==='C');
+  if (live) liveApply();
 }
 
 // ── Status ────────────────────────────────────────────────────
@@ -440,8 +415,11 @@ async function fetchPreview() {
     currentTemp = (w2Unit === 'F') ? (d.temp || 72) : (d.tempC || 22);
     const names = ['Sunny','Partly Cloudy','Cloudy','Foggy','Rainy','Snowy','Thunder'];
     $('cur-cond').textContent = (names[currentCat]||'') + ' · ' + currentTemp + '°' + (d.unit||'F') + ' · ZIP ' + (d.zip||'');
-    // Highlight current tile
-    document.querySelectorAll('.icon-tile').forEach((t,i) => t.classList.toggle('current', i===currentCat));
+    // Highlight current tile (inline box-shadow on its canvas — accent page color)
+    document.querySelectorAll('.icon-tile').forEach((t,i) => {
+      const cv = t.querySelector('canvas');
+      if (cv) cv.style.boxShadow = (i===currentCat) ? '0 0 0 2px var(--accent-page)' : 'none';
+    });
   } catch { /* board not reachable */ }
 }
 
@@ -473,6 +451,7 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 </div>
+  <script src="backnav.js" data-auto data-parent="/weather.html" data-label="Weather"></script>
   <script src="bright.js" data-auto></script>
   <script src="header.js" data-auto></script>
 </body>
