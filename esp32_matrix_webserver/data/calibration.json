@@ -9,10 +9,10 @@
   "notes": "gamma is the panel's measured saturation exponent (~2.0) but is NOT applied as a global stage: at low brightness (bri 5, the expression/idle baseline) value-domain gamma crushes dim pixels to black (frostbite went from full glitter to 4-6 dots). Applied gamma=1.0; the measured 2.0 belongs in gradient-generation code, not the global correction. White-balance is the active correction.",
   "palette": {
     "amber": "#ffb000",
-    "cyan": "#00ffe6",
+    "cyan": "#00ffb0",
     "magenta": "#ff14a0",
     "orange": "#ff5008",
-    "white": "#ffffff"
+    "white": "#ffffe8"
   },
   "steps": 20,
   "pixel_trim": null

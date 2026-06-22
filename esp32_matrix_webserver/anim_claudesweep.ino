@@ -21,10 +21,12 @@ static uint8_t  sweepHead   = 0;       // current head index into SWEEP_PERIM
 static bool     sweepInit   = false;
 
 // Baseline floor: the ring never dims below this. The HARD minimum for amber's
-// green channel to survive FastLED global brightness 5 is 63 (verified math); we
-// default to 76 for real margin (any hue with a weaker green, or a bri-4 corner,
-// still reads). Costs nothing visually at bri 5. Tune live if needed.
-static const uint8_t SWEEP_FLOOR = 76;
+// green channel to survive FastLED global brightness 5 USED to be 63, but the
+// always-on white-balance correction now ATTENUATES green (×0.863) BEFORE the bri-5
+// scaling — so amber's green at the floor must be ~73 (was 63) to still light. We
+// bump 76→88 to restore real margin under correction (any weaker-green hue / bri-4
+// corner still reads). Costs nothing visually at bri 5. Verify live in Phase 4D.
+static const uint8_t SWEEP_FLOOR = 88;
 // Per-frame decay multiplier for the tail (scale8: 200/256 ~= 0.78 -> a ~4-5px tail).
 static const uint8_t SWEEP_DECAY = 200;
 
@@ -45,7 +47,7 @@ static const char* CLAUDE6_BLINK[5] = {
   "######",
   ".#..#."
 };
-static const CRGB CLAUDE_ORANGE = CRGB(0xFF, 0x6A, 0x14);
+static const CRGB CLAUDE_ORANGE = CRGB(0xFF, 0x50, 0x08);   // locked orange #ff5008 (was #ff6a14 — pre-correction; the global white-balance now does the green-pull, so author the true deep orange)
 
 static uint32_t sweepFrameCount = 0;   // drives bob + blink cadence
 

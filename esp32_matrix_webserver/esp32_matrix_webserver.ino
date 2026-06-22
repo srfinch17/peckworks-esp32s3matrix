@@ -192,10 +192,17 @@ uint32_t animationSpeed  = 66;      // ms between frames (lower = faster)
 uint32_t lastFrameMs     = 0;       // millis() timestamp of the last frame
 CRGB     solidColor      = CRGB(0, 100, 255);   // color used by solid/breathe/wave
 
+// ── Calibration-verified neutral white (Phase 4, locked under the white-balance
+// correction). Pure #ffffff renders slightly BLUE once green is attenuated ×0.863,
+// so semantic "neutral white" UI elements (text, clock/timer colon, presence-unknown)
+// are authored warm here. Bright-white highlights (fireworks/snow/stars/sound peak)
+// stay CRGB::White on purpose. ──
+static const CRGB NEUTRAL_WHITE = CRGB(0xFF, 0xF8, 0xE8);   // locked white #ffffe8
+
 // ── Text scroll state ────────────────────────────────────────
 bool     textActive         = false;
 String   scrollText         = "";
-CRGB     scrollColor        = CRGB::White;
+CRGB     scrollColor        = NEUTRAL_WHITE;
 CRGB     scrollColor2       = CRGB(255,  68,   0);   // gradient colors 2-4
 CRGB     scrollColor3       = CRGB(  0, 204, 100);
 CRGB     scrollColor4       = CRGB(  0, 100, 255);
@@ -249,7 +256,7 @@ int      weatherTempC    = 0;   // raw °C
 
 // ── Clock state ───────────────────────────────────────────────
 CRGB     clockColorHours = CRGB(255,  51,   0);  // hours digit color    (#FF3300)
-CRGB     clockColorColon = CRGB(255, 255, 255);  // colon dot color      (#FFFFFF)
+CRGB     clockColorColon = NEUTRAL_WHITE;         // colon dot color (locked #FFFFE8)
 CRGB     clockColorMins  = CRGB(  0, 204, 255);  // minutes digit color  (#00CCFF)
 int      clockTimezone   = -7;                   // UTC offset in hours (e.g. -7 = Arizona MST)
 String   clockTZ         = "";                    // POSIX TZ string (DST-aware, e.g. "MST7MDT,M3.2.0,M11.1.0"); empty = use offset
@@ -262,7 +269,7 @@ uint32_t timerEndMs        = 0;             // millis() when the timer expires
 uint32_t timerTotalMs      = 0;             // original duration in ms
 CRGB     timerColor1       = CRGB(255, 200, 0);   // start color (bottom of fill, minutes)
 CRGB     timerColor2       = CRGB(255,   0, 0);   // end color (top of fill, seconds)
-CRGB     timerColorColon   = CRGB::White;          // colon color (timer_text only)
+CRGB     timerColorColon   = NEUTRAL_WHITE;        // colon color (timer_text only, locked #FFFFE8)
 int      timerExpiredState = 0;             // 0=running, 1=blinking, 2=solid (expired)
 uint32_t timerExpiredMs    = 0;
 
