@@ -56,7 +56,6 @@
     </div>
   </div>
 
-  <script src="ledsim.js"></script>
   <script>
     const W = 8, H = 8, CELL = 36, TRAIL_LEN = 4;
 
@@ -75,9 +74,6 @@
       clearTimeout(liveTimer);
       liveTimer = setTimeout(applyToDisplay, 180);
     }
-
-    // Dim the preview to the shared brightness (bright.js widget) via the shared model.
-    function dim(v) { return window.LedSim ? LedSim.effective(v, LedSim.bri()) : v; }
 
     // One drop per column, matching the firmware MatrixDrop struct exactly
     const drops = Array.from({ length: W }, (_, col) => ({

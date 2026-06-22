@@ -55,7 +55,6 @@
     </div>
   </div>
 
-  <script src="ledsim.js"></script>
   <script>
     const W = 8, H = 8, CELL = 36, FLAKES = 6;
 
@@ -85,9 +84,6 @@
     function flakeColor() {
       return mode === 'confetti' ? PALETTE[Math.floor(Math.random() * PALETTE.length)] : hue;
     }
-
-    // Dim the preview to the shared brightness (bright.js widget) via the shared model.
-    function dim(v) { return window.LedSim ? LedSim.effective(v, LedSim.bri()) : v; }
 
     function spawn(stagger) {
       return {
