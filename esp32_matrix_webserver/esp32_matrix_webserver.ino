@@ -156,6 +156,11 @@ String   resumeKind    = "";
 String   resumeBody    = "";
 bool     resumeDirty   = false;
 uint32_t resumeDirtyMs = 0;
+// Set by applyAnimationBody() from the body's "transient" flag, so handleAnimation
+// can honor it WITHOUT re-parsing the body a second time (the old double-parse
+// doubled per-request JSON allocation — a contributor to heap pressure under rapid
+// POSTs). Only handleAnimation reads it; the boot-resume/idle callers ignore it.
+bool     launchWasTransient = false;
 // The brightness value that persists to NVS. Tracked separately from the live
 // `brightness` global so diagnostics that drive the panel hard (grid-test defaults
 // to 255 for calibration) can never be what the board boots back into — at 255

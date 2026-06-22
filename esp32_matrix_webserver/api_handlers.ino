@@ -148,6 +148,10 @@ bool applyAnimationBody(const String& body) {
   JsonDocument doc;
   if (deserializeJson(doc, body) != DeserializationError::Ok) return false;
 
+  // Surface the transient flag here (we already parsed) so handleAnimation needn't
+  // re-parse the body just to read it. Boot-resume/idle callers ignore this global.
+  launchWasTransient = doc["transient"] | false;
+
   String reqType = String(doc["type"] | "fire");
   bool known = false;
   for (auto n : KNOWN_ANIMS) if (reqType == n) { known = true; break; }
@@ -443,14 +447,10 @@ void handleAnimation() {
   if (!applyAnimationBody(body)) { sendJson(400, "{\"error\":\"Invalid JSON or unknown animation type\"}"); return; }
   // Presence-data mode is transient (like text): presenceJson resets to idle on
   // reboot, so resuming "presence" would come up on an empty screen.
-  // Transient flag skips auto-resume (used by wait-role launches).
+  // Transient flag skips auto-resume (used by wait-role launches). Already read by
+  // applyAnimationBody during its parse (launchWasTransient) — no second parse here.
   // Debounced auto-resume (flushed from loop() after ~8s) — see esp32_matrix_webserver.ino.
-  bool transientLaunch = false;
-  {
-    JsonDocument tdoc;
-    if (deserializeJson(tdoc, body) == DeserializationError::Ok) transientLaunch = tdoc["transient"] | false;
-  }
-  if (animationName != "presence" && !transientLaunch) {
+  if (animationName != "presence" && !launchWasTransient) {
     resumeKind = "anim"; resumeBody = body; resumeDirty = true; resumeDirtyMs = millis();
   }
   sendJson(200, "{\"status\":\"ok\",\"animation\":\"" + animationName + "\"}");
@@ -461,8 +461,24 @@ void handleAnimation() {
 // Each cell is a hex string like "#FF0000". Stops all animations first.
 void handleMatrix() {
   idleNoteActivity(false);   // a real command — disarm idle / cancel screensaver
+
+  // Pressure-relief valve (same as handleFrames): a 64-element nested array parse
+  // plus 64 transient hex strings is the heaviest alloc spike of any display POST.
+  // On an already-pressured internal heap that spike previously caused a HARD FREEZE
+  // (watchdog couldn't recover → power cycle). Bail gracefully instead — the caller
+  // can retry once WiFi/JSON buffers free up.
+  if (ESP.getFreeHeap() < 30000) {
+    sendJson(503, "{\"error\":\"low memory, retry shortly\"}");
+    return;
+  }
+
+  // Parse ZERO-COPY: hold the body in a named buffer and let ArduinoJson point into
+  // it instead of duplicating every hex string into the document — roughly halves
+  // the transient allocation. `body` must outlive all use of `doc` (it does — both
+  // are function-scoped and decoding finishes within this call).
+  String body = server.arg("plain");
   JsonDocument doc;
-  if (deserializeJson(doc, server.arg("plain")) != DeserializationError::Ok) {
+  if (deserializeJson(doc, (char*)body.c_str(), body.length()) != DeserializationError::Ok) {
     sendJson(400, "{\"error\":\"Invalid JSON — body may exceed buffer\"}");
     return;
   }
@@ -711,6 +727,16 @@ void handleStatus() {
   json += ",\"web_version\":\"" + escapeJson(webVersion) + "\"";
   json += ",\"settings_version\":" + String(SETTINGS_VERSION);
   json += ",\"brightness\":" + String(brightness);
+
+  // Heap telemetry — the scarce pool is internal DMA-capable DRAM (WiFi/WebServer/
+  // ArduinoJson churn it; PSRAM can't back it). free_heap is what the loop's
+  // low-heap auto-restart (<14000) watches; largest_block exposes fragmentation
+  // (a big free_heap with a small largest_block = fragmented). Poll across repeated
+  // POSTs to watch allocation pressure without a Serial Monitor.
+  json += ",\"free_heap\":"     + String(ESP.getFreeHeap());
+  json += ",\"largest_block\":" + String(ESP.getMaxAllocHeap());
+  json += ",\"min_free_heap\":" + String(ESP.getMinFreeHeap());
+  json += ",\"free_psram\":"    + String(ESP.getFreePsram());
 
   if (textActive) {
     json += ",\"state\":\"text\"";
