@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Frostbite</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230d0d0d'/%3E%3Ccircle cx='4' cy='4' r='1.5' fill='%2300ff88'/%3E%3Ccircle cx='12' cy='4' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='8' cy='8' r='1.5' fill='%2322ddff'/%3E%3Ccircle cx='4' cy='12' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='12' cy='12' r='1.5' fill='%2300ff88'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="wrap" style="--accent-page:#c98bff">
+  <h1>❄️ Frostbite</h1>
+
+  <div class="panel">
+    <div class="layout">
+      <div class="preview-frame">
+        <canvas id="prev" class="preview" width="240" height="240"></canvas>
+        <div class="preview-label">Live preview</div>
+      </div>
+
+      <div class="controls">
+        <div class="subcard">
+          <div class="subhead">Color Presets</div>
+          <div class="presets-grid cols6" id="fb-presets"></div>
+          <div class="row" style="margin-top:10px"><label>Base Hue</label></div>
+          <div class="color-row"><input type="color" id="fb-color" value="#dce8ff"></div>
+        </div>
+
+        <div class="subcard">
+          <div class="subhead">Texture</div>
+          <div class="row"><label>Background Intensity — <span id="v-fb-mist">40</span>%</label></div>
+          <div class="row"><span style="font-size:.68rem;color:#555">Dim</span><input type="range" id="fb-mist" min="10" max="90" value="40"><span style="font-size:.68rem;color:#555">Bright</span></div>
+          <div class="row" style="margin-top:12px"><label>Sparkle Intensity — <span id="v-fb-sparkle">20</span>%</label></div>
+          <div class="row"><span style="font-size:.68rem;color:#555">Still</span><input type="range" id="fb-sparkle" min="0" max="80" value="20"><span style="font-size:.68rem;color:#555">Dazzle</span></div>
+        </div>
+
+        <div class="subcard">
+          <div class="subhead">Motion</div>
+          <div class="row"><label>Frame Rate — <span id="v-speed">5</span> fps</label></div>
+          <div class="row"><span style="font-size:.68rem;color:#555">Slow</span><input type="range" id="speed" min="1" max="50" value="5"><span style="font-size:.68rem;color:#555">Fast</span></div>
+        </div>
+
+        <div class="actions">
+          <button class="btn-primary" onclick="applyAnimation()">Apply to Display</button>
+          <button class="btn-secondary" onclick="stopDisplay()">Stop / Clear</button>
+          <span class="live-dot">applies live</span>
+        </div>
+        <div class="status" id="status"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="palettes.js"></script>
+  <script src="previews.js"></script>
+  <script>
+    let live = true, liveTimer = null;
+    const getEl = id => document.getElementById(id);
+    function setStatus(m, e) { const el = getEl('status'); el.textContent = m; el.className = 'status' + (e ? ' err' : ''); }
+    function liveApply() { clearTimeout(liveTimer); liveTimer = setTimeout(applyAnimation, 180); }
+
+    const fbPresetsEl = getEl('fb-presets');
+    FB_PRESETS.forEach((p, i) => {
+      const el = document.createElement('div');
+      el.className = 'preset-swatch' + (i === 0 ? ' active' : '');
+      el.title = p.name;
+      el.style.background = p.color;
+      el.onclick = () => applyFbPreset(i);
+      fbPresetsEl.appendChild(el);
+    });
+    function applyFbPreset(i) {
+      getEl('fb-color').value = FB_PRESETS[i].color;
+      fbPresetsEl.querySelectorAll('.preset-swatch').forEach((el, j) => el.classList.toggle('active', j === i));
+      if (live) liveApply();
+    }
+    function clearFbPreset() {
+      fbPresetsEl.querySelectorAll('.preset-swatch').forEach(el => el.classList.remove('active'));
+    }
+
+    getEl('fb-color').addEventListener('input', () => { clearFbPreset(); if (live) liveApply(); });
+    getEl('fb-mist').addEventListener('input', e => {
+      getEl('v-fb-mist').textContent = e.target.value;
+      if (live) liveApply();
+    });
+    getEl('fb-sparkle').addEventListener('input', e => {
+      getEl('v-fb-sparkle').textContent = e.target.value;
+      if (live) liveApply();
+    });
+    getEl('speed').addEventListener('input', e => {
+      getEl('v-speed').textContent = e.target.value;
+      if (live) liveApply();
+    });
+
+    function buildPayload() {
+      const body = { type: 'frostbite', speed: Math.round(1000 / +getEl('speed').value) };
+      body.color = getEl('fb-color').value;
+      body.sparkle = +getEl('fb-sparkle').value;
+      body.mist = +getEl('fb-mist').value;
+      return body;
+    }
+
+    async function applyAnimation() {
+      try {
+        const r = await fetch('/api/display/animation', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(buildPayload())
+        });
+        setStatus(r.ok ? '✓ Running: frostbite' : 'Error: HTTP ' + r.status, !r.ok);
+      } catch { setStatus('Cannot reach board — check WiFi connection.', true); }
+    }
+    async function stopDisplay() {
+      try {
+        const r = await fetch('/api/display/clear', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}'
+        });
+        setStatus(r.ok ? 'Display cleared.' : 'Error: HTTP ' + r.status, !r.ok);
+      } catch { setStatus('Cannot reach board — check WiFi connection.', true); }
+    }
+
+    MatrixPreview.start(getEl('prev'), 'frostbite');
+  </script>
+  </div>
+  <script src="backnav.js" data-auto data-parent="/animations.html" data-label="Animations"></script>
+  <script src="bright.js" data-auto></script>
+  <script src="header.js" data-auto></script>
+</body>
+</html>
