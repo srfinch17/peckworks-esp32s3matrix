@@ -173,6 +173,24 @@ input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent-pag
 .val { font-size: 0.82rem; color: var(--text-faint); min-width: 28px; text-align: right; }
 .hint { font-size: 0.68rem; color: var(--text-faint); margin-top: 5px; }
 
+/* ── Color pickers + palette/preset swatch grids (animation pages) ── */
+.color-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.picker-group { display: flex; flex-direction: column; gap: 5px; }
+.picker-group label {
+  font-size: 0.66rem; color: var(--text-faint);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.df-pal-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; margin: 8px 0 4px; }
+.df-swatch { height: 22px; border-radius: 3px; border: 2px solid transparent; cursor: pointer; transition: transform 0.1s; }
+.df-swatch:hover { transform: scale(1.12); }
+.df-swatch.active { border-color: #fff; }
+.presets-grid { display: grid; gap: 6px; margin-bottom: 12px; }
+.presets-grid.cols5 { grid-template-columns: repeat(5, 1fr); }
+.presets-grid.cols6 { grid-template-columns: repeat(6, 1fr); }
+.preset-swatch { aspect-ratio: 1; border-radius: 6px; border: 2px solid rgba(255,255,255,0.06); cursor: pointer; transition: transform 0.1s; }
+.preset-swatch:hover { transform: scale(1.1); }
+.preset-swatch.active { outline: 2px solid #fff; outline-offset: 2px; }
+
 /* ── Buttons ───────────────────────────────────────────────── */
 .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: var(--s4); }
 button, .btn {
