@@ -4,107 +4,70 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Timer</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, -apple-system, sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; padding: 20px; }
-    .wrap { max-width: 760px; margin: 0 auto; }
-    .back { color: #555; text-decoration: none; font-size: 0.85rem; display: inline-block; margin-bottom: 16px; }
-    .back:hover { color: #999; }
-    h1 { font-size: 1.3rem; color: #4499ff; margin-bottom: 24px; }
-    .panel { background: #161616; border: 1px solid #2a2a2a; border-radius: 12px; padding: 24px; max-width: 480px; margin-bottom: 16px; }
-    .group { margin-bottom: 20px; }
-    .group label { display: block; font-size: 0.75rem; color: #777; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; }
-    .hint { font-size: 0.7rem; color: #444; margin-top: 5px; }
-    .dur-row { display: flex; align-items: center; gap: 10px; }
-    input[type=number] { background: #1a1a1a; border: 1px solid #333; border-radius: 7px; color: #e0e0e0; font-size: 1.4rem; font-family: monospace; padding: 8px 12px; width: 90px; outline: none; text-align: center; }
-    input[type=number]:focus { border-color: #4499ff; }
-    input[type=text] { background: #1a1a1a; border: 1px solid #333; border-radius: 7px; color: #e0e0e0; font-size: 0.95rem; padding: 7px 11px; width: 90px; outline: none; }
-    input[type=text]:focus { border-color: #4499ff; }
-    .dur-label { font-size: 0.85rem; color: #666; }
-    .type-row { display: flex; gap: 8px; flex-wrap: wrap; }
-    .type-btn { border: 2px solid #333; border-radius: 8px; padding: 9px 14px; cursor: pointer; font-size: 0.82rem; font-weight: 600; background: #1a1a1a; color: #888; transition: border-color 0.12s, color 0.12s; }
-    .type-btn.active { border-color: #4499ff; color: #fff; }
-    .color-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-    .color-item { display: flex; flex-direction: column; align-items: center; gap: 5px; }
-    .color-item span { font-size: 0.68rem; color: #555; }
-    input[type=color] { width: 42px; height: 36px; border: 1px solid #333; border-radius: 6px; background: none; cursor: pointer; padding: 2px; }
-    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
-    .btn-primary { background: #0d2a55; color: #88bbff; border: 1px solid #1a4080; border-radius: 7px; padding: 10px 22px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: background 0.12s; }
-    .btn-primary:hover { background: #122f60; }
-    .btn-secondary { background: #1a1a1a; color: #aaa; border: 1px solid #333; border-radius: 7px; padding: 10px 18px; cursor: pointer; font-size: 0.85rem; }
-    .btn-secondary:hover { background: #222; }
-    .status { font-size: 0.78rem; margin-top: 14px; min-height: 1.2em; color: #00cc66; }
-    .status.err { color: #ff5555; }
-    .countdown { background: #111; border: 1px solid #1a1a1a; border-radius: 10px; padding: 16px 20px; margin-top: 14px; display: none; }
-    .countdown.visible { display: block; }
-    .cd-time { font-size: 2.2rem; font-family: monospace; font-weight: 700; color: #88bbff; }
-    .cd-label { font-size: 0.7rem; color: #444; margin-top: 4px; }
-    .note { font-size: 0.72rem; color: #555; margin-top: 16px; line-height: 1.6; }
-    code { background: #1a1a1a; padding: 1px 5px; border-radius: 4px; font-size: 0.78rem; }
-  </style>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230d0d0d'/%3E%3Ccircle cx='4' cy='4' r='1.5' fill='%2300ff88'/%3E%3Ccircle cx='12' cy='4' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='8' cy='8' r='1.5' fill='%2322ddff'/%3E%3Ccircle cx='4' cy='12' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='12' cy='12' r='1.5' fill='%2300ff88'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="app.css">
 </head>
 <body>
-  <div class="wrap">
-  <a href="/" class="back">← Home</a>
+  <div class="wrap" style="--accent-page:#ffc800">
   <h1>⏱ Timer</h1>
 
   <div class="panel">
-    <div class="group">
-      <label>Duration</label>
-      <div class="dur-row">
-        <input type="number" id="dur-min" value="5" min="0" max="999" placeholder="0">
-        <span class="dur-label">min</span>
-        <input type="number" id="dur-sec" value="0" min="0" max="59" placeholder="0">
-        <span class="dur-label">sec</span>
+    <div class="subcard">
+      <div class="subhead">Duration</div>
+      <div class="row">
+        <input type="number" id="dur-min" value="5" min="0" max="999" placeholder="0"
+               style="background:#1a1a1a;border:1px solid #333;border-radius:7px;color:#e0e0e0;font-size:1.4rem;font-family:monospace;padding:8px 12px;width:90px;outline:none;text-align:center">
+        <label>min</label>
+        <input type="number" id="dur-sec" value="0" min="0" max="59" placeholder="0"
+               style="background:#1a1a1a;border:1px solid #333;border-radius:7px;color:#e0e0e0;font-size:1.4rem;font-family:monospace;padding:8px 12px;width:90px;outline:none;text-align:center">
+        <label>sec</label>
       </div>
     </div>
 
-    <div class="group">
-      <label>Animation Style</label>
-      <div class="type-row">
-        <button class="type-btn active" id="btn-fill" onclick="selectType('timer_fill')">🟥 Fill</button>
-        <button class="type-btn"        id="btn-snow" onclick="selectType('timer_snow')">❄️ Snow</button>
-        <button class="type-btn"        id="btn-text" onclick="selectType('timer_text')">🔢 Digits</button>
+    <div class="subcard">
+      <div class="subhead">Animation Style</div>
+      <div class="chips">
+        <button class="chip active" id="btn-fill" onclick="selectType('timer_fill')">🟥 Fill</button>
+        <button class="chip"        id="btn-snow" onclick="selectType('timer_snow')">❄️ Snow</button>
+        <button class="chip"        id="btn-text" onclick="selectType('timer_text')">🔢 Digits</button>
       </div>
       <div class="hint" id="type-hint">LEDs light bottom→top as time passes. Row color shifts from color A to color B.</div>
     </div>
 
-    <div class="group">
-      <label>Gradient Colors <span style="color:#333;font-size:0.68rem;text-transform:none;letter-spacing:0">(leave default or pick your own)</span></label>
+    <div class="subcard">
+      <div class="subhead">Gradient Colors</div>
       <div class="color-row">
-        <div class="color-item">
+        <div class="picker-group">
+          <label>Start color</label>
           <input type="color" id="color1" value="#ffcc00">
-          <span>Start color</span>
         </div>
-        <div style="font-size:1.4rem;color:#333;padding-top:4px">→</div>
-        <div class="color-item">
+        <div style="font-size:1.4rem;color:#333;padding-top:14px">→</div>
+        <div class="picker-group">
+          <label>End color</label>
           <input type="color" id="color2" value="#ff0000">
-          <span>End color</span>
         </div>
-        <button class="btn-secondary" style="margin-left:4px;padding:6px 12px;font-size:0.75rem" onclick="resetColors()">Reset defaults</button>
+        <button class="btn-secondary" style="padding:6px 12px;font-size:0.75rem" onclick="resetColors()">Reset defaults</button>
       </div>
     </div>
 
     <div class="actions">
       <button class="btn-primary"   onclick="startTimer()">Start Timer</button>
       <button class="btn-secondary" onclick="clearDisplay()">Cancel / Clear</button>
+      <span class="live-dot">recolors live while running</span>
     </div>
 
     <div class="status" id="status"></div>
 
-    <div class="countdown" id="countdown">
-      <div class="cd-time" id="cd-time">—</div>
-      <div class="cd-label" id="cd-label">remaining</div>
+    <div class="subcard" id="countdown" style="display:none;text-align:center;margin-top:14px">
+      <div id="cd-time" style="font-size:2.2rem;font-family:monospace;font-weight:700;color:var(--accent-page)">—</div>
+      <div class="hint" id="cd-label" style="margin-top:4px">remaining</div>
     </div>
 
-    <p class="note">
+    <p class="hint" style="margin-top:16px;line-height:1.6">
       <strong>Fill:</strong> one LED per interval, bottom→top, yellow→red by default.<br>
       <strong>Snow:</strong> flakes fall and accumulate randomly per row, blue→white by default.<br>
       <strong>Digits:</strong> large number countdown with a second-progress bar, green→red.<br>
-      All timers flash for 10 seconds when they expire, then stay lit.<br><br>
-      MCP examples:<br>
-      <code>type: timer_fill, duration: 1800</code> (30 min gradient fill)<br>
-      <code>type: timer_snow, duration: 64, color1: #0000ff, color2: #ffffff</code>
+      All timers flash for 10 seconds when they expire, then stay lit.
     </p>
   </div>
 
@@ -119,6 +82,32 @@
       timer_text: { color1: '#00c850', color2: '#ff3200', hint: 'Large digit countdown. Bar at bottom tracks seconds within each minute.' },
     };
 
+    // A timer is explicitly STARTED — duration + Start are never live-applied. But once a
+    // timer is RUNNING, cosmetic colors/style may re-push live (debounced) so a recolor
+    // takes effect without restarting the countdown.
+    let live = true, liveTimer = null;
+    function isRunning() { return tickId !== null; }
+    function liveApply() {
+      if (!isRunning()) return;     // only retint a live timer; otherwise stay fully explicit
+      clearTimeout(liveTimer);
+      liveTimer = setTimeout(pushCosmetic, 180);
+    }
+    async function pushCosmetic() {
+      // Re-push the running timer's appearance for the CURRENT remaining time, so the
+      // recolor lands without restarting the countdown clock.
+      if (!isRunning() || endTime === null) return;
+      const remSec = Math.max(1, Math.ceil((endTime - Date.now()) / 1000));
+      const color1 = document.getElementById('color1').value;
+      const color2 = document.getElementById('color2').value;
+      try {
+        await fetch('/api/display/animation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: timerType, duration: remSec, color1, color2, speed: 60 })
+        });
+      } catch { /* board momentarily unreachable */ }
+    }
+
     function selectType(t) {
       timerType = t;
       ['fill','snow','text'].forEach(k => {
@@ -126,13 +115,18 @@
       });
       document.getElementById('type-hint').textContent = TYPE_DEFAULTS[t].hint;
       resetColors();
+      if (live) liveApply();
     }
 
     function resetColors() {
       const d = TYPE_DEFAULTS[timerType];
       document.getElementById('color1').value = d.color1;
       document.getElementById('color2').value = d.color2;
+      if (live) liveApply();
     }
+
+    document.getElementById('color1').addEventListener('input', () => { if (live) liveApply(); });
+    document.getElementById('color2').addEventListener('input', () => { if (live) liveApply(); });
 
     function setStatus(msg, isErr) {
       const el = document.getElementById('status');
@@ -151,13 +145,14 @@
       if (tickId) clearInterval(tickId);
       endTime = Date.now() + durationSec * 1000;
       const cd = document.getElementById('countdown');
-      cd.classList.add('visible');
+      cd.style.display = 'block';
       function tick() {
         const rem = endTime - Date.now();
         if (rem <= 0) {
           document.getElementById('cd-time').textContent = 'DONE!';
           document.getElementById('cd-label').textContent = 'flashing for 10s then stays lit';
           clearInterval(tickId);
+          tickId = null;
           return;
         }
         document.getElementById('cd-time').textContent = fmtTime(rem);
@@ -197,7 +192,7 @@
     async function clearDisplay() {
       if (tickId) { clearInterval(tickId); tickId = null; }
       endTime = null;
-      document.getElementById('countdown').classList.remove('visible');
+      document.getElementById('countdown').style.display = 'none';
       try {
         const r = await fetch('/api/display/clear', {
           method: 'POST',
@@ -211,6 +206,7 @@
     }
   </script>
   </div>
+  <script src="backnav.js" data-auto data-parent="/" data-label="Home"></script>
   <script src="bright.js" data-auto></script>
   <script src="header.js" data-auto></script>
 </body>
