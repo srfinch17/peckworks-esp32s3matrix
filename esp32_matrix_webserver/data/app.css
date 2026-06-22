@@ -1,0 +1,208 @@
+/* ============================================================
+ * app.css — shared design system for the ESP32-S3 Matrix web UI
+ * ------------------------------------------------------------
+ * One source of truth for tokens + chrome. Every page links this
+ * and deletes its inline <style> design block, so the look stays
+ * consistent by construction. Style = "Elevated" dark: labeled
+ * sub-cards, framed full-strength preview, accent-tinted headings.
+ * Mobile-first responsive. No build step — served from LittleFS.
+ *
+ * Per-page accent: set --accent-page on .wrap, e.g.
+ *   <div class="wrap" style="--accent-page:#ff6600"> (Fire)
+ * Sliders, sub-card headings, and primary buttons pick it up.
+ * ============================================================ */
+
+:root {
+  /* surfaces */
+  --bg:        #0d0d0d;
+  --surface:   #161616;
+  --surface-2: #121212;
+  --border:    #2a2a2a;
+  --border-2:  #242424;
+  /* text */
+  --text:       #e0e0e0;
+  --text-dim:   #aaaaaa;
+  --text-faint: #666666;
+  /* brand accents */
+  --accent: #00ff88;   /* green — brand/default */
+  --amber:  #ffb000;
+  --cyan:   #22ddff;
+  --anim:   #c98bff;   /* animations / section accent */
+  --ok:  #00cc66;
+  --err: #ff5555;
+  /* shape + space */
+  --r:    12px;
+  --r-sm: 8px;
+  --r-pill: 999px;
+  --s1: 6px;
+  --s2: 12px;
+  --s3: 16px;
+  --s4: 20px;
+  --s5: 28px;
+  --maxw: 760px;
+  /* the active accent for a page (overridable via --accent-page on .wrap) */
+  --accent-page: var(--accent);
+}
+
+* , *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding: var(--s4);
+  line-height: 1.45;
+}
+
+.wrap { max-width: var(--maxw); margin: 0 auto; }
+
+/* ── Page title (when a page uses one) ─────────────────────── */
+h1 {
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 2px 0 var(--s3);
+  display: flex; align-items: center; gap: 8px;
+  color: var(--accent-page);
+}
+.subtitle { color: var(--text-faint); font-size: 0.82rem; margin-top: 4px; }
+
+/* ── App card grid (hubs) ──────────────────────────────────── */
+.apps {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--s2);
+  margin-bottom: var(--s5);
+}
+.card {
+  background: linear-gradient(var(--surface), #131313);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: var(--s4) var(--s3);
+  text-align: center;
+  text-decoration: none;
+  color: var(--text);
+  /* uniform height regardless of description length (fixes the oversized-card bug) */
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  gap: 5px;
+  min-height: 116px;
+  transition: border-color 0.15s, transform 0.1s;
+}
+.card:hover { border-color: #444; transform: translateY(-2px); }
+.card .icon { font-size: 2.2rem; line-height: 1; display: block; }
+.card .name { font-weight: 600; font-size: 0.92rem; }
+.card .desc { font-size: 0.7rem; color: var(--text-faint); line-height: 1.35; }
+
+/* ── Panels + Elevated sub-cards ───────────────────────────── */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: var(--s4);
+}
+.panel-title {
+  font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text-faint); margin-bottom: var(--s3);
+}
+.subcard {
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-sm);
+  padding: var(--s3);
+  margin-bottom: var(--s2);
+}
+.subhead {
+  font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--accent-page); margin-bottom: 10px;
+}
+
+/* ── Control-page layout (preview + controls) ──────────────── */
+.layout { display: flex; gap: var(--s5); align-items: flex-start; flex-wrap: wrap; }
+.controls { flex: 1; min-width: 240px; }
+
+/* ── Framed, full-strength preview ─────────────────────────── */
+.preview-frame {
+  flex: 0 0 auto;
+  background: #0a0a0a;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 8px;
+  width: max-content;
+}
+canvas.preview, .preview-frame canvas {
+  display: block;
+  border-radius: 6px;
+  image-rendering: pixelated;
+  background: #000;
+}
+.preview-label {
+  font-size: 0.62rem; color: var(--text-faint);
+  text-transform: uppercase; letter-spacing: 0.1em;
+  text-align: center; margin-top: 6px;
+}
+
+/* ── Rows + inputs ─────────────────────────────────────────── */
+.row { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; margin-bottom: 12px; }
+.row:last-child { margin-bottom: 0; }
+label { font-size: 0.82rem; color: var(--text-dim); }
+input[type=range] {
+  flex: 1; min-width: 120px; accent-color: var(--accent-page); cursor: pointer; height: 22px;
+}
+input[type=color] {
+  width: 44px; height: 32px; border: 1px solid #333; border-radius: 6px;
+  background: none; cursor: pointer; padding: 2px;
+}
+input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent-page); cursor: pointer; }
+.val { font-size: 0.82rem; color: var(--text-faint); min-width: 28px; text-align: right; }
+.hint { font-size: 0.68rem; color: var(--text-faint); margin-top: 5px; }
+
+/* ── Buttons ───────────────────────────────────────────────── */
+.actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: var(--s4); }
+button, .btn {
+  background: #1e1e1e; color: #ccc; border: 1px solid #333; border-radius: 7px;
+  padding: 9px 18px; cursor: pointer; font-size: 0.85rem; font-family: inherit;
+  transition: background 0.12s, border-color 0.12s;
+}
+button:hover, .btn:hover { background: #272727; }
+.btn-primary {
+  font-weight: 600;
+  color: var(--accent-page);
+  border-color: color-mix(in srgb, var(--accent-page) 45%, #333);
+  background: color-mix(in srgb, var(--accent-page) 12%, #161616);
+}
+.btn-primary:hover { background: color-mix(in srgb, var(--accent-page) 20%, #161616); }
+.btn-secondary { /* alias of base button */ }
+.danger { border-color: #7a0000; color: var(--err); }
+.danger:hover { background: #250000; }
+
+/* ── Status + live-apply indicator ─────────────────────────── */
+.status { font-size: 0.78rem; margin-top: 12px; min-height: 1.2em; color: var(--ok); }
+.status.err { color: var(--err); }
+.live-dot {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 0.74rem; color: var(--ok);
+}
+.live-dot::before {
+  content: ''; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--ok); box-shadow: 0 0 6px var(--ok);
+}
+
+/* ── Footer ────────────────────────────────────────────────── */
+footer { margin-top: var(--s4); font-size: 0.7rem; color: #3a3a3a; text-align: center; }
+
+/* ── Responsive (mobile-first reflow) ──────────────────────── */
+@media (max-width: 480px) {
+  body { padding: 14px; }
+  .apps { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .card { min-height: 104px; padding: var(--s3) 10px; }
+  .layout { flex-direction: column; gap: var(--s3); }
+  .preview-frame { width: 100%; }
+  .preview-frame canvas { width: 100%; height: auto; }
+  .controls { width: 100%; min-width: 0; }
+  input[type=range] { height: 28px; }              /* bigger tap target */
+  button, .btn { padding: 11px 18px; }
+}
+@media (max-width: 360px) {
+  .apps { grid-template-columns: 1fr; }
+}
