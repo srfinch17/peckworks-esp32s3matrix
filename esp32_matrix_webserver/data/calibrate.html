@@ -4,13 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Calibration Lab</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230d0d0d'/%3E%3Ccircle cx='4' cy='4' r='1.5' fill='%2300ff88'/%3E%3Ccircle cx='12' cy='4' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='8' cy='8' r='1.5' fill='%2322ddff'/%3E%3Ccircle cx='4' cy='12' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='12' cy='12' r='1.5' fill='%2300ff88'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="app.css">
+  <!-- Lab-specific chrome kept inline: the Lab deliberately renders RAW/corrected
+       panel output and its widget styling (cal-section, protocol, swatch rows,
+       gamma canvas, JSON preview) must stay exactly as measured. These rules come
+       after app.css so they take precedence where they overlap. -->
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: system-ui, -apple-system, sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; padding: 20px; }
     .wrap { max-width: 760px; margin: 0 auto; }
-    .back { color: #555; text-decoration: none; font-size: 0.85rem; display: inline-block; margin-bottom: 16px; }
-    .back:hover { color: #999; }
-    h1 { font-size: 1.3rem; color: #ff4400; margin-bottom: 5px; }
+    h1 { font-size: 1.3rem; margin-bottom: 5px; }   /* color flows from --accent-page (Lab red) */
     .subtitle { font-size: 0.78rem; color: #666; margin-bottom: 22px; line-height: 1.5; }
 
     .cal-section { background: #111; border: 1px solid #1e1e1e; border-radius: 10px; padding: 18px 20px; margin-bottom: 18px; }
@@ -41,8 +45,7 @@
   </style>
 </head>
 <body>
-<div class="wrap">
-  <a href="/system.html" class="back">← System</a>
+<div class="wrap" style="--accent-page:#ff4400">
   <h1>🔬 Calibration Lab</h1>
   <p class="subtitle">
     Measure what this board actually displays, then save it to <code>calibration.json</code>.<br>
@@ -393,6 +396,7 @@
   setGamma(1);
   updateSweepHint();   // show the hint without driving the board on load
 </script>
+<script src="backnav.js" data-auto data-parent="/system.html" data-label="System"></script>
 <script src="header.js" data-auto></script>
 </body>
 </html>
