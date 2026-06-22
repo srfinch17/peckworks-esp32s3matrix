@@ -51,7 +51,7 @@
       var t = (h1.textContent || '').replace(/^[^A-Za-z0-9]+/, '').trim();
       if (t) return t;
     }
-    return (document.title || '').split(/[—|\-]/)[0].trim();
+    return (document.title || '').split(/\s+[—|]\s+/)[0].trim();
   }
 
   function buildCrumbs(parent, label) {
