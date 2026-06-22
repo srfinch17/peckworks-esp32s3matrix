@@ -54,7 +54,7 @@ void handleBrightness() {
   brightness = (uint8_t)level;
   resumeBri  = brightness;   // only user-committed brightness persists to NVS (not grid-test's 255)
   FastLED.setBrightness(brightness);
-  FastLED.show();
+  matrixShow();
   resumeDirty = true; resumeDirtyMs = millis();   // debounced auto-resume save (avoids NVS churn on slider drags)
   sendJson(200, "{\"status\":\"ok\",\"brightness\":" + String(brightness) + "}");
 }
@@ -76,7 +76,7 @@ void handleText() {
   // Populate all the scroll_* globals used by renderScrollFrame()
   scrollText = String(doc["text"] | "HELLO");
   scrollText.toUpperCase();   // font only has uppercase glyphs
-  scrollColor    = hexToColor(String(doc["color"]  | "#FFFFFF"));
+  scrollColor    = hexToColor(String(doc["color"]  | "#FFFFE8"));   // neutral white (locked under correction)
   scrollColor2   = hexToColor(String(doc["color2"] | "#FF4400"));
   scrollColor3   = hexToColor(String(doc["color3"] | "#00CC64"));
   scrollColor4   = hexToColor(String(doc["color4"] | "#0064FF"));
@@ -95,7 +95,7 @@ void handleText() {
   textActive     = true;
 
   renderScrollFrame();   // render the first frame immediately
-  FastLED.show();
+  matrixShow();
   sendJson(200, "{\"status\":\"ok\",\"text\":\"" + escapeJson(scrollText) + "\"}");
 }
 
@@ -147,6 +147,10 @@ static const char* const KNOWN_ANIMS[] = {
 bool applyAnimationBody(const String& body) {
   JsonDocument doc;
   if (deserializeJson(doc, body) != DeserializationError::Ok) return false;
+
+  // Surface the transient flag here (we already parsed) so handleAnimation needn't
+  // re-parse the body just to read it. Boot-resume/idle callers ignore this global.
+  launchWasTransient = doc["transient"] | false;
 
   String reqType = String(doc["type"] | "fire");
   bool known = false;
@@ -235,7 +239,7 @@ bool applyAnimationBody(const String& body) {
     // Accept color1/2/3 (the shared MCP convention) as aliases for the named
     // keys the web clock page sends. color1=hours, color2=minutes, color3=colon.
     clockColorHours  = hexToColor(String(doc["colorHours"]   | (doc["color1"] | "#FF3300")));
-    clockColorColon  = hexToColor(String(doc["colorColon"]   | (doc["color3"] | "#FFFFFF")));
+    clockColorColon  = hexToColor(String(doc["colorColon"]   | (doc["color3"] | "#FFFFE8")));
     clockColorMins   = hexToColor(String(doc["colorMinutes"] | (doc["color2"] | "#00CCFF")));
     clockPrevHour    = -1;
     clockPrevMin     = -1;
@@ -299,15 +303,15 @@ bool applyAnimationBody(const String& body) {
     if (animationName == "timer_snow") {
       timerColor1     = CRGB(0, 40, 255);       // blue snowflakes
       timerColor2     = CRGB(220, 240, 255);    // near-white snow at the top
-      timerColorColon = CRGB::White;
+      timerColorColon = NEUTRAL_WHITE;
     } else if (animationName == "timer_text") {
       timerColor1     = CRGB(255, 200, 0);      // minutes: yellow
       timerColor2     = CRGB(255, 100, 0);      // seconds: orange
-      timerColorColon = CRGB::White;
+      timerColorColon = NEUTRAL_WHITE;
     } else {
       timerColor1     = CRGB(255, 200, 0);      // fill start: yellow
       timerColor2     = CRGB(255, 0, 0);        // fill end: red
-      timerColorColon = CRGB::White;
+      timerColorColon = NEUTRAL_WHITE;
     }
 
     // User-supplied colors override the defaults
@@ -443,14 +447,10 @@ void handleAnimation() {
   if (!applyAnimationBody(body)) { sendJson(400, "{\"error\":\"Invalid JSON or unknown animation type\"}"); return; }
   // Presence-data mode is transient (like text): presenceJson resets to idle on
   // reboot, so resuming "presence" would come up on an empty screen.
-  // Transient flag skips auto-resume (used by wait-role launches).
+  // Transient flag skips auto-resume (used by wait-role launches). Already read by
+  // applyAnimationBody during its parse (launchWasTransient) — no second parse here.
   // Debounced auto-resume (flushed from loop() after ~8s) — see esp32_matrix_webserver.ino.
-  bool transientLaunch = false;
-  {
-    JsonDocument tdoc;
-    if (deserializeJson(tdoc, body) == DeserializationError::Ok) transientLaunch = tdoc["transient"] | false;
-  }
-  if (animationName != "presence" && !transientLaunch) {
+  if (animationName != "presence" && !launchWasTransient) {
     resumeKind = "anim"; resumeBody = body; resumeDirty = true; resumeDirtyMs = millis();
   }
   sendJson(200, "{\"status\":\"ok\",\"animation\":\"" + animationName + "\"}");
@@ -461,8 +461,24 @@ void handleAnimation() {
 // Each cell is a hex string like "#FF0000". Stops all animations first.
 void handleMatrix() {
   idleNoteActivity(false);   // a real command — disarm idle / cancel screensaver
+
+  // Pressure-relief valve (same as handleFrames): a 64-element nested array parse
+  // plus 64 transient hex strings is the heaviest alloc spike of any display POST.
+  // On an already-pressured internal heap that spike previously caused a HARD FREEZE
+  // (watchdog couldn't recover → power cycle). Bail gracefully instead — the caller
+  // can retry once WiFi/JSON buffers free up.
+  if (ESP.getFreeHeap() < 30000) {
+    sendJson(503, "{\"error\":\"low memory, retry shortly\"}");
+    return;
+  }
+
+  // Parse ZERO-COPY: hold the body in a named buffer and let ArduinoJson point into
+  // it instead of duplicating every hex string into the document — roughly halves
+  // the transient allocation. `body` must outlive all use of `doc` (it does — both
+  // are function-scoped and decoding finishes within this call).
+  String body = server.arg("plain");
   JsonDocument doc;
-  if (deserializeJson(doc, server.arg("plain")) != DeserializationError::Ok) {
+  if (deserializeJson(doc, (char*)body.c_str(), body.length()) != DeserializationError::Ok) {
     sendJson(400, "{\"error\":\"Invalid JSON — body may exceed buffer\"}");
     return;
   }
@@ -483,7 +499,7 @@ void handleMatrix() {
       setPixel(x, y, hexToColor(row[x].as<String>()));
     }
   }
-  FastLED.show();
+  matrixShow();
   sendJson(200, "{\"status\":\"ok\"}");
 }
 
@@ -560,7 +576,7 @@ void handleFrames() {
   animationActive = true;
 
   stepFramesFrame();   // show the first frame immediately
-  FastLED.show();
+  matrixShow();
   sendJson(200, "{\"status\":\"ok\",\"frames\":" + String(n) + "}");
 }
 
@@ -587,12 +603,12 @@ void handleTemperature() {
         setPixel(x, y, hexToColor(row[x].as<String>()));
       }
     }
-    FastLED.show();
+    matrixShow();
   } else {
     // Text mode: scroll the temperature value as a number string
     float  value = doc["value"] | 0.0f;
     String unit  = String(doc["unit"] | "F");
-    CRGB   color = hexToColor(String(doc["color"] | "#FFFFFF"));
+    CRGB   color = hexToColor(String(doc["color"] | "#FFFFE8"));   // neutral white (locked under correction)
 
     scrollText     = String((int)round(value)) + unit;
     scrollColor    = color;
@@ -603,7 +619,7 @@ void handleTemperature() {
     textActive     = true;
 
     renderScrollFrame();
-    FastLED.show();
+    matrixShow();
   }
 
   sendJson(200, "{\"status\":\"ok\"}");
@@ -712,6 +728,16 @@ void handleStatus() {
   json += ",\"settings_version\":" + String(SETTINGS_VERSION);
   json += ",\"brightness\":" + String(brightness);
 
+  // Heap telemetry — the scarce pool is internal DMA-capable DRAM (WiFi/WebServer/
+  // ArduinoJson churn it; PSRAM can't back it). free_heap is what the loop's
+  // low-heap auto-restart (<14000) watches; largest_block exposes fragmentation
+  // (a big free_heap with a small largest_block = fragmented). Poll across repeated
+  // POSTs to watch allocation pressure without a Serial Monitor.
+  json += ",\"free_heap\":"     + String(ESP.getFreeHeap());
+  json += ",\"largest_block\":" + String(ESP.getMaxAllocHeap());
+  json += ",\"min_free_heap\":" + String(ESP.getMinFreeHeap());
+  json += ",\"free_psram\":"    + String(ESP.getFreePsram());
+
   if (textActive) {
     json += ",\"state\":\"text\"";
     json += ",\"text\":\"" + escapeJson(scrollText) + "\"";
@@ -801,24 +827,31 @@ void handleSettingsPost() {
   sendJson(200, settingsToJson());     // echo the new full settings
 }
 
-// POST /api/grid-test/set — body: {"mode": "color"|"brightness", "brightness": 0-255}
+// POST /api/grid-test/set — body: {"mode": <mode>, "brightness": 0-255, ...}
 //
-// Diagnostic app. Two static test patterns to calibrate what the board can display.
+// Calibration Lab back-end. Renders one of several static test patterns so the
+// Lab UI (data/calibrate.html) can measure what the board actually displays.
+// Static display — no animation loop; leds[] is redrawn only when called.
 //
-// "color" mode: fills 64 pixels with R = (linear_index + 1) * 4, capped at 255.
-//   Pixel [row, col] (1-indexed, left=1, top=1):
-//     linear_index = (row-1)*8 + (col-1)
-//     [1,1]=R4  [1,2]=R8 ... [1,8]=R32
-//     [2,1]=R36 ...          [2,8]=R64
-//     ...
-//     [8,8]=R255
-//   Run at full brightness (255) to find the minimum R value that lights the LED.
+// Ramp modes (channel = (linear_index+1)*4, capped 255; [1,1]=4 → [8,8]=255):
+//   "color"/"ramp_r" — red ramp     "ramp_g" — green ramp     "ramp_b" — blue ramp
+//   Run at full brightness to find the first cell (= min channel value) that lights.
 //
-// "brightness" mode: all 64 pixels = (255,0,0). Drag the brightness slider to find
-//   the global brightness threshold below which LEDs go dark.
+// Sweep modes (all 64 pixels at full channel; dim via "brightness" to find cutoff):
+//   "brightness"/"sweep_r" — full red    "sweep_g" — full green    "sweep_b" — full blue
 //
-// Static display — no animation loop. Changing brightness via /api/brightness
-// re-renders whatever is already in leds[] at the new brightness level.
+// "patch_rgb" — three vertical bands for white-balance comparison: cols 0-1 red,
+//   3-4 green, 6-7 blue (gaps dark). Each band's value is "pr"/"pg"/"pb" (default
+//   255) so the UI can tune each until the three look equally bright.
+//
+// "gamma" — 8-row grey ramp (row 0 dimmest → row 7 brightest white) to judge whether
+//   perceived steps are evenly spaced.
+//
+// "pixel" — a single white pixel at linear index "index" (0-63) for per-pixel
+//   uniformity inspection.
+//
+// Calibration brightness is transient: handleGridTest sets only the live `brightness`
+// (never `resumeBri`), so a 255 all-lit test can never become the NVS boot value.
 void handleGridTest() {
   idleNoteActivity(false);   // a real command — disarm idle / cancel screensaver
   JsonDocument doc;
@@ -835,17 +868,84 @@ void handleGridTest() {
 
   FastLED.setBrightness(brightness);
 
-  if (gridTestMode == "color") {
-    for (int i = 0; i < NUM_LEDS; i++) {
-      uint8_t r = (uint8_t)constrain((i + 1) * 4, 0, 255);
-      leds[i] = CRGB(r, 0, 0);
-    }
-  } else {
+  // Per-channel ramp value for linear index i (steps of 4, capped at 255).
+  auto rampVal = [](int i) -> uint8_t { return (uint8_t)constrain((i + 1) * 4, 0, 255); };
+
+  fill_solid(leds, NUM_LEDS, CRGB::Black);
+
+  if (gridTestMode == "color" || gridTestMode == "ramp_r") {
+    for (int i = 0; i < NUM_LEDS; i++) leds[i] = CRGB(rampVal(i), 0, 0);
+  } else if (gridTestMode == "ramp_g") {
+    for (int i = 0; i < NUM_LEDS; i++) leds[i] = CRGB(0, rampVal(i), 0);
+  } else if (gridTestMode == "ramp_b") {
+    for (int i = 0; i < NUM_LEDS; i++) leds[i] = CRGB(0, 0, rampVal(i));
+  } else if (gridTestMode == "brightness" || gridTestMode == "sweep_r") {
     fill_solid(leds, NUM_LEDS, CRGB(255, 0, 0));
+  } else if (gridTestMode == "sweep_g") {
+    fill_solid(leds, NUM_LEDS, CRGB(0, 255, 0));
+  } else if (gridTestMode == "sweep_b") {
+    fill_solid(leds, NUM_LEDS, CRGB(0, 0, 255));
+  } else if (gridTestMode == "patch_rgb") {
+    // Three equal-value patches (R | gap | G | gap | B) for white balance. The UI
+    // sends pr/pg/pb so each band can be tuned until the three look equally bright.
+    uint8_t pr = (uint8_t)constrain((int)(doc["pr"] | 255), 0, 255);
+    uint8_t pg = (uint8_t)constrain((int)(doc["pg"] | 255), 0, 255);
+    uint8_t pb = (uint8_t)constrain((int)(doc["pb"] | 255), 0, 255);
+    for (int y = 0; y < 8; y++) {
+      setPixel(0, y, CRGB(pr,0,0)); setPixel(1, y, CRGB(pr,0,0));
+      setPixel(3, y, CRGB(0,pg,0)); setPixel(4, y, CRGB(0,pg,0));
+      setPixel(6, y, CRGB(0,0,pb)); setPixel(7, y, CRGB(0,0,pb));
+    }
+  } else if (gridTestMode == "gamma") {
+    // 8-step grey ramp, one value per row (row 0 dimmest), equal R=G=B per row.
+    for (int y = 0; y < 8; y++) {
+      uint8_t v = (uint8_t)constrain((y + 1) * 32 - 1, 0, 255);
+      for (int x = 0; x < 8; x++) setPixel(x, y, CRGB(v, v, v));
+    }
+  } else if (gridTestMode == "pixel") {
+    int idx = constrain((int)(doc["index"] | 0), 0, NUM_LEDS - 1);
+    leds[idx] = CRGB(255, 255, 255);
   }
 
   FastLED.show();
   sendJson(200, "{\"status\":\"ok\",\"mode\":\"" + gridTestMode + "\",\"brightness\":" + String(brightness) + "}");
+}
+
+// GET /api/calibration — return the measured calibration profile (LittleFS
+// /calibration.json), or identity defaults if the file is absent/unreadable.
+// Identity defaults = "do nothing": floors 1, gains 1.0, gamma 1.0, no palette —
+// so a board with no measured profile renders exactly as it does today.
+static const char CALIB_IDENTITY[] =
+  "{\"version\":1,\"measured_at\":\"\",\"board\":\"esp32-s3-matrix\","
+  "\"floors\":{\"r\":1,\"g\":1,\"b\":1},"
+  "\"white_balance\":{\"r\":1.0,\"g\":1.0,\"b\":1.0},"
+  "\"gamma\":1.0,\"palette\":{},\"steps\":0,\"pixel_trim\":null}";
+
+void handleCalibrationGet() {
+  if (LittleFS.exists("/calibration.json")) {
+    File f = LittleFS.open("/calibration.json", "r");
+    if (f) { server.streamFile(f, "application/json"); f.close(); return; }
+  }
+  sendJson(200, String(CALIB_IDENTITY));
+}
+
+// POST /api/calibration — overwrite /calibration.json on LittleFS with the body.
+// Best-effort: the Calibration Lab saves measured results here; the repo copy is
+// committed separately so a later LittleFS upload stays byte-identical. Validates
+// the body parses as JSON before persisting — never write garbage to the profile.
+void handleCalibrationPost() {
+  String body = server.arg("plain");
+  JsonDocument doc;
+  if (deserializeJson(doc, body) != DeserializationError::Ok) {
+    sendJson(400, "{\"error\":\"Invalid JSON\"}");
+    return;
+  }
+  File f = LittleFS.open("/calibration.json", "w");
+  if (!f) { sendJson(500, "{\"error\":\"Cannot open file for write\"}"); return; }
+  f.print(body);
+  f.close();
+  loadCalibration();   // re-measured profile goes live immediately (no reboot)
+  sendJson(200, "{\"status\":\"ok\"}");
 }
 
 // POST /api/idle/arm — Claude's Stop hook calls this when a turn ends. Arms the

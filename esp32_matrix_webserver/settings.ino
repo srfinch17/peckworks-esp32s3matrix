@@ -29,6 +29,7 @@ void loadSettings() {
   settings.idleBri    = prefs.isKey("idle_bri")  ? prefs.getUChar("idle_bri", 5)             : (prefs.putUChar("idle_bri", 5), 5);
   settings.bootAnim   = prefs.isKey("boot_anim") ? prefs.getString("boot_anim", "")          : (prefs.putString("boot_anim", ""), String(""));
   settings.tz         = prefs.isKey("tz")        ? prefs.getString("tz", "")                 : (prefs.putString("tz", ""), String(""));
+  settings.calibCorrection = prefs.isKey("calib_corr") ? prefs.getBool("calib_corr", true)   : (prefs.putBool("calib_corr", true), true);
 
   uint16_t stored = prefs.getUShort("set_ver", 0);
   if (stored != SETTINGS_VERSION) {
@@ -48,6 +49,7 @@ void saveSettings() {
   prefs.putUChar("idle_bri", settings.idleBri);
   prefs.putString("boot_anim", settings.bootAnim);
   prefs.putString("tz", settings.tz);
+  prefs.putBool("calib_corr", settings.calibCorrection);
 }
 
 String settingsToJson() {
@@ -64,6 +66,7 @@ String settingsToJson() {
   j += ",\"default_brightness\":" + String(resumeBri);
   j += ",\"boot_animation\":\"" + escapeJson(settings.bootAnim) + "\"";
   j += ",\"timezone\":\""      + escapeJson(settings.tz) + "\"";
+  j += ",\"calibration_correction\":" + String(settings.calibCorrection ? "true" : "false");
   j += "}";
   return j;
 }
@@ -87,6 +90,7 @@ bool applySettingsJson(const String& body) {
       configTzTime(clockTZ.c_str(), "pool.ntp.org", "time.nist.gov");
     }
   }
+  if (!doc["calibration_correction"].isNull()) settings.calibCorrection = doc["calibration_correction"].as<bool>();
   saveSettings();
   // default_brightness: unified with the live brightness. Apply immediately AND
   // persist via the existing auto-resume "bri" key, so it is identical to the
@@ -94,7 +98,7 @@ bool applySettingsJson(const String& body) {
   if (!doc["default_brightness"].isNull()) {
     int b = constrain((int)(doc["default_brightness"] | resumeBri), 0, 255);
     brightness = (uint8_t)b; resumeBri = brightness;
-    FastLED.setBrightness(brightness); FastLED.show();
+    FastLED.setBrightness(brightness); matrixShow();
     prefs.putUChar("bri", resumeBri);
   }
   return true;

@@ -35,7 +35,7 @@ CRGB presenceColor(const String& intent) {
   if (intent == "error")                            return CRGB(0xE0, 0x47, 0x3C); // red
   if (intent == "info")                             return CRGB(0x7A, 0x8A, 0xA0); // slate
   if (intent == "idle")                             return CRGB(0x46, 0x50, 0x6A); // dim indigo
-  return CRGB(0xFF, 0xFF, 0xFF);                                                    // unknown → white
+  return NEUTRAL_WHITE;                                                             // unknown → neutral white (locked #FFFFE8)
 }
 
 // Parse the stored presenceJson into the render cache. Called when presence mode

@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calibration Lab</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; padding: 20px; }
+    .wrap { max-width: 760px; margin: 0 auto; }
+    .back { color: #555; text-decoration: none; font-size: 0.85rem; display: inline-block; margin-bottom: 16px; }
+    .back:hover { color: #999; }
+    h1 { font-size: 1.3rem; color: #ff4400; margin-bottom: 5px; }
+    .subtitle { font-size: 0.78rem; color: #666; margin-bottom: 22px; line-height: 1.5; }
+
+    .cal-section { background: #111; border: 1px solid #1e1e1e; border-radius: 10px; padding: 18px 20px; margin-bottom: 18px; }
+    .cal-section h2 { font-size: 0.95rem; color: #ff7a40; margin-bottom: 6px; }
+    .protocol { font-size: 0.74rem; color: #888; line-height: 1.5; margin-bottom: 14px; }
+    .protocol .opt { color: #c8922c; }
+
+    .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+    .row .lbl { width: 64px; font-size: 0.8rem; color: #999; }
+    button { background: #161616; color: #bbb; border: 1px solid #2a2a2a; border-radius: 6px; padding: 7px 13px; cursor: pointer; font-size: 0.8rem; transition: all .12s; }
+    button:hover { border-color: #3a3a3a; color: #eee; }
+    button.go { border-color: #882000; color: #ff5a1a; background: #160500; }
+    button.go:hover { background: #220800; }
+    input[type=number] { width: 64px; background: #0c0c0c; border: 1px solid #2a2a2a; color: #eee; border-radius: 5px; padding: 6px 8px; font-size: 0.82rem; }
+    input[type=range] { flex: 1; min-width: 120px; accent-color: #ff4400; cursor: pointer; }
+    input[type=color] { width: 44px; height: 30px; background: none; border: 1px solid #2a2a2a; border-radius: 5px; cursor: pointer; padding: 2px; }
+    textarea { width: 100%; min-height: 54px; background: #0c0c0c; border: 1px solid #2a2a2a; color: #ddd; border-radius: 6px; padding: 8px; font-size: 0.78rem; font-family: monospace; }
+    .val { font-size: 0.82rem; color: #ff7a40; min-width: 48px; text-align: right; font-variant-numeric: tabular-nums; }
+    .hint { font-size: 0.7rem; color: #555; margin-top: 4px; }
+    canvas { border: 1px solid #222; border-radius: 5px; image-rendering: pixelated; }
+
+    pre#calib-json { background: #0a0a0a; border: 1px solid #1e1e1e; border-radius: 8px; padding: 14px; font-size: 0.72rem; color: #9fe0b0; overflow-x: auto; white-space: pre; }
+    .save-row { display: flex; align-items: center; gap: 14px; margin-top: 12px; }
+    button.save { background: #052012; color: #34d17a; border: 1px solid #1f6b40; font-weight: 600; padding: 10px 22px; }
+    button.save:hover { background: #07301b; }
+    #save-status { font-size: 0.8rem; color: #888; }
+    .ok { color: #34d17a; } .err { color: #ff5555; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <a href="/system.html" class="back">← System</a>
+  <h1>🔬 Calibration Lab</h1>
+  <p class="subtitle">
+    Measure what this board actually displays, then save it to <code>calibration.json</code>.<br>
+    Run each test at the board, enter what you see, and Save at the bottom. Ask Claude to commit the repo copy afterward.
+  </p>
+
+  <!-- ── 1. Per-channel floors ─────────────────────────────── -->
+  <div class="cal-section">
+    <h2>1 · Per-channel ON/OFF floors</h2>
+    <p class="protocol">
+      For each channel: click <b>Show ramp</b> (a gradient of that channel, dim → bright across the 64 cells, full brightness).
+      Find the <b>first cell that lights</b> (count left→right, top→bottom, 1–64) and enter it — that cell's value is the channel's floor.
+      Use <b>Show sweep</b> + the slider as a cross-check (dim a full-channel field until it goes dark).
+    </p>
+    <div id="floors-rows"></div>
+    <div class="row">
+      <span class="lbl">Sweep</span>
+      <button onclick="showSweep()">Show sweep</button>
+      <span style="font-size:.7rem;color:#555">ch</span>
+      <select id="sweep-ch" onchange="showSweep()" style="background:#0c0c0c;color:#eee;border:1px solid #2a2a2a;border-radius:5px;padding:5px">
+        <option value="r">red</option><option value="g">green</option><option value="b">blue</option>
+      </select>
+      <input type="range" id="sweep-bri" min="0" max="255" value="255" oninput="onSweepBri(this.value)">
+      <span class="val" id="sweep-bri-val">255</span>
+    </div>
+    <div class="hint" id="sweep-hint">min visible channel at this brightness: —</div>
+  </div>
+
+  <!-- ── 2. White balance ─────────────────────────────────── -->
+  <div class="cal-section">
+    <h2>2 · White balance</h2>
+    <p class="protocol">
+      Click <b>Show patches</b> — three equal-value bands (R | G | B). They probably look unequal (green usually dominates).
+      Lower the brighter bands' values until all three look <b>equally bright</b>, then <b>Compute gains</b>.
+      The dimmest channel ends at gain 1.0; brighter channels get attenuated.
+    </p>
+    <div class="row">
+      <button class="go" onclick="showPatch()">Show patches</button>
+      <span class="lbl" style="width:auto">R</span><input type="number" id="wb-vr" min="0" max="255" value="255" oninput="showPatch()">
+      <span class="lbl" style="width:auto">G</span><input type="number" id="wb-vg" min="0" max="255" value="255" oninput="showPatch()">
+      <span class="lbl" style="width:auto">B</span><input type="number" id="wb-vb" min="0" max="255" value="255" oninput="showPatch()">
+    </div>
+    <div class="row">
+      <button onclick="computeWhiteBalance()">Compute gains</button>
+      <span class="hint">gains → R <span class="val" id="wb-r">1.0</span> &nbsp; G <span class="val" id="wb-g">1.0</span> &nbsp; B <span class="val" id="wb-b">1.0</span></span>
+    </div>
+  </div>
+
+  <!-- ── 3. Gamma ─────────────────────────────────────────── -->
+  <div class="cal-section">
+    <h2>3 · Gamma (fade ramp)</h2>
+    <p class="protocol">
+      Click <b>Show ramp</b> — an 8-row grey ramp on the board. Do the dark steps bunch together?
+      Drag the slider until the on-screen swatches below match the panel's perceived spacing; that's the gamma.
+    </p>
+    <div class="row">
+      <button class="go" onclick="showPattern('gamma')">Show ramp</button>
+      <span class="lbl" style="width:auto">γ</span>
+      <input type="range" id="gamma-slider" min="1" max="3" step="0.05" value="1" oninput="setGamma(this.value)">
+      <span class="val" id="gamma-val">1.00</span>
+    </div>
+    <canvas id="gamma-canvas" width="256" height="32"></canvas>
+  </div>
+
+  <!-- ── 4. Secondary / mixed colors ──────────────────────── -->
+  <div class="cal-section">
+    <h2>4 · Secondary &amp; mixed colors</h2>
+    <p class="protocol">
+      For each: <b>Show</b> fills the panel with that color. Does it read as the named hue at full brightness? At low brightness
+      (drop the panel brightness)? Nudge the picker until it reads true, then <b>Record</b>.
+      <span class="opt">Brightness here uses /api/brightness (persists to the board); Save leaves it at this slider's value.</span>
+    </p>
+    <div class="row">
+      <span class="lbl">Bright</span>
+      <input type="range" id="sec-bri" min="1" max="255" value="40" oninput="setSecBri(this.value)">
+      <span class="val" id="sec-bri-val">40</span>
+    </div>
+    <div id="palette-rows"></div>
+  </div>
+
+  <!-- ── 5. Per-pixel uniformity (optional) ───────────────── -->
+  <div class="cal-section">
+    <h2>5 · Per-pixel uniformity <span style="color:#c8922c;font-size:.75rem">(optional)</span></h2>
+    <p class="protocol">
+      Walk one white pixel across all 64 to spot any that are dimmer or hue-shifted. Note outlier indices (0–63, comma-separated).
+      Leave blank if the panel looks uniform — most boards do, and we ship no per-pixel trim then.
+    </p>
+    <div class="row">
+      <button onclick="stepPixel(-1)">◀ Prev</button>
+      <span class="val" id="pixel-idx" style="min-width:96px">pixel 0 / 63</span>
+      <button onclick="stepPixel(1)">Next ▶</button>
+      <button onclick="showPixel(currentPixel)">Show</button>
+    </div>
+    <textarea id="pixel-outliers" placeholder="e.g. 17, 42  (indices that look off) — or leave blank"></textarea>
+  </div>
+
+  <!-- ── 6. Distinguishable steps ─────────────────────────── -->
+  <div class="cal-section">
+    <h2>6 · Distinguishable brightness steps</h2>
+    <p class="protocol">
+      Click <b>Show ramp</b> (reuses the gamma ramp). How many of the 8 rows look like <b>distinct</b> levels? For finer counting,
+      use the gamma section. Enter the number of levels your eye can actually separate on this panel.
+    </p>
+    <div class="row">
+      <button class="go" onclick="showPattern('gamma')">Show ramp</button>
+      <span class="lbl" style="width:auto">steps</span>
+      <input type="number" id="steps-in" min="0" max="255" value="0" oninput="setSteps(this.value)">
+      <span class="val" id="steps-val">0</span>
+    </div>
+  </div>
+
+  <!-- ── Review & Save ────────────────────────────────────── -->
+  <div class="cal-section">
+    <h2>✓ Review &amp; Save</h2>
+    <p class="protocol">Review the assembled profile, then Save it to the board. Then ask Claude to commit the repo copy (keeps board and repo byte-identical).</p>
+    <button onclick="reviewCalibration()">Refresh preview</button>
+    <pre id="calib-json">(click “Refresh preview”)</pre>
+    <div class="save-row">
+      <button class="save" onclick="saveCalibration()">Save to board</button>
+      <span id="save-status"></span>
+    </div>
+  </div>
+</div>
+
+<script src="ledsim.js"></script>
+<script>
+  // ── Shared state ────────────────────────────────────────────────────────────
+  const CALIB = {
+    version: 1,
+    measured_at: new Date().toISOString().slice(0, 10),
+    board: 'esp32-s3-matrix',
+    floors: { r: 1, g: 1, b: 1 },
+    white_balance: { r: 1.0, g: 1.0, b: 1.0 },
+    gamma: 1.0,
+    palette: {},
+    steps: 0,
+    pixel_trim: null
+  };
+  const CHANNELS = ['r', 'g', 'b'];
+  const CH_NAME = { r: 'Red', g: 'Green', b: 'Blue' };
+  const SECONDARY = {
+    amber: '#ffb000', cyan: '#00ffb0', magenta: '#ff14a0', orange: '#ff5008', white: '#ffffe8'
+  };
+
+  // raw channel value for a linear cell index (matches firmware rampVal)
+  function rampVal(i) { return Math.min((i + 1) * 4, 255); }
+
+  // ── Board calls (all best-effort; same-origin) ──────────────────────────────
+  async function showPattern(mode, opts = {}) {
+    const body = Object.assign({ mode, brightness: 255 }, opts);
+    try {
+      const r = await fetch('/api/grid-test/set', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      return r.ok;
+    } catch { return false; }
+  }
+  async function showSolid(hex) {
+    const row = Array(8).fill(hex.replace('#', ''));
+    const matrix = Array(8).fill(row);
+    try {
+      await fetch('/api/display/matrix', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ matrix })
+      });
+    } catch {}
+  }
+  let secBri = 40;
+  async function setBoardBrightness(level) {
+    try {
+      await fetch('/api/brightness', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ level: +level })
+      });
+    } catch {}
+  }
+
+  // ── 1. Floors ───────────────────────────────────────────────────────────────
+  function buildFloorRows() {
+    const host = document.getElementById('floors-rows');
+    host.innerHTML = '';
+    for (const ch of CHANNELS) {
+      const div = document.createElement('div');
+      div.className = 'row';
+      div.innerHTML =
+        `<span class="lbl">${CH_NAME[ch]}</span>` +
+        `<button class="go" onclick="showPattern('ramp_${ch}')">Show ramp</button>` +
+        `<span style="font-size:.74rem;color:#888">first lit cell</span>` +
+        `<input type="number" min="1" max="64" value="1" id="floor-in-${ch}" oninput="setFloorFromRamp('${ch}', this.value)">` +
+        `<span class="hint">floor → <span class="val" id="floor-${ch}">1</span></span>`;
+      host.appendChild(div);
+    }
+  }
+  // The first visible cell's raw channel value is that channel's floor (at full
+  // brightness, effective == raw, so the raw value IS the effective-value floor).
+  function setFloorFromRamp(ch, firstCell) {
+    const idx = Math.max(1, Math.min(64, parseInt(firstCell, 10) || 1)) - 1;
+    CALIB.floors[ch] = rampVal(idx);
+    document.getElementById('floor-' + ch).textContent = CALIB.floors[ch];
+  }
+  let sweepBri = 255;
+  function showSweep() {
+    const ch = document.getElementById('sweep-ch').value;
+    showPattern('sweep_' + ch, { brightness: sweepBri });
+  }
+  // Update the readout/hint WITHOUT touching the board (used on page load too).
+  function updateSweepHint() {
+    const minVis = (typeof LedSim !== 'undefined') ? LedSim.minVisibleChannel(sweepBri) : Math.ceil(256 / (sweepBri + 1));
+    document.getElementById('sweep-bri-val').textContent = sweepBri;
+    document.getElementById('sweep-hint').textContent =
+      `min visible channel at brightness ${sweepBri}: ${sweepBri === 0 ? '(off)' : minVis}`;
+  }
+  let sweepTimer;
+  function onSweepBri(v) {
+    sweepBri = +v;
+    updateSweepHint();
+    clearTimeout(sweepTimer);
+    sweepTimer = setTimeout(showSweep, 160);   // POST only on actual user input
+  }
+
+  // ── 2. White balance ────────────────────────────────────────────────────────
+  function readWB() {
+    return {
+      vr: +document.getElementById('wb-vr').value,
+      vg: +document.getElementById('wb-vg').value,
+      vb: +document.getElementById('wb-vb').value
+    };
+  }
+  let wbTimer;
+  function showPatch() {
+    const { vr, vg, vb } = readWB();
+    clearTimeout(wbTimer);
+    wbTimer = setTimeout(() => showPattern('patch_rgb', { pr: vr, pg: vg, pb: vb }), 120);
+  }
+  function computeWhiteBalance() {
+    const { vr, vg, vb } = readWB();
+    const maxV = Math.max(vr, vg, vb) || 1;   // dimmest channel needs the most → reference 1.0
+    CALIB.white_balance = {
+      r: +(vr / maxV).toFixed(3),
+      g: +(vg / maxV).toFixed(3),
+      b: +(vb / maxV).toFixed(3)
+    };
+    for (const ch of CHANNELS)
+      document.getElementById('wb-' + ch).textContent = CALIB.white_balance[ch];
+  }
+
+  // ── 3. Gamma ────────────────────────────────────────────────────────────────
+  function setGamma(g) {
+    CALIB.gamma = +(+g).toFixed(2);
+    document.getElementById('gamma-val').textContent = CALIB.gamma.toFixed(2);
+    drawGammaPreview();
+  }
+  function drawGammaPreview() {
+    const cv = document.getElementById('gamma-canvas');
+    const ctx = cv.getContext('2d');
+    const g = CALIB.gamma || 1;
+    for (let i = 0; i < 8; i++) {
+      const v = Math.round(((i + 1) * 32 - 1));          // matches firmware row value
+      const disp = Math.round(255 * Math.pow(v / 255, 1 / g));
+      ctx.fillStyle = `rgb(${disp},${disp},${disp})`;
+      ctx.fillRect(i * 32, 0, 32, 32);
+    }
+  }
+
+  // ── 4. Secondary colors ─────────────────────────────────────────────────────
+  function buildPaletteRows() {
+    const host = document.getElementById('palette-rows');
+    host.innerHTML = '';
+    for (const [name, hex] of Object.entries(SECONDARY)) {
+      const div = document.createElement('div');
+      div.className = 'row';
+      div.innerHTML =
+        `<span class="lbl">${name}</span>` +
+        `<input type="color" id="pal-pick-${name}" value="${hex}">` +
+        `<button class="go" onclick="showSolid(document.getElementById('pal-pick-${name}').value)">Show</button>` +
+        `<button onclick="recordPalette('${name}')">Record</button>` +
+        `<span class="hint">→ <span class="val" id="pal-${name}" style="min-width:64px">—</span></span>`;
+      host.appendChild(div);
+    }
+  }
+  function recordPalette(name) {
+    const hex = document.getElementById('pal-pick-' + name).value;
+    CALIB.palette[name] = hex;
+    document.getElementById('pal-' + name).textContent = hex;
+  }
+  function setSecBri(v) {
+    secBri = +v;
+    document.getElementById('sec-bri-val').textContent = v;
+    setBoardBrightness(v);
+  }
+
+  // ── 5. Per-pixel ────────────────────────────────────────────────────────────
+  let currentPixel = 0;
+  function showPixel(i) {
+    currentPixel = Math.max(0, Math.min(63, i));
+    document.getElementById('pixel-idx').textContent = `pixel ${currentPixel} / 63`;
+    showPattern('pixel', { index: currentPixel });
+  }
+  function stepPixel(d) { showPixel(currentPixel + d); }
+  function buildPixelTrim() {
+    // Phase 1 captures WHICH pixels look off (pixel_outliers), not gains. Computing
+    // real per-pixel gains is a future pass, so pixel_trim stays null — never emit a
+    // 0.0 gain, which a correction layer would read as "turn this pixel off".
+    CALIB.pixel_trim = null;
+    const raw = document.getElementById('pixel-outliers').value.trim();
+    const idxs = raw
+      ? raw.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n) && n >= 0 && n < 64)
+      : [];
+    if (idxs.length) CALIB.pixel_outliers = idxs; else delete CALIB.pixel_outliers;
+  }
+
+  // ── 6. Steps ────────────────────────────────────────────────────────────────
+  function setSteps(n) {
+    CALIB.steps = Math.max(0, parseInt(n, 10) || 0);
+    document.getElementById('steps-val').textContent = CALIB.steps;
+  }
+
+  // ── Review & Save ───────────────────────────────────────────────────────────
+  function reviewCalibration() {
+    CALIB.measured_at = new Date().toISOString().slice(0, 10);
+    buildPixelTrim();
+    document.getElementById('calib-json').textContent = JSON.stringify(CALIB, null, 2);
+  }
+  async function saveCalibration() {
+    reviewCalibration();
+    const st = document.getElementById('save-status');
+    try {
+      const r = await fetch('/api/calibration', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(CALIB)
+      });
+      if (r.ok) {
+        st.textContent = '✓ Saved to board. Ask Claude to commit the repo copy.';
+        st.className = 'ok';
+        setBoardBrightness(secBri);  // leave board at a sane brightness, not a test value
+      } else {
+        st.textContent = 'Save failed: HTTP ' + r.status; st.className = 'err';
+      }
+    } catch {
+      st.textContent = 'Cannot reach board.'; st.className = 'err';
+    }
+  }
+
+  // ── Init ────────────────────────────────────────────────────────────────────
+  buildFloorRows();
+  buildPaletteRows();
+  setGamma(1);
+  updateSweepHint();   // show the hint without driving the board on load
+</script>
+<script src="header.js" data-auto></script>
+</body>
+</html>

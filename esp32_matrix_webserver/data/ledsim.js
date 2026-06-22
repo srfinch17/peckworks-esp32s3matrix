@@ -21,6 +21,29 @@
 
   var DEFAULT_BRI = 10;
 
+  // Measured LED calibration (data/calibration.json), mirrored from the firmware
+  // so color-fidelity previews match the corrected board. Identity until fetched.
+  var CALIB = { floorR:1, floorG:1, floorB:1, gainR:1, gainG:1, gainB:1, gamma:1, on:true };
+  fetch('/api/calibration').then(function (r) { return r.json(); }).then(function (j) {
+    if (j.floors)        { CALIB.floorR = j.floors.r || 1; CALIB.floorG = j.floors.g || 1; CALIB.floorB = j.floors.b || 1; }
+    if (j.white_balance) { CALIB.gainR = j.white_balance.r || 1; CALIB.gainG = j.white_balance.g || 1; CALIB.gainB = j.white_balance.b || 1; }
+    if (j.gamma)         { CALIB.gamma = j.gamma; }
+  }).catch(function () { /* identity fallback already set */ });
+  // Honor the board's correction toggle so previews match when it's off.
+  fetch('/api/settings').then(function (r) { return r.json(); }).then(function (s) {
+    if (s && typeof s.calibration_correction === 'boolean') CALIB.on = s.calibration_correction;
+  }).catch(function () {});
+
+  // Value-domain correction (floor-lift -> white-balance -> gamma), matching the
+  // firmware applyCalibration(). Applied BEFORE the brightness-scaling effective().
+  function liftFloor(c, floor) { return (c > 0 && c < floor) ? floor : c; }
+  function correctChannel(c, floor, gain) {
+    if (!CALIB.on) return c;
+    c = liftFloor(c, floor);
+    c = c * gain;
+    return Math.round(255 * Math.pow(c / 255, CALIB.gamma));
+  }
+
   // FastLED nscale8x3: an LED sub-pixel is OFF when this returns 0.
   function effective(channel, bri) {
     return (channel * (bri + 1)) >> 8;
@@ -47,9 +70,9 @@
   // CSS color a screen should paint to mimic the board at `bri`.
   function previewColor(color, bri) {
     var rgb = parseColor(color);
-    var r = displayGamma(effective(rgb[0], bri));
-    var g = displayGamma(effective(rgb[1], bri));
-    var b = displayGamma(effective(rgb[2], bri));
+    var r = displayGamma(effective(correctChannel(rgb[0], CALIB.floorR, CALIB.gainR), bri));
+    var g = displayGamma(effective(correctChannel(rgb[1], CALIB.floorG, CALIB.gainG), bri));
+    var b = displayGamma(effective(correctChannel(rgb[2], CALIB.floorB, CALIB.gainB), bri));
     return 'rgb(' + r + ',' + g + ',' + b + ')';
   }
 
