@@ -41,12 +41,12 @@ void drawTempOverlay(float tempF) {
   // Using HSV makes it easy to pick nearby hues by tweaking the hue number.
   CRGB colA, colB, colC, colD;
   if (warm) {
-    colA = CHSV(5,  90, 100);    // hundreds "1" — dim orange-red
+    colA = CHSV(5,  85, 135);    // hundreds "1" — brightest: a 1px bar must out-shine the glyphs to read
     colB = CHSV(5,  85, 120);    // tens digit  — orange-red
     colC = CHSV(22, 75, 120);    // units digit — amber (slightly yellower)
     colD = CHSV(12, 110, 75);    // degree dot  — small, muted
   } else {
-    colA = CHSV(165, 90, 100);   // dim blue
+    colA = CHSV(165, 85, 135);   // hundreds "1" — brightest (see warm branch)
     colB = CHSV(165, 85, 120);   // blue
     colC = CHSV(148, 75, 120);   // teal (cooler hue)
     colD = CHSV(157, 110, 75);   // degree dot

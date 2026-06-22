@@ -802,15 +802,16 @@ void setup() {
     String path = server.uri();
     if (LittleFS.exists(path)) {
       File file = LittleFS.open(path, "r");
-      // Let the browser cache the shared static assets (bright.js / palette.js /
-      // ledsim.js / images) — every page pulls them, and re-serving each one is
-      // a full TCP connection on a single-client server (WebServer pins to one
-      // connection at a time; an idle browser socket can hold it for up to 5s,
-      // see HTTP_MAX_DATA_WAIT). HTML deliberately stays uncached so LittleFS
-      // uploads show up on plain reload. ⚠ After re-uploading a CHANGED .js,
-      // hard-refresh (Ctrl+F5) once — see PITFALLS.
+      // Static assets (.js/.css/.png/.ico) are served with `no-cache` so the browser
+      // REVALIDATES every load and re-uploaded CSS/JS shows up WITHOUT a manual
+      // hard-refresh. We previously cached these for 24h (max-age=86400) for speed,
+      // but that meant every UI change required a Ctrl+F5 — and a stale app.css
+      // silently broke the UI revamp (palette grids collapsed to 0-height). The board
+      // emits no 304s, so `no-cache` re-fetches each small file per page load; that's
+      // cheap on a LAN single-client board. If serving load ever becomes a concern,
+      // switch to version-query cache-busting (e.g. app.css?v=<web_version>).
       if (path.endsWith(".js") || path.endsWith(".css") || path.endsWith(".png") || path.endsWith(".ico"))
-        server.sendHeader("Cache-Control", "max-age=86400");
+        server.sendHeader("Cache-Control", "no-cache");
       server.streamFile(file, getContentType(path));
       file.close();
       return;

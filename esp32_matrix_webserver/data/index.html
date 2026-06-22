@@ -5,34 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ESP32 Matrix — Control Panel</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230d0d0d'/%3E%3Ccircle cx='4' cy='4' r='1.5' fill='%2300ff88'/%3E%3Ccircle cx='12' cy='4' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='8' cy='8' r='1.5' fill='%2322ddff'/%3E%3Ccircle cx='4' cy='12' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='12' cy='12' r='1.5' fill='%2300ff88'/%3E%3C/svg%3E">
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, -apple-system, sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; padding: 20px; }
-    .wrap { max-width: 720px; margin: 0 auto; }
-    header { margin-bottom: 24px; }
-    h1 { font-size: 1.5rem; color: #00ff88; letter-spacing: -0.02em; }
-    .subtitle { color: #555; font-size: 0.82rem; margin-top: 4px; }
-    .apps { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 28px; }
-    .card { background: #161616; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px 16px; text-align: center; text-decoration: none; color: #e0e0e0; display: block; transition: border-color 0.15s, transform 0.1s; }
-    .card:hover { border-color: #444; transform: translateY(-2px); }
-    .card .icon { font-size: 2.4rem; display: block; margin-bottom: 10px; }
-    .card .name { font-weight: 600; font-size: 0.95rem; margin-bottom: 4px; }
-    .card .desc { font-size: 0.72rem; color: #666; line-height: 1.4; }
-    .panel { background: #161616; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px; }
-    .panel-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #666; margin-bottom: 16px; }
-    .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
-    .row:last-child { margin-bottom: 0; }
-    label { font-size: 0.85rem; color: #aaa; }
-    input[type=range] { flex: 1; min-width: 120px; max-width: 220px; accent-color: #00ff88; cursor: pointer; }
-    button { background: #1e1e1e; color: #ccc; border: 1px solid #333; border-radius: 7px; padding: 8px 18px; cursor: pointer; font-size: 0.85rem; transition: background 0.12s; }
-    button:hover { background: #272727; }
-    button.danger { border-color: #7a0000; color: #ff5555; }
-    button.danger:hover { background: #250000; }
-    .status { font-size: 0.78rem; margin-top: 12px; min-height: 1.2em; color: #00cc66; }
-    .status.err { color: #ff5555; }
-    /* inline brightness styles removed — page now uses the shared bright.js widget */
-    footer { margin-top: 24px; font-size: 0.7rem; color: #3a3a3a; text-align: center; }
-  </style>
+  <link rel="stylesheet" href="app.css">
 </head>
 <body>
   <div class="wrap">
@@ -45,12 +18,7 @@
     <a href="/weather.html" class="card">
       <span class="icon">🌤️</span>
       <div class="name">Weather</div>
-      <div class="desc">Animated weather icon + current temp by ZIP code</div>
-    </a>
-    <a href="/weather2.html" class="card">
-      <span class="icon">🌦️</span>
-      <div class="name">Weather 2</div>
-      <div class="desc">Icon + temp simultaneously — color palette, F/C toggle</div>
+      <div class="desc">Current conditions by ZIP — icon+temp or dual display</div>
     </a>
     <a href="/timer.html" class="card">
       <span class="icon">🕐</span>
@@ -68,8 +36,8 @@
       <div class="desc">Today's date — scrolling, big day, month grid, or clock-style</div>
     </a>
     <a href="/sound.html" class="card">
-      <span class="icon">🔊</span>
-      <div class="name">Sound</div>
+      <span class="icon">📳</span>
+      <div class="name">Vibrations</div>
       <div class="desc">Vibration-reactive VU bar — lights dance to the bass</div>
     </a>
     <a href="/animations.html" class="card">
@@ -80,7 +48,7 @@
     <a href="/system.html" class="card">
       <span class="icon">⚙️</span>
       <div class="name">System</div>
-      <div class="desc">Settings, chip temp, grid test, and IMU diagnostics</div>
+      <div class="desc">Settings, chip temp, calibration, and IMU diagnostics</div>
     </a>
     <a href="/sketch.html" class="card">
       <span class="icon">🎨</span>
