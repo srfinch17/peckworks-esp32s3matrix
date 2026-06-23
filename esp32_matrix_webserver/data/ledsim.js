@@ -12,7 +12,7 @@
  *
  * NOTE: accurate-dim preview is OPT-IN. Animation previews intentionally
  * render at full brightness (see the spec) — only call this where color
- * fidelity matters (emoji, sketch, calibration).
+ * fidelity matters (sketch, calibration).
  *
  * Served straight from LittleFS — no firmware change, no build step.
  * ============================================================ */
