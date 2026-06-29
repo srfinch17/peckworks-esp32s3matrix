@@ -5,6 +5,14 @@ description: Add a new animation/visualization mode to the ESP32-S3 matrix firmw
 
 # Add a new animation mode
 
+> **⚠️ Two-repo + manifest note (2026-06-28).** This repo (`peckworks-esp32s3matrix`) is
+> **firmware-only**. Steps 1–7 below (the `anim_*.ino` + `data/*.html`) are all here. But the
+> **MCP/Claude wiring lives in the separate `claude-expression-studio` repo** (`mcp_server/`,
+> `shared/`, `claude-hooks/`). And the old per-config files this skill used to name —
+> `mcp_server/wait.ts`, `idle.ts`, `wait-weights.json` — **no longer exist**: wait/idle pools
+> are now entries in **`shared/manifest.json`** (read at runtime; no rebuild). So step 8 and the
+> "Optional" section now mean *edit the studio repo*. See [[trigger-manifest-design]] / [[repo-split]].
+
 Adding an animation touches **8 places** (was "6" — two silent-failure spots were
 added after they bit us: `KNOWN_ANIMS` and the MCP enum). Skipping any one is the
 usual cause of "I built it but it doesn't show up / the page 404s / the API 400s /
@@ -102,22 +110,27 @@ Claude can't launch it." Names below assume a mode called `<name>` (e.g. `comet`
    hub's name — `backnav.js` derives the breadcrumb's current crumb from the `<h1>`, so a leaf titled
    "Animations" would read "Animations › Animations". Give it the mode's own name.
 
-8. **MCP enum** in `mcp_server/index.ts` — add `<name>` to the `matrix_set_animation`
-   `type` enum array AND a one-line description (params + meaning). Without this, Claude
-   can't launch it by name. (README features row: optional, keep current.)
+8. **MCP enum** — add `<name>` to the `matrix_set_animation` `type` enum array (+ a one-line
+   description) in `mcp_server/index.ts`, **which now lives in the separate
+   `claude-expression-studio` repo**. Without this, Claude can't launch it by name. This is the
+   only cross-repo step in the core 8 (steps 1–7 are all firmware, in this repo).
 
-## Optional: wire it as an idle pick and/or a wait indicator
-- **Idle screensaver:** add `<name>` to `IDLE_APPS_DEFAULT` (firmware `settings.ino`) AND
-  `IDLE_APPS` (`mcp_server/idle.ts`) — keep the two aligned. (Existing boards keep their
-  stored `idle_apps` CSV until toggled on the settings page.)
-- **Busy/wait pool (type-aware):** add `<name>` to `WAIT_ANIMATIONS` in `mcp_server/wait.ts`
-  AND `claude-hooks/matrix_signal.py` (+ its `~/.claude/hooks/` live copy). A firmware-
-  animation wait pick must fire `POST /api/display/animation {type, transient:true}` — the
-  **`transient` flag skips NVS auto-resume** so a busy-indicator launch doesn't make the
-  board boot into it forever. Weight it in `wait-weights.json` (additive; don't erode
-  existing weights). Both `index.ts` call sites of `resolveWait()` — `matrix_express("wait")`
-  AND `presence_set("working")` — must handle the firmware-anim pick or the presence path
-  shows a blank panel. See the wait-animation-library memory.
+## Optional: wire it into the busy/idle pools (now manifest-driven, in the STUDIO repo)
+The old `wait.ts`/`idle.ts`/`wait-weights.json` are **gone**. Pools now live in
+**`shared/manifest.json`** in the `claude-expression-studio` repo, read at RUNTIME (no rebuild):
+- **Idle screensaver (firmware side):** add `<name>` to `IDLE_APPS_DEFAULT` in this repo's
+  `settings.ino` (existing boards keep their stored `idle_apps` CSV until toggled in settings).
+- **Idle screensaver (studio side):** add `<name>` to the `esp32-8x8` renderer's `screensaver`
+  binding in `shared/manifest.json`.
+- **Busy/wait pool:** add `{"<name>": <weight>}` to the manifest's `working` intent pool. A
+  firmware-animation pick fires `POST /api/display/animation {type, transient:true}` — the
+  **`transient` flag skips NVS auto-resume** so a busy launch doesn't make the board boot into
+  it forever. `shared/firmware-names.js` (mirrored in the Python hook) must list `<name>` so the
+  resolver routes it to the animation path, not the frames path.
+- **Web sim / Gallery (optional):** to also see it in the browser studio, add a JS port to
+  `shared/firmware-sims.js` (a `make<Name>(opts)→{frame_ms,frame()}` + one registry line). This
+  is the **manual cross-repo seam** — firmware `anim_*.ino` and the JS port are independent (see
+  [[repo-split]]). All of the above are studio-repo edits.
 
 ## Finish
 - Needs **both** a Sketch upload (firmware) **and** a **LittleFS Data Upload** (because
