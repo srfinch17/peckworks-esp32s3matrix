@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>ESP32-S3 Matrix — an 8×8 LED panel you talk to</title>
-<meta name="description" content="Open-source firmware for the Waveshare ESP32-S3-Matrix: a standalone 8×8 WS2812B LED panel with an onboard web UI, WiFi captive-portal setup, and an HTTP API anything can drive — including Claude. No app, no cloud, no computer." />
+<title>ESP32-S3 Matrix: an 8×8 LED panel you talk to</title>
+<meta name="description" content="Open-source firmware for the Waveshare ESP32-S3-Matrix: a standalone 8×8 WS2812B LED panel with an onboard web UI, WiFi captive-portal setup, and an HTTP API anything can drive, including Claude. No app, no cloud, no computer." />
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23080B09'/%3E%3Crect x='0.5' y='0.5' width='31' height='31' rx='6.5' fill='none' stroke='%231C241D'/%3E%3Cg%3E%3Crect x='7' y='7' width='4.4' height='4.4' rx='1' fill='%2315201A'/%3E%3Crect x='13.8' y='7' width='4.4' height='4.4' rx='1' fill='%232BD576'/%3E%3Crect x='20.6' y='7' width='4.4' height='4.4' rx='1' fill='%2315201A'/%3E%3Crect x='7' y='13.8' width='4.4' height='4.4' rx='1' fill='%23FF9D2F'/%3E%3Crect x='13.8' y='13.8' width='4.4' height='4.4' rx='1' fill='%2315201A'/%3E%3Crect x='20.6' y='13.8' width='4.4' height='4.4' rx='1' fill='%2336D9D3'/%3E%3Crect x='7' y='20.6' width='4.4' height='4.4' rx='1' fill='%2315201A'/%3E%3Crect x='13.8' y='20.6' width='4.4' height='4.4' rx='1' fill='%232BD576'/%3E%3Crect x='20.6' y='20.6' width='4.4' height='4.4' rx='1' fill='%2315201A'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -221,9 +221,9 @@
 <header class="hero">
   <div class="wrap">
     <p class="eyebrow">Peckworks Lab · open-source ESP32-S3 firmware · HTTP-native</p>
-    <h1 class="thesis">An <span class="hl">8×8 LED panel</span> you talk to — over WiFi, over HTTP, or just from your phone.</h1>
-    <p class="thesis-by mono">// 64 RGB LEDs on a ~$15 board that runs the whole show itself — no app, no cloud, no computer in the loop.</p>
-    <p class="lede">Flash one binary onto a Waveshare ESP32-S3-Matrix and it becomes a self-contained little display: it opens its own WiFi setup hotspot, serves its <strong>own control panel</strong> from the device, and exposes an HTTP API that <em>anything</em> can drive — <span class="m">fire</span>, <span class="m">rain</span>, <span class="m">fireworks</span>, weather, a clock, scrolling text, or your own 8×8 pixels. It boots back into whatever it was last showing. And because it's all just HTTP, it doubles as an ambient status light for <strong>Claude</strong>.</p>
+    <h1 class="thesis">An <span class="hl">8×8 LED panel</span> you talk to, over WiFi, over HTTP, or just from your phone.</h1>
+    <p class="thesis-by mono">// 64 RGB LEDs on a ~$15 board that runs the whole show itself: no app, no cloud, no computer in the loop.</p>
+    <p class="lede">Flash one binary onto a Waveshare ESP32-S3-Matrix and it becomes a self-contained little display: it opens its own WiFi setup hotspot, serves its <strong>own control panel</strong> from the device, and exposes an HTTP API that <em>anything</em> can drive: <span class="m">fire</span>, <span class="m">rain</span>, <span class="m">fireworks</span>, weather, a clock, scrolling text, or your own 8×8 pixels. It boots back into whatever it was last showing. And because it's all just HTTP, it doubles as an ambient status light for <strong>Claude</strong>.</p>
     <div class="herobtns">
       <a class="btn primary" href="./install/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>Flash one yourself</a>
       <a class="btn" href="#api"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 6-6 6 6 6M16 6l6 6-6 6"/></svg>See the API</a>
@@ -254,7 +254,7 @@
 <main class="wrap">
 
   <!-- ============ 01 WHAT ============ -->
-  <div class="phase" id="what"><span class="ph-code">PART&nbsp;01</span><h3>What it is — a display that's genuinely yours</h3><span class="rule"></span></div>
+  <div class="phase" id="what"><span class="ph-code">PART&nbsp;01</span><h3>What it is: a display that's genuinely yours</h3><span class="rule"></span></div>
 
   <div class="boardphoto">
     <img src="./assets/board.webp" alt="The Waveshare ESP32-S3-Matrix: an 8×8 grid of WS2812B RGB LEDs on a small USB-C ESP32-S3 board" loading="lazy" />
@@ -265,23 +265,23 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>
       The whole idea in one line
     </p>
-    <h3 class="tt">A tiny standalone panel that runs the show by itself — and that any program can light up.</h3>
-    <p class="lead">Most LED-matrix projects are tethered: a sketch on your laptop pushes pixels over USB, and the moment you unplug, it's dark. This firmware flips that. Everything the panel needs lives <strong>on the board</strong> — the animations, the web UI, the WiFi onboarding, the persistence. Power it over USB-C and it boots straight into whatever it was last showing. Open its address on your phone and you've got a full control panel. Point any HTTP client at it and you're driving pixels from any language.</p>
+    <h3 class="tt">A tiny standalone panel that runs the show by itself, and that any program can light up.</h3>
+    <p class="lead">Most LED-matrix projects are tethered: a sketch on your laptop pushes pixels over USB, and the moment you unplug, it's dark. This firmware flips that. Everything the panel needs lives <strong>on the board</strong>: the animations, the web UI, the WiFi onboarding, the persistence. Power it over USB-C and it boots straight into whatever it was last showing. Open its address on your phone and you've got a full control panel. Point any HTTP client at it and you're driving pixels from any language.</p>
     <div class="tgrid">
-      <div class="tcard"><div class="th">Plug-in &amp; standalone</div><div class="td">Boots into its last animation, brightness, and settings — all persisted to flash. No computer in the loop.</div></div>
+      <div class="tcard"><div class="th">Plug-in &amp; standalone</div><div class="td">Boots into its last animation, brightness, and settings, all persisted to flash. No computer in the loop.</div></div>
       <div class="tcard c"><div class="th">Self-onboarding WiFi</div><div class="td">First boot opens a <span class="m">ESP32-Matrix-Setup</span> hotspot; join it, pick your network, done. Then it's at <span class="m">esp32matrix.local</span>.</div></div>
-      <div class="tcard"><div class="th">Its own control panel</div><div class="td">A full web UI served from the device — animations, brightness, weather, clock, a pixel painter, a calibration lab.</div></div>
-      <div class="tcard a"><div class="th">A real animation library</div><div class="td">Fire, matrix rain, fireworks, dance floor, comet, an IMU-reactive liquid, snow, starfield — each tunable live.</div></div>
+      <div class="tcard"><div class="th">Its own control panel</div><div class="td">A full web UI served from the device: animations, brightness, weather, clock, a pixel painter, a calibration lab.</div></div>
+      <div class="tcard a"><div class="th">A real animation library</div><div class="td">Fire, matrix rain, fireworks, dance floor, comet, an IMU-reactive liquid, snow, starfield, each tunable live.</div></div>
       <div class="tcard"><div class="th">Useful, not just pretty</div><div class="td">Live weather by ZIP, an NTP clock + countdown timers, scrolling text, and a vibration-reactive VU meter.</div></div>
-      <div class="tcard b"><div class="th">An open API</div><div class="td">Every capability is an HTTP endpoint — send a built-in effect, push your own frames, set brightness, read sensors.</div></div>
+      <div class="tcard b"><div class="th">An open API</div><div class="td">Every capability is an HTTP endpoint: send a built-in effect, push your own frames, set brightness, read sensors.</div></div>
     </div>
-    <div class="analogy"><b>The shape of it:</b> think of a smart bulb that happens to be an 8×8 canvas — it has an IP address, a web page, and an API, and it keeps glowing whether or not anything is talking to it. Except this one is fully open, runs offline, and you flash it yourself.</div>
+    <div class="analogy"><b>The shape of it:</b> think of a smart bulb that happens to be an 8×8 canvas: it has an IP address, a web page, and an API, and it keeps glowing whether or not anything is talking to it. Except this one is fully open, runs offline, and you flash it yourself.</div>
   </section>
 
   <section class="teach cyan">
     <p class="kicker">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m5 3 14 9-14 9V3z"/></svg>
-      See them move — real frames, captured from the panel
+      See them move: real frames, captured from the panel
     </p>
     <h3 class="tt">A few of the good ones, running.</h3>
     <p>These aren't mockups or re-implementations: each card replays an actual frame sequence pulled straight off the board over <span class="m">/api/display/framebuffer</span>, bloom-rendered the way the LEDs read in person. Every effect is tunable live from its own control page.</p>
@@ -290,7 +290,7 @@
   </section>
 
   <!-- ============ 02 WEB UI ============ -->
-  <div class="phase" id="ui"><span class="ph-code">PART&nbsp;02</span><h3>The onboard web UI — no install, served from the device</h3><span class="rule"></span></div>
+  <div class="phase" id="ui"><span class="ph-code">PART&nbsp;02</span><h3>The onboard web UI: no install, served from the device</h3><span class="rule"></span></div>
 
   <section class="teach cyan">
     <p class="kicker">
@@ -300,15 +300,15 @@
     <h3 class="tt">Open <span class="m">esp32matrix.local</span> on any phone and the board hands you a control panel.</h3>
     <p>The UI ships <em>inside</em> the firmware (LittleFS) and is served with no cache, so there's nothing to install and nothing to keep in sync. These are live screenshots of the real board:</p>
     <div class="gallery">
-      <figure class="shotfig"><img src="./assets/ui-index.png" alt="The board's web control panel home screen" loading="lazy" /><figcaption class="cap"><b>Control panel</b> — the home screen: Text, Weather, Time, Vibrations, Animations, System, Sketch, and a brightness slider with a heat guard.</figcaption></figure>
-      <figure class="shotfig"><img src="./assets/ui-fire.png" alt="The Fire animation control page with a live preview" loading="lazy" /><figcaption class="cap"><b>Per-animation controls</b> — a live preview plus theme &amp; motion sliders that apply to the panel as you drag.</figcaption></figure>
-      <figure class="shotfig"><img src="./assets/ui-animations.png" alt="The animations hub" loading="lazy" /><figcaption class="cap"><b>Animations hub</b> — every effect on the board, each with its own tuning page.</figcaption></figure>
-      <figure class="shotfig"><img src="./assets/ui-calibrate.png" alt="The calibration lab" loading="lazy" /><figcaption class="cap"><b>Calibration lab</b> — measure the panel's real color/brightness by eye; the correction is saved on-device and applied live.</figcaption></figure>
+      <figure class="shotfig"><img src="./assets/ui-index.png" alt="The board's web control panel home screen" loading="lazy" /><figcaption class="cap"><b>Control panel.</b> The home screen: Text, Weather, Time, Vibrations, Animations, System, Sketch, and a brightness slider with a heat guard.</figcaption></figure>
+      <figure class="shotfig"><img src="./assets/ui-fire.png" alt="The Fire animation control page with a live preview" loading="lazy" /><figcaption class="cap"><b>Per-animation controls.</b> A live preview plus theme &amp; motion sliders that apply to the panel as you drag.</figcaption></figure>
+      <figure class="shotfig"><img src="./assets/ui-animations.png" alt="The animations hub" loading="lazy" /><figcaption class="cap"><b>Animations hub.</b> Every effect on the board, each with its own tuning page.</figcaption></figure>
+      <figure class="shotfig"><img src="./assets/ui-calibrate.png" alt="The calibration lab" loading="lazy" /><figcaption class="cap"><b>Calibration lab.</b> Measure the panel's real color/brightness by eye; the correction is saved on-device and applied live.</figcaption></figure>
     </div>
   </section>
 
   <!-- ============ 03 API ============ -->
-  <div class="phase" id="api"><span class="ph-code">PART&nbsp;03</span><h3>The HTTP API — the contract anything can drive</h3><span class="rule"></span></div>
+  <div class="phase" id="api"><span class="ph-code">PART&nbsp;03</span><h3>The HTTP API: the contract anything can drive</h3><span class="rule"></span></div>
 
   <section class="teach amber">
     <p class="kicker">
@@ -316,20 +316,20 @@
       One surface, every capability
     </p>
     <h3 class="tt">If it can make an HTTP request, it can drive the panel.</h3>
-    <p class="lead">There's no SDK to adopt and no protocol to learn — the board's entire feature set is a small set of JSON endpoints under <span class="m">http://esp32matrix.local</span>. This is also the documented <strong>contract</strong> that external clients (including the Claude integration) depend on, so it stays stable.</p>
+    <p class="lead">There's no SDK to adopt and no protocol to learn. The board's entire feature set is a small set of JSON endpoints under <span class="m">http://esp32matrix.local</span>. This is also the documented <strong>contract</strong> that external clients (including the Claude integration) depend on, so it stays stable.</p>
 
-    <p>Launch a built-in animation — the <span class="m">transient</span> flag keeps it out of boot-resume:</p>
+    <p>Launch a built-in animation. The <span class="m">transient</span> flag keeps it out of boot-resume:</p>
     <div class="term">
-      <div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i><span class="tt">curl — fire at half intensity</span></div>
+      <div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i><span class="tt">curl: fire at half intensity</span></div>
 <pre><span class="c"># roar some fire, classic theme</span>
 curl -X POST http://esp32matrix.local<span class="u">/api/display/animation</span> \
   -H <span class="s">"Content-Type: application/json"</span> \
   -d <span class="s">'{"type":"fire","transient":true,"intensity":6,"theme":"classic"}'</span></pre>
     </div>
 
-    <p>Push your <em>own</em> animation — up to 24 frames, each 64 <span class="m">RRGGBB</span> pixels in row-major order:</p>
+    <p>Push your <em>own</em> animation, up to 24 frames, each 64 <span class="m">RRGGBB</span> pixels in row-major order:</p>
     <div class="term">
-      <div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i><span class="tt">curl — a custom 2-frame blink</span></div>
+      <div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i><span class="tt">curl: a custom 2-frame blink</span></div>
 <pre><span class="c"># loop:0 = forever</span>
 curl -X POST http://esp32matrix.local<span class="u">/api/display/frames</span> \
   -d <span class="s">'{"frames":["…384 hex chars…","…"],"frame_ms":150,"loop":0}'</span></pre>
@@ -339,26 +339,26 @@ curl -X POST http://esp32matrix.local<span class="u">/api/display/frames</span> 
     <table class="tooltable">
       <tr><th>Method</th><th>Endpoint</th><th>What it does</th></tr>
       <tr><td class="mt">GET</td><td class="nm">/api/status</td><td>Firmware/web version + live heap telemetry; use it for reachability checks.</td></tr>
-      <tr><td class="mt">POST</td><td class="nm">/api/brightness</td><td><code>{ level: 0–255 }</code> — global brightness (persisted to flash).</td></tr>
+      <tr><td class="mt">POST</td><td class="nm">/api/brightness</td><td><code>{ level: 0-255 }</code>. Global brightness (persisted to flash).</td></tr>
       <tr><td class="mt">POST</td><td class="nm">/api/display/text</td><td>Scroll a message, with color / gradient options.</td></tr>
       <tr><td class="mt">POST</td><td class="nm">/api/display/matrix</td><td>Set a single static 8×8 frame.</td></tr>
-      <tr><td class="mt">GET</td><td class="nm">/api/display/framebuffer</td><td>Read the live 8×8 back as 64 <code>RRGGBB</code> — mirror it anywhere.</td></tr>
+      <tr><td class="mt">GET</td><td class="nm">/api/display/framebuffer</td><td>Read the live 8×8 back as 64 <code>RRGGBB</code>. Mirror it anywhere.</td></tr>
       <tr><td class="mt">GET/POST</td><td class="nm">/api/presence</td><td>A semantic status message (intent + headline + data) any renderer can show.</td></tr>
-      <tr><td class="mt">GET/POST</td><td class="nm">/api/settings</td><td>NVS-backed config — idle screensaver, default brightness, timezone…</td></tr>
-      <tr><td class="mt">GET/POST</td><td class="nm">/api/calibration</td><td>Read / overwrite the LED correction profile — live-reloaded, no reflash.</td></tr>
+      <tr><td class="mt">GET/POST</td><td class="nm">/api/settings</td><td>NVS-backed config: idle screensaver, default brightness, timezone…</td></tr>
+      <tr><td class="mt">GET/POST</td><td class="nm">/api/calibration</td><td>Read / overwrite the LED correction profile, live-reloaded, no reflash.</td></tr>
     </table>
     <p>Full reference: <a class="inline" href="https://github.com/srfinch17/peckworks-esp32s3matrix/blob/master/docs/API.md">docs/API.md</a>. The board persists its last animation, brightness, and settings, so it powers back up into whatever it was doing.</p>
   </section>
 
   <!-- ============ 04 RENDER ============ -->
-  <div class="phase" id="render"><span class="ph-code">PART&nbsp;04</span><h3>How it actually renders — from a pixel to a lit LED</h3><span class="rule"></span></div>
+  <div class="phase" id="render"><span class="ph-code">PART&nbsp;04</span><h3>How it actually renders: from a pixel to a lit LED</h3><span class="rule"></span></div>
 
   <section class="teach">
     <p class="kicker">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><circle cx="8" cy="16" r="1.4"/><circle cx="13" cy="11" r="1.4"/><circle cx="18" cy="6" r="1.4"/></svg>
       The part most 8×8 projects get subtly wrong
     </p>
-    <h3 class="tt">The grid is plain row-major — not serpentine.</h3>
+    <h3 class="tt">The grid is plain row-major, not serpentine.</h3>
     <p class="lead">Plenty of LED matrices zig-zag their wiring, so even rows run left-to-right and odd rows run right-to-left. This panel does <strong>not</strong>. The mapping is the boring, predictable one: <span class="m">XY(x, y) = y * 8 + x</span>, origin top-left, x increasing right, y increasing down. Out-of-bounds returns <span class="m">-1</span>. Getting this assumption right is the difference between a clean image and a mirrored mess on every other row.</p>
 
     <div class="fig">
@@ -420,30 +420,30 @@ curl -X POST http://esp32matrix.local<span class="u">/api/display/frames</span> 
           <text x="352" y="107" fill="#36d9d3">(4,1) → 1·8+4 = 12</text>
           <text x="352" y="305" fill="#8ea399">(7,7) → 7·8+7 = 63</text>
           <text x="352" y="150" fill="#5f7166" font-size="10.5">every row just continues</text>
-          <text x="352" y="166" fill="#5f7166" font-size="10.5">counting — no zig-zag.</text>
+          <text x="352" y="166" fill="#5f7166" font-size="10.5">counting, no zig-zag.</text>
         </g>
         <defs>
           <marker id="ax" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0 0L7 3L0 6Z" fill="#36d9d3"/></marker>
           <marker id="ay" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0 0L7 3L0 6Z" fill="#ff9d2f"/></marker>
         </defs>
       </svg>
-      <p class="figcap"><b>The coordinate system.</b> Always draw through <b>setPixel(x, y, CRGB)</b> — it's bounds-checked, so an off-grid write is a safe no-op instead of memory you didn't mean to touch.</p>
+      <p class="figcap"><b>The coordinate system.</b> Always draw through <b>setPixel(x, y, CRGB)</b>. It's bounds-checked, so an off-grid write is a safe no-op instead of memory you didn't mean to touch.</p>
     </div>
 
     <h4 class="sub">One more twist: the color order is RGB, not GRB</h4>
-    <p>WS2812B strips almost always expect green-first (<span class="m">GRB</span>). This panel is wired so FastLED's <span class="m">COLOR_ORDER</span> is plain <span class="m">RGB</span> — meaning <span class="m">CRGB(r, g, b)</span> maps straight through. It's a small thing that costs an afternoon if you assume the default.</p>
+    <p>WS2812B strips almost always expect green-first (<span class="m">GRB</span>). This panel is wired so FastLED's <span class="m">COLOR_ORDER</span> is plain <span class="m">RGB</span>, meaning <span class="m">CRGB(r, g, b)</span> maps straight through. It's a small thing that costs an afternoon if you assume the default.</p>
 
     <table class="facts">
       <tr><th>Hardware fact</th><th>Value</th></tr>
       <tr><td class="k">LEDs</td><td>64 × WS2812B, data on <span class="m">pin 14</span></td></tr>
       <tr><td class="k">COLOR_ORDER</td><td><span class="m">RGB</span> <span class="warn">⚠ not the usual GRB</span></td></tr>
-      <tr><td class="k">XY(x,y)</td><td><span class="m">y · 8 + x</span> — row-major, origin top-left, OOB → −1</td></tr>
+      <tr><td class="k">XY(x,y)</td><td><span class="m">y · 8 + x</span>. Row-major, origin top-left, OOB returns -1</td></tr>
       <tr><td class="k">IMU</td><td>QMI8658C 6-axis · I²C <span class="m">SDA 11 / SCL 12</span></td></tr>
       <tr><td class="k">Flash / PSRAM</td><td>4 MB flash + 2 MB PSRAM · web UI in LittleFS</td></tr>
     </table>
 
     <h4 class="sub">Calibration without a reflash: the matrixShow() chokepoint</h4>
-    <p>Real LEDs lie — the panel's green runs hot and dim content gets crushed. Rather than bake corrections into every animation, the firmware applies one global per-pixel transform at the single point every frame passes through on its way to the hardware: <span class="m">matrixShow()</span>. It saves the frame, corrects in place, pushes it, then restores the originals — so animation code keeps working on clean <span class="m">leds[]</span> values and never knows calibration happened.</p>
+    <p>Real LEDs lie. The panel's green runs hot and dim content gets crushed. Rather than bake corrections into every animation, the firmware applies one global per-pixel transform at the single point every frame passes through on its way to the hardware: <span class="m">matrixShow()</span>. It saves the frame, corrects in place, pushes it, then restores the originals, so animation code keeps working on clean <span class="m">leds[]</span> values and never knows calibration happened.</p>
 
     <div class="fig">
       <svg viewBox="0 0 760 220" role="img" aria-label="A horizontal pipeline. Animation code writes to the leds array. That feeds matrixShow, drawn as a box containing four steps: save a copy of the frame, apply the per-pixel correction in place, call the LED controller show, then restore the saved originals. The corrected light goes out to the physical panel. A note says the correction profile is loaded from calibration json and can be live-reloaded over the API with no reflash, and that an uncorrected frame fails safe by showing raw.">
@@ -472,12 +472,12 @@ curl -X POST http://esp32matrix.local<span class="u">/api/display/frames</span> 
           <marker id="ag" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0 0L7 3L0 6Z" fill="#2bd576"/></marker>
         </defs>
       </svg>
-      <p class="figcap"><b>One transform, one place.</b> Calibration is a save → correct-in-place → restore wrapper around the hardware push — so it's always-on, never double-applied, and tunable live from the <b>calibration lab</b> without a firmware rebuild.</p>
+      <p class="figcap"><b>One transform, one place.</b> Calibration is a save → correct-in-place → restore wrapper around the hardware push, so it's always-on, never double-applied, and tunable live from the <b>calibration lab</b> without a firmware rebuild.</p>
     </div>
   </section>
 
   <!-- ============ 05 CLAUDE ============ -->
-  <div class="phase" id="claude"><span class="ph-code">PART&nbsp;05</span><h3>Drive it with Claude — the panel as an expression channel</h3><span class="rule"></span></div>
+  <div class="phase" id="claude"><span class="ph-code">PART&nbsp;05</span><h3>Drive it with Claude: the panel as an expression channel</h3><span class="rule"></span></div>
 
   <section class="teach emotion">
     <p class="kicker">
@@ -485,11 +485,11 @@ curl -X POST http://esp32matrix.local<span class="u">/api/display/frames</span> 
       What an open HTTP API unlocks
     </p>
     <h3 class="tt">Because the whole board is just an API, it becomes an ambient status light for AI coding sessions.</h3>
-    <p class="lead">A separate, public companion project — <strong>Claude Expression Studio</strong> — turns the panel into Claude's expression channel: a spinner while it works, a checkmark when it's done, a glyph when it's waiting on you. It does this purely by <span class="m">POST</span>ing to the same endpoints documented above. No shared code, no firmware coupling — just the contract.</p>
+    <p class="lead">A separate, public companion project (<strong>Claude Expression Studio</strong>) turns the panel into Claude's expression channel: a spinner while it works, a checkmark when it's done, a glyph when it's waiting on you. It does this purely by <span class="m">POST</span>ing to the same endpoints documented above. No shared code, no firmware coupling. Just the contract.</p>
     <ul>
       <li><strong>Renderer-agnostic.</strong> The board is one optional renderer; the Studio runs fully <em>board-free</em> too, simulating everything in the browser.</li>
       <li><strong>A browser studio</strong> to design, preview, and wire ~40 animations to moments in a coding session.</li>
-      <li><strong>Couples only over this API</strong> — point it at <span class="m">esp32matrix.local</span> and the same expressions light up real LEDs.</li>
+      <li><strong>Couples only over this API.</strong> Point it at <span class="m">esp32matrix.local</span> and the same expressions light up real LEDs.</li>
     </ul>
     <div class="herobtns">
       <a class="btn primary" style="background:#1f0d05;border-color:var(--emotion);color:#ffd0bb" href="https://srfinch17.github.io/claude-expression-studio/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>Open the live studio demo ↗</a>
@@ -498,7 +498,7 @@ curl -X POST http://esp32matrix.local<span class="u">/api/display/frames</span> 
   </section>
 
   <!-- ============ 06 FLASH ============ -->
-  <div class="phase" id="flash"><span class="ph-code">PART&nbsp;06</span><h3>Flash one yourself — a ~$15 board and one binary</h3><span class="rule"></span></div>
+  <div class="phase" id="flash"><span class="ph-code">PART&nbsp;06</span><h3>Flash one yourself: a ~$15 board and one binary</h3><span class="rule"></span></div>
 
   <section class="teach">
     <p class="kicker">
@@ -507,23 +507,23 @@ curl -X POST http://esp32matrix.local<span class="u">/api/display/frames</span> 
     </p>
     <h3 class="tt">Three steps, no toolchain required.</h3>
     <ol class="steps">
-      <li><b>Get the board.</b><p>The Waveshare ESP32-S3-Matrix — an 8×8 WS2812B grid on a USB-C ESP32-S3. <a href="https://www.amazon.com/Waveshare-ESP32-S3-Matrix-Development-QMI8658C-Bluetooth/dp/B0D3DPLFL8">On Amazon ↗</a></p></li>
-      <li><b>Flash one binary.</b><p><a class="inline" href="./install/">One-click flash in Chrome/Edge</a>, or grab the <a class="inline" href="https://github.com/srfinch17/peckworks-esp32s3matrix/releases/latest">offline installer</a> (merged <code>.bin</code> + <code>flash.bat</code>/<code>flash.sh</code>). It's a single merged image — app + web UI — so there's nothing to assemble.</p></li>
-      <li><b>Join WiFi.</b><p>Connect to the <code>ESP32-Matrix-Setup</code> hotspot, pick your network, then open <code>esp32matrix.local</code>. From here you're back at Part 02 — the onboard control panel.</p></li>
+      <li><b>Get the board.</b><p>The Waveshare ESP32-S3-Matrix, an 8×8 WS2812B grid on a USB-C ESP32-S3. <a href="https://www.amazon.com/Waveshare-ESP32-S3-Matrix-Development-QMI8658C-Bluetooth/dp/B0D3DPLFL8">On Amazon ↗</a></p></li>
+      <li><b>Flash one binary.</b><p><a class="inline" href="./install/">One-click flash in Chrome/Edge</a>, or grab the <a class="inline" href="https://github.com/srfinch17/peckworks-esp32s3matrix/releases/latest">offline installer</a> (merged <code>.bin</code> + <code>flash.bat</code>/<code>flash.sh</code>). It's a single merged image (app + web UI), so there's nothing to assemble.</p></li>
+      <li><b>Join WiFi.</b><p>Connect to the <code>ESP32-Matrix-Setup</code> hotspot, pick your network, then open <code>esp32matrix.local</code>. From here you're back at Part 02, the onboard control panel.</p></li>
     </ol>
-    <p>Want to build from source instead? The firmware is plain Arduino (<span class="m">.ino</span>) — see the repo's <a class="inline" href="https://github.com/srfinch17/peckworks-esp32s3matrix#readme">README</a> for the Arduino IDE setup and library list.</p>
+    <p>Want to build from source instead? The firmware is plain Arduino (<span class="m">.ino</span>). See the repo's <a class="inline" href="https://github.com/srfinch17/peckworks-esp32s3matrix#readme">README</a> for the Arduino IDE setup and library list.</p>
   </section>
 
 </main>
 
 <footer><div class="wrap">
-  <p>ESP32-S3 Matrix firmware — open-source firmware + onboard web UI for the Waveshare ESP32-S3-Matrix. Standalone, HTTP-native, yours to flash and hack.</p>
+  <p>ESP32-S3 Matrix: open-source firmware and onboard web UI for the Waveshare ESP32-S3-Matrix. Standalone, HTTP-native, yours to flash and hack.</p>
   <p>
     <a href="https://github.com/srfinch17/peckworks-esp32s3matrix">GitHub</a> ·
     <a href="https://github.com/srfinch17/peckworks-esp32s3matrix/blob/master/docs/API.md">API docs</a> ·
     <a href="https://srfinch17.github.io/claude-expression-studio/">Claude Expression Studio</a>
   </p>
-  <p class="meta-line">// Board photo: Waveshare. The Claude integration lives in the separate claude-expression-studio repo and drives this board only over the documented HTTP API — no code is shared.</p>
+  <p class="meta-line">// Board photo: Waveshare. The Claude integration lives in the separate claude-expression-studio repo and drives this board only over the documented HTTP API. No code is shared.</p>
 </div></footer>
 
 <script src="./assets/anim-cards.js" defer></script>
