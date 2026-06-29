@@ -1,5 +1,18 @@
 {
   "enableAllProjectMcpServers": true,
+  "permissions": {
+    "allow": [
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_console_messages",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_network_requests",
+      "mcp__esp32-matrix__matrix_status",
+      "mcp__esp32-matrix__matrix_version",
+      "mcp__esp32-matrix__matrix_studio"
+    ]
+  },
   "hooks": {
     "PostToolUse": [
       {
