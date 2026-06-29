@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Install — ESP32-S3 Matrix</title>
+<meta name="description" content="Flash the ESP32-S3 Matrix firmware: one click in Chrome/Edge, or an offline installer. No app, no toolchain." />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23080B09'/%3E%3Crect x='13.8' y='7' width='4.4' height='4.4' rx='1' fill='%232BD576'/%3E%3Crect x='7' y='13.8' width='4.4' height='4.4' rx='1' fill='%23FF9D2F'/%3E%3Crect x='20.6' y='13.8' width='4.4' height='4.4' rx='1' fill='%2336D9D3'/%3E%3Crect x='13.8' y='20.6' width='4.4' height='4.4' rx='1' fill='%232BD576'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+<style>
+  :root{
+    --ink:#080b09; --ink-2:#0e130f; --ink-3:#141b16; --line:#1c241d; --line-soft:#161d18;
+    --text:#e7efe8; --muted:#8ea399; --muted-2:#5f7166; --green:#2bd576; --cyan:#36d9d3; --amber:#ff9d2f;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0; background:var(--ink); color:var(--text); line-height:1.6;
+    font-family:"IBM Plex Sans",system-ui,sans-serif; -webkit-font-smoothing:antialiased;
+    background-image:linear-gradient(var(--line-soft) 1px,transparent 1px),linear-gradient(90deg,var(--line-soft) 1px,transparent 1px);
+    background-size:46px 46px,46px 46px;}
+  body::before{content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:radial-gradient(120% 80% at 50% -10%, transparent 30%, var(--ink) 78%);}
+  .wrap{max-width:680px; margin:0 auto; padding:0 24px; position:relative; z-index:1;}
+  a{color:var(--green); text-decoration:none;} a:hover{text-decoration:underline;}
+  .mono{font-family:"IBM Plex Mono",monospace;}
+  code{font-family:"IBM Plex Mono",monospace; color:var(--cyan); background:var(--ink-2);
+    border:1px solid var(--line-soft); border-radius:6px; padding:1px 6px; font-size:.9em;}
+  .topbar{border-bottom:1px solid var(--line); background:rgba(8,11,9,.85); backdrop-filter:blur(8px);}
+  .topbar .wrap{display:flex; align-items:center; gap:10px; height:54px;}
+  .brand{font-family:"Space Grotesk",sans-serif; font-weight:600; display:flex; align-items:center; gap:10px;}
+  .brand .grid{width:22px; height:22px; border-radius:5px; display:grid; grid-template-columns:repeat(4,1fr);
+    grid-template-rows:repeat(4,1fr); gap:2px; background:#0c120e; padding:3px; border:1px solid var(--line); flex:none;}
+  .brand .grid i{border-radius:1px; background:#15201a;}
+  .brand .grid i:nth-child(3n){background:var(--green);} .brand .grid i:nth-child(4n){background:var(--amber);} .brand .grid i:nth-child(7n){background:var(--cyan);}
+  .brand a{color:inherit; text-decoration:none;}
+  .back{margin-left:auto; font-family:"IBM Plex Mono",monospace; font-size:.72rem; color:var(--muted);}
+  header.hero{padding:54px 0 10px;}
+  .eyebrow{font-family:"IBM Plex Mono",monospace; font-size:.72rem; letter-spacing:.22em; text-transform:uppercase; color:var(--muted); margin:0 0 16px;}
+  h1{font-family:"Space Grotesk",sans-serif; font-weight:600; font-size:clamp(1.9rem,5vw,2.7rem); line-height:1.08; letter-spacing:-.02em; margin:0 0 14px;}
+  h1 .hl{color:var(--green);}
+  .lede{color:#cbd6cd; font-size:1.05rem; margin:0;}
+  main{padding:18px 0 70px;}
+  .step{border:1px solid var(--line); border-left:4px solid var(--green); border-radius:14px; background:var(--ink-2); padding:22px 24px; margin:18px 0;}
+  .step.alt{border-left-color:var(--cyan);} .step.last{border-left-color:var(--amber);}
+  .step .k{font-family:"IBM Plex Mono",monospace; font-size:.72rem; letter-spacing:.14em; text-transform:uppercase; color:var(--green); margin:0 0 10px;}
+  .step.alt .k{color:var(--cyan);} .step.last .k{color:var(--amber);}
+  .step h2{font-family:"Space Grotesk",sans-serif; font-weight:600; font-size:1.2rem; margin:0 0 8px; color:#fff;}
+  .step p{margin:0 0 12px; color:#cbd6cd; font-size:.95rem;}
+  .step p:last-child{margin-bottom:0;}
+  esp-web-install-button{--esp-tools-button-color:#04130a; --esp-tools-button-text-color:#04130a; display:inline-block; margin:6px 0 4px;}
+  esp-web-install-button button, .btn{display:inline-flex; align-items:center; gap:9px; font-family:"IBM Plex Mono",monospace;
+    font-size:.85rem; text-decoration:none; padding:11px 18px; border-radius:10px; border:1px solid var(--green);
+    background:var(--green); color:#04130a; font-weight:600; cursor:pointer;}
+  .btn.ghost{background:var(--ink-2); color:var(--text); border-color:var(--line);}
+  .btn.ghost:hover{border-color:var(--green); text-decoration:none;}
+  .note{color:var(--muted); font-size:.85rem;}
+  .warn{border:1px solid color-mix(in srgb,var(--amber) 40%,transparent); background:#15110a; border-radius:10px;
+    padding:12px 15px; color:#e7dcc4; font-size:.88rem; margin:14px 0;}
+  .warn b{color:var(--amber);}
+  ul{padding-left:20px; color:#cbd6cd; font-size:.93rem;} ul li{margin-bottom:6px;}
+  footer{border-top:1px solid var(--line); padding:24px 0 60px; color:var(--muted); font-size:.85rem;}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="wrap">
+  <span class="brand">
+    <span class="grid" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+    <a href="../">ESP32-S3 Matrix</a>
+  </span>
+  <span class="back"><a href="../">← back to overview</a></span>
+</div></div>
+
+<header class="hero"><div class="wrap">
+  <p class="eyebrow">Install · no app · no toolchain</p>
+  <h1>Flash it in <span class="hl">one click</span>.</h1>
+  <p class="lede">Plug the board into your computer over USB-C and flash the latest firmware straight from this page. Takes about a minute; afterwards the panel is yours at <code>esp32matrix.local</code>.</p>
+</div></header>
+
+<main><div class="wrap">
+
+  <section class="step">
+    <p class="k">1 · One-click flash — Chrome or Edge</p>
+    <h2>Install the firmware</h2>
+    <p>Plug in the board, then click:</p>
+    <esp-web-install-button manifest="./manifest.json">
+      <button slot="activate">⚡ Flash ESP32-S3 Matrix</button>
+      <span slot="unsupported">Your browser doesn't support Web Serial — use the offline installer below.</span>
+      <span slot="not-allowed">You must use HTTPS to flash — open this page at its github.io address.</span>
+    </esp-web-install-button>
+    <p class="note">Uses <a href="https://esphome.github.io/esp-web-tools/">ESP Web Tools</a> over Web Serial. Nothing is uploaded anywhere — the firmware is written from your browser directly to the board.</p>
+  </section>
+
+  <section class="step alt">
+    <p class="k">Alternative · any OS, any browser</p>
+    <h2>Offline installer</h2>
+    <p>Prefer not to use Chrome, or flashing many boards? Grab the offline bundle from the latest release — a single merged binary plus <code>flash.bat</code> (Windows) and <code>flash.sh</code> (macOS/Linux).</p>
+    <p><a class="btn ghost" href="https://github.com/srfinch17/peckworks-esp32s3matrix/releases/latest">Download the latest release ↗</a></p>
+    <p class="note">Unzip, plug in the board, and run the script for your OS. Windows includes <code>esptool.exe</code>; macOS/Linux need <code>pip install esptool</code>.</p>
+  </section>
+
+  <section class="step last">
+    <p class="k">2 · After flashing</p>
+    <h2>Get it on your WiFi</h2>
+    <ul>
+      <li>The board reboots and opens a setup hotspot named <b>ESP32-Matrix-Setup</b>.</li>
+      <li>Join it from your phone/laptop, pick your network, and enter the password.</li>
+      <li>It reconnects and is reachable at <code>http://esp32matrix.local</code> — open that for the control panel.</li>
+      <li>Hold <b>BOOT</b> at power-on any time to wipe WiFi and start over.</li>
+    </ul>
+    <div class="warn"><b>Heads up:</b> the distributed firmware ships with <b>no</b> WiFi credentials — you set them on first boot. Your network details stay on your board.</div>
+  </section>
+
+</div></main>
+
+<footer><div class="wrap">
+  <a href="../">Overview</a> · <a href="https://github.com/srfinch17/peckworks-esp32s3matrix">GitHub</a> · <a href="https://github.com/srfinch17/peckworks-esp32s3matrix/blob/master/docs/API.md">API docs</a>
+</div></footer>
+
+</body>
+</html>
