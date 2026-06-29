@@ -96,7 +96,7 @@ in `data/animations.html` (the hub, NOT index). See the `add-animation` skill.
 
 Canonical `VERSION` → `version.h` (`FW_VERSION`) + `data/version.json`. `GET /api/status`
 reports `fw_version`/`fw_built`/`web_version`. `npm run check` flags drift. Board address =
-`ESP32_URL` env (default `http://esp32matrix.local`). (Follow-up: `scripts/version-stamp.js`
-still references `mcp_server/` artifacts from the pre-split monorepo — trim to firmware-only.)
+`ESP32_URL` env (default `http://esp32matrix.local`). (The MCP server is versioned
+separately in the `claude-expression-studio` repo.)
 
 Deeper material: `docs/PITFALLS.md`, `docs/superpowers/specs/`, `docs/superpowers/plans/`.

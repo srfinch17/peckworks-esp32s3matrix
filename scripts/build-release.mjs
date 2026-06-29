@@ -122,12 +122,7 @@ async function main() {
     builds: [{ chipFamily: "ESP32-S3", parts: [{ path: path.basename(merged), offset: 0 }] }],
   }, null, 2) + "\n", "utf8");
 
-  // 6. The .mcpb is written straight into release/ by `npm run build:mcpb`; just
-  //    warn if it hasn't been built yet so the release package isn't silently incomplete.
-  const mcpb = path.join(RELEASE_DIR, "esp32-matrix.mcpb");
-  if (!existsSync(mcpb)) console.warn("note: release/esp32-matrix.mcpb missing — run `npm run build:mcpb` too");
-
-  // 7. Assemble a self-contained offline-flash package: the bundled esptool, the
+  // 6. Assemble a self-contained offline-flash package: the bundled esptool, the
   //    flash scripts, and the browser-install page all sit beside the merged .bin so
   //    flash.bat's %~dp0 lookup (esptool.exe + esp32matrix-*-merged.bin) just works.
   await copyFile(esptool, path.join(RELEASE_DIR, "esptool.exe"));
@@ -135,7 +130,7 @@ async function main() {
     await copyFile(path.join(INSTALL_DIR, f), path.join(RELEASE_DIR, f));
   }
 
-  console.log(`\nRelease ready in release/:\n  ${path.basename(merged)}  (flash at 0x0)\n  esptool.exe  flash.bat  flash.sh   (offline flasher)\n  index.html  manifest.json          (browser flasher — needs https/Pages)\n  esp32-matrix.mcpb${existsSync(mcpb) ? "" : "  (MISSING — run build:mcpb)"}            (Claude Desktop extension)`);
+  console.log(`\nRelease ready in release/:\n  ${path.basename(merged)}  (flash at 0x0)\n  esptool.exe  flash.bat  flash.sh   (offline flasher)\n  index.html  manifest.json          (browser flasher — needs https/Pages)`);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
