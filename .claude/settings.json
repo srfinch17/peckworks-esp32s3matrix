@@ -12,30 +12,5 @@
       "mcp__esp32-matrix__matrix_version",
       "mcp__esp32-matrix__matrix_studio"
     ]
-  },
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write|MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node scripts/rebuild-mcp.mjs",
-            "statusMessage": "Rebuilding MCP server (if changed)…"
-          }
-        ]
-      }
-    ],
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node scripts/rebuild-mcp.mjs",
-            "statusMessage": "Checking MCP server build…"
-          }
-        ]
-      }
-    ]
   }
 }
