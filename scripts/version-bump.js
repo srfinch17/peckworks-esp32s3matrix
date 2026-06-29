@@ -19,7 +19,6 @@ const STAMPED_FILES = [
   "VERSION",
   "esp32_matrix_webserver/version.h",
   "esp32_matrix_webserver/data/version.json",
-  "mcp_server/package.json",
 ];
 
 async function main() {
