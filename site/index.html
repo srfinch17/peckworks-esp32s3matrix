@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ESP32-S3 Matrix — an 8×8 LED panel you talk to</title>
+<meta name="description" content="Firmware for the Waveshare ESP32-S3-Matrix: a standalone 8×8 WS2812B LED panel with an onboard web UI, WiFi captive-portal setup, and an HTTP API anything can drive — including Claude." />
+<style>
+  :root{
+    --bg:#080b09; --panel:#0e130f; --line:#1c241d; --line2:#28332a;
+    --green:#2bd576; --green-dim:#1c8f4e; --amber:#ff9d2f; --cyan:#36d9d3;
+    --text:#e7efe8; --dim:#8ea399; --code:#0a0f0c;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:ui-monospace,"IBM Plex Mono","SF Mono",Menlo,monospace;
+    line-height:1.6;font-size:15px;
+    background-image:radial-gradient(900px 500px at 80% -5%, rgba(43,213,118,.10), transparent),
+      radial-gradient(700px 400px at 0% 0%, rgba(54,217,211,.06), transparent);}
+  a{color:var(--green);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:980px;margin:0 auto;padding:0 22px}
+  header{padding:18px 0;border-bottom:1px solid var(--line);position:sticky;top:0;
+    background:rgba(8,11,9,.82);backdrop-filter:blur(8px);z-index:9}
+  header .wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .logo{display:flex;align-items:center;gap:10px;font-weight:700}
+  .logo .grid{width:26px;height:26px;border-radius:6px;display:grid;
+    grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(4,1fr);gap:2px;
+    background:#0c120e;padding:3px;border:1px solid var(--line2)}
+  .logo .grid i{border-radius:1px;background:#15201a}
+  .logo .grid i:nth-child(3n){background:var(--green)}
+  .logo .grid i:nth-child(4n){background:var(--amber)}
+  .logo .grid i:nth-child(7n){background:var(--cyan)}
+  nav{margin-left:auto;display:flex;gap:18px;font-size:13px;color:var(--dim)}
+  nav a{color:var(--dim)} nav a:hover{color:var(--text);text-decoration:none}
+  .hero{display:grid;grid-template-columns:1.1fr .9fr;gap:34px;align-items:center;padding:54px 0 40px}
+  .hero h1{font-size:34px;line-height:1.18;margin:0 0 14px;letter-spacing:-.01em}
+  .hero h1 .hl{color:var(--green)}
+  .hero p.lead{color:var(--dim);font-size:16px;margin:0 0 22px}
+  .badges{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 24px}
+  .badge{font-size:12px;color:var(--dim);border:1px solid var(--line2);
+    border-radius:999px;padding:4px 11px;background:#0c120e}
+  .badge b{color:var(--green);font-weight:600}
+  .cta{display:flex;flex-wrap:wrap;gap:10px}
+  .btn{display:inline-block;border:1px solid var(--line2);border-radius:9px;
+    padding:10px 16px;font-size:14px;color:var(--text);background:#0d130f;transition:.15s}
+  .btn:hover{border-color:var(--green-dim);text-decoration:none}
+  .btn.primary{background:var(--green);color:#04130a;border-color:var(--green);font-weight:600}
+  .btn.primary:hover{filter:brightness(1.08)}
+  .hero .shot{border:1px solid var(--line2);border-radius:16px;background:#fff;
+    overflow:hidden;box-shadow:0 30px 80px rgba(43,213,118,.10)}
+  .hero .shot img{display:block;width:100%}
+  section{padding:46px 0;border-top:1px solid var(--line)}
+  h2{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--green);margin:0 0 6px}
+  .sec-lead{font-size:22px;margin:0 0 26px;letter-spacing:-.01em}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .card{border:1px solid var(--line);border-radius:13px;background:var(--panel);padding:18px}
+  .card h3{margin:0 0 7px;font-size:15px}
+  .card p{margin:0;color:var(--dim);font-size:13.5px}
+  .card .ico{font-size:22px;margin-bottom:8px}
+  .gallery{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+  .figure{border:1px solid var(--line2);border-radius:13px;overflow:hidden;background:var(--panel)}
+  .figure img{display:block;width:100%;border-bottom:1px solid var(--line)}
+  .figure .cap{padding:10px 14px;font-size:13px;color:var(--dim)}
+  .figure .cap b{color:var(--text);font-weight:600}
+  pre{background:var(--code);border:1px solid var(--line2);border-radius:11px;
+    padding:15px 16px;overflow:auto;font-size:13px;line-height:1.5;margin:0 0 14px}
+  pre .c{color:var(--dim)} pre .k{color:var(--amber)} pre .s{color:var(--green)} pre .u{color:var(--cyan)}
+  .api-row{display:grid;grid-template-columns:130px 1fr;gap:10px 16px;border-top:1px solid var(--line);
+    padding:11px 0;align-items:baseline}
+  .api-row:first-of-type{border-top:none}
+  .meth{font-size:12px;color:var(--amber)}
+  .meth .path{color:var(--text)}
+  .api-row .d{color:var(--dim);font-size:13.5px}
+  .studio{display:grid;grid-template-columns:.85fr 1.15fr;gap:30px;align-items:center}
+  .studio .shot{border:1px solid var(--line2);border-radius:14px;overflow:hidden;background:#0c0a12}
+  .studio .shot img{display:block;width:100%}
+  footer{border-top:1px solid var(--line);padding:30px 0 50px;color:var(--dim);font-size:13px}
+  footer a{color:var(--dim)} footer a:hover{color:var(--text)}
+  .note{color:var(--dim);font-size:12.5px;margin-top:6px}
+  @media(max-width:760px){
+    .hero,.studio{grid-template-columns:1fr} .grid3,.gallery{grid-template-columns:1fr}
+    .hero{padding-top:34px} .hero h1{font-size:28px} nav{display:none}
+    .api-row{grid-template-columns:1fr;gap:2px}
+  }
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <span class="logo"><span class="grid"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span> ESP32-S3 Matrix</span>
+  <nav>
+    <a href="#what">What</a><a href="#ui">Web UI</a><a href="#api">API</a><a href="#claude">Claude</a><a href="https://github.com/srfinch17/peckworks-esp32s3matrix">GitHub ↗</a>
+  </nav>
+</div></header>
+
+<div class="wrap">
+
+  <div class="hero">
+    <div>
+      <h1>An <span class="hl">8×8 LED panel</span> you talk to — over WiFi, over HTTP, or just from your phone.</h1>
+      <p class="lead">Open-source firmware for the Waveshare ESP32-S3-Matrix: 64 RGB LEDs on a tiny ESP32-S3 board. It sets up its own WiFi, serves its own control panel, and exposes an HTTP API that <em>anything</em> can drive — fire, rain, fireworks, weather, a clock, scrolling text, or your own pixels. No app, no cloud, no computer required.</p>
+      <div class="badges">
+        <span class="badge"><b>8×8</b> · 64 WS2812B RGB</span>
+        <span class="badge"><b>ESP32-S3</b> + 6-axis IMU</span>
+        <span class="badge">Runs <b>standalone</b></span>
+        <span class="badge">WiFi <b>captive portal</b></span>
+        <span class="badge">Open <b>HTTP API</b></span>
+      </div>
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/srfinch17/peckworks-esp32s3matrix/tree/master/install">⚡ Flash it</a>
+        <a class="btn" href="#api">View the API</a>
+        <a class="btn" href="https://github.com/srfinch17/peckworks-esp32s3matrix">GitHub ↗</a>
+      </div>
+    </div>
+    <div class="shot"><img src="./assets/board.webp" alt="Waveshare ESP32-S3-Matrix — an 8×8 grid of WS2812B RGB LEDs on a USB-C ESP32-S3 board" /></div>
+  </div>
+
+  <section id="what">
+    <h2>What it is &amp; why</h2>
+    <p class="sec-lead">A self-contained little display that's genuinely <em>yours</em> — and that any program can light up.</p>
+    <div class="grid3">
+      <div class="card"><div class="ico">🔌</div><h3>Plug-in &amp; standalone</h3><p>Power it over USB-C and it boots straight into whatever it was last showing. No computer in the loop — it runs the show by itself.</p></div>
+      <div class="card"><div class="ico">📶</div><h3>Self-onboarding WiFi</h3><p>First boot opens a <b>setup hotspot</b>; join it, pick your network, done. After that it's reachable at <code>esp32matrix.local</code>. Hold BOOT to reset.</p></div>
+      <div class="card"><div class="ico">🎛️</div><h3>Its own control panel</h3><p>A full web UI is served <em>from the board</em> — animations, brightness, weather, clock, a pixel painter, and a calibration lab. Open it on your phone.</p></div>
+      <div class="card"><div class="ico">🔥</div><h3>A real animation library</h3><p>Fire, matrix rain, fireworks, dance floor, comet, an IMU-reactive liquid, snow, starfield, and more — each tunable live.</p></div>
+      <div class="card"><div class="ico">🌡️</div><h3>Useful, not just pretty</h3><p>Live weather by ZIP, an NTP clock + countdown timers, scrolling text, and a vibration-reactive VU meter.</p></div>
+      <div class="card"><div class="ico">🧩</div><h3>An open API</h3><p>Every capability is an HTTP endpoint. Send a built-in animation, push your own 8×8 frames, set brightness, or read sensors — from any language.</p></div>
+    </div>
+  </section>
+
+  <section id="ui">
+    <h2>The onboard web UI</h2>
+    <p class="sec-lead">Served straight from the device — no install. These are live screenshots of the real board.</p>
+    <div class="gallery">
+      <div class="figure"><img src="./assets/ui-index.png" alt="The board's web control panel" /><div class="cap"><b>Control panel</b> — the home screen: Text, Weather, Time, Vibrations, Animations, System, Sketch, and a brightness slider with a heat guard.</div></div>
+      <div class="figure"><img src="./assets/ui-fire.png" alt="The Fire animation control page with a live preview" /><div class="cap"><b>Per-animation controls</b> — a live preview plus theme &amp; motion sliders (intensity, tendrils, speed, sparks) that apply to the panel as you drag.</div></div>
+      <div class="figure"><img src="./assets/ui-animations.png" alt="The animations hub" /><div class="cap"><b>Animations hub</b> — every effect on the board, each with its own tuning page.</div></div>
+      <div class="figure"><img src="./assets/ui-calibrate.png" alt="The calibration lab" /><div class="cap"><b>Calibration lab</b> — measure the panel's real color/brightness with your eyes; the correction is saved on-device and applied live.</div></div>
+    </div>
+  </section>
+
+  <section id="api">
+    <h2>The HTTP API</h2>
+    <p class="sec-lead">Anything that can make an HTTP request can drive the panel. Base URL = <code>http://esp32matrix.local</code>.</p>
+
+    <p style="color:var(--dim);margin:0 0 10px">Launch a built-in animation (the <span style="color:var(--amber)">transient</span> flag keeps it out of boot-resume):</p>
+<pre><span class="c"># roar some fire at half intensity</span>
+curl -X POST http://esp32matrix.local<span class="u">/api/display/animation</span> \
+  -H <span class="s">"Content-Type: application/json"</span> \
+  -d <span class="s">'{"type":"fire","transient":true,"intensity":6,"theme":"classic"}'</span></pre>
+
+    <p style="color:var(--dim);margin:0 0 10px">Push your <em>own</em> animation — up to 24 frames, each 64 <code>RRGGBB</code> pixels (row-major):</p>
+<pre><span class="c"># a 2-frame blink; loop:0 = forever</span>
+curl -X POST http://esp32matrix.local<span class="u">/api/display/frames</span> \
+  -d <span class="s">'{"frames":["…384 hex chars…","…"],"frame_ms":150,"loop":0}'</span></pre>
+
+    <p style="color:var(--dim);margin:0 0 10px">And the rest of the surface:</p>
+    <div class="api-row"><span class="meth">GET <span class="path">/api/status</span></span><span class="d">firmware/web version + live heap telemetry; use it for reachability checks.</span></div>
+    <div class="api-row"><span class="meth">POST <span class="path">/api/brightness</span></span><span class="d"><code>{ level: 0–255 }</code> — global brightness (persisted).</span></div>
+    <div class="api-row"><span class="meth">POST <span class="path">/api/display/text</span></span><span class="d">scroll a message, with color/gradient options.</span></div>
+    <div class="api-row"><span class="meth">POST <span class="path">/api/display/matrix</span></span><span class="d">set a single static 8×8 frame.</span></div>
+    <div class="api-row"><span class="meth">GET <span class="path">/api/display/framebuffer</span></span><span class="d">read the live 8×8 as 64 <code>RRGGBB</code> — mirror it anywhere.</span></div>
+    <div class="api-row"><span class="meth">GET/POST <span class="path">/api/presence</span></span><span class="d">a semantic status message (intent + headline + data) any renderer can show.</span></div>
+    <div class="api-row"><span class="meth">GET/POST <span class="path">/api/settings</span></span><span class="d">NVS-backed config (idle screensaver, default brightness, timezone…).</span></div>
+    <div class="api-row"><span class="meth">GET/POST <span class="path">/api/calibration</span></span><span class="d">read/overwrite the LED correction profile — live-reloaded, no reflash.</span></div>
+    <p class="note">Full reference: <a href="https://github.com/srfinch17/peckworks-esp32s3matrix/blob/master/docs/API.md">docs/API.md</a>. The board persists its last animation, brightness, and settings to flash, so it powers back up into whatever it was doing.</p>
+  </section>
+
+  <section id="claude">
+    <h2>Drive it with Claude</h2>
+    <div class="studio">
+      <div class="shot"><a href="https://srfinch17.github.io/claude-expression-studio/"><img src="./assets/ui-fire.png" alt="The Claude Expression Studio" style="display:none" /></a>
+        <div style="padding:22px;text-align:center;background:radial-gradient(400px 200px at 50% 0%, rgba(255,80,8,.18), transparent)">
+          <div style="font-size:40px;line-height:1.1">🟠</div>
+          <div style="font-size:13px;color:var(--dim);margin-top:8px;letter-spacing:.04em">Claude Expression Studio</div>
+          <a class="btn" style="margin-top:14px" href="https://srfinch17.github.io/claude-expression-studio/">Open the live demo ↗</a>
+        </div>
+      </div>
+      <div>
+        <p class="sec-lead" style="margin-bottom:14px">The panel doubles as <em>Claude's</em> expression channel.</p>
+        <p style="color:var(--dim);margin:0 0 14px">Because the whole board is just an HTTP API, a companion project turns it into an ambient status light for AI coding sessions: Claude shows a spinner while it works, a checkmark when it's done, a glyph when it's waiting on you — all by POSTing to the same endpoints above.</p>
+        <p style="color:var(--dim);margin:0 0 18px">That lives in its own repo, <b>Claude Expression Studio</b> — a renderer-agnostic presence &amp; expression system with a browser studio to design and wire animations. It talks to this board only over the API on the left, and it runs board-free too (everything simulates in the browser).</p>
+        <div class="cta">
+          <a class="btn primary" href="https://srfinch17.github.io/claude-expression-studio/">Live studio demo ↗</a>
+          <a class="btn" href="https://github.com/srfinch17/claude-expression-studio">Studio repo ↗</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="flash">
+    <h2>Get one going</h2>
+    <p class="sec-lead">It's a ~$15 board and a one-click flash.</p>
+    <div class="grid3">
+      <div class="card"><div class="ico">🛒</div><h3>1 · Get the board</h3><p>The Waveshare ESP32-S3-Matrix — an 8×8 WS2812B grid on a USB-C ESP32-S3. <a href="https://www.amazon.com/Waveshare-ESP32-S3-Matrix-Development-QMI8658C-Bluetooth/dp/B0D3DPLFL8">On Amazon ↗</a></p></div>
+      <div class="card"><div class="ico">⚡</div><h3>2 · Flash it</h3><p>Use the browser flasher or the offline <code>flash.bat</code>/<code>flash.sh</code> in <a href="https://github.com/srfinch17/peckworks-esp32s3matrix/tree/master/install">install/</a>. One merged binary — app + web UI.</p></div>
+      <div class="card"><div class="ico">📶</div><h3>3 · Join WiFi</h3><p>Connect to the <b>ESP32-Matrix-Setup</b> hotspot, pick your network, and open <code>esp32matrix.local</code>. That's it.</p></div>
+    </div>
+  </section>
+
+</div>
+
+<footer><div class="wrap">
+  ESP32-S3 Matrix firmware · open source ·
+  <a href="https://github.com/srfinch17/peckworks-esp32s3matrix">GitHub</a> ·
+  <a href="https://github.com/srfinch17/peckworks-esp32s3matrix/blob/master/docs/API.md">API docs</a> ·
+  <a href="https://srfinch17.github.io/claude-expression-studio/">Claude Expression Studio</a>
+  <div class="note">Built on the Waveshare ESP32-S3-Matrix. Board photo: Waveshare. The Claude integration lives in the separate claude-expression-studio repo and drives this board only over the documented HTTP API.</div>
+</div></footer>
+</body>
+</html>
