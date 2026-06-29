@@ -13,6 +13,17 @@ selector, weather/clock, a calibration lab, and an HTTP API. It exposes that API
 > **`claude-expression-studio`** repo. They drive this board ONLY via `docs/API.md`;
 > no code is shared. See `docs/PITFALLS.md` before debugging hardware.
 
+> **Cross-device memory (laptop ↔ desktop).** Developed on two machines. Claude Code's
+> per-project auto-memory (`~/.claude/projects/.../memory/`) is redirected by a directory
+> **junction** to the Dropbox-synced store `ClaudeGlobalMem/dev/esp32_matrix_memory/`, so
+> memory follows the user across machines automatically. This firmware repo AND the
+> `claude-expression-studio` repo junction to the SAME store, so memory is unified across both.
+> Just use memory normally — the sync is automatic. **One-time per machine:** run
+> `ClaudeGlobalMem/dev/setup-memory-junctions.ps1` (idempotent, backs up any existing local
+> memory first; details in `ClaudeGlobalMem/dev/esp32_matrix.md`). Also keep that orientation
+> file + the global `ClaudeGlobalMem/INDEX.md` current per the INDEX's own rules (write without
+> being asked, note `→ noted in [file]`, refresh paths/dates).
+
 ---
 
 ## How we work (the dev loop)
@@ -96,7 +107,7 @@ in `data/animations.html` (the hub, NOT index). See the `add-animation` skill.
 
 Canonical `VERSION` → `version.h` (`FW_VERSION`) + `data/version.json`. `GET /api/status`
 reports `fw_version`/`fw_built`/`web_version`. `npm run check` flags drift. Board address =
-`ESP32_URL` env (default `http://esp32matrix.local`). (Follow-up: `scripts/version-stamp.js`
-still references `mcp_server/` artifacts from the pre-split monorepo — trim to firmware-only.)
+`ESP32_URL` env (default `http://esp32matrix.local`). (The MCP server is versioned
+separately in the `claude-expression-studio` repo.)
 
 Deeper material: `docs/PITFALLS.md`, `docs/superpowers/specs/`, `docs/superpowers/plans/`.

@@ -4,11 +4,13 @@
 //   npm run check                  (uses ESP32_URL or the mDNS default)
 //   node scripts/version-check.js  [boardUrl]
 //
-// Also imported by the matrix_version MCP tool, which calls checkVersions()
-// and formats the same rows. Exit code is non-zero on any drift or if the
-// board is unreachable, so this can gate CI later if desired.
+// Exit code is non-zero on any drift or if the board is unreachable, so this
+// can gate CI later if desired.
+//
+// This is the firmware repo: the only deployed artifacts are the firmware and
+// the web bundle, both reported by the board's /api/status. The MCP server is
+// versioned in the separate claude-expression-studio repo.
 
-import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { compareArtifact } from "./version-lib.js";
@@ -27,38 +29,21 @@ const DEFAULT_BOARD = process.env.ESP32_URL ?? "http://esp32matrix.local";
 export async function checkVersions({ root = REPO_ROOT, boardUrl = DEFAULT_BOARD, fetchFn = fetch } = {}) {
   const expected = await readVersion(root);
 
-  // MCP version is local — read it straight from its manifest.
-  let mcpVersion = "unknown";
-  try {
-    const pkg = JSON.parse(await readFile(path.join(root, "mcp_server", "package.json"), "utf8"));
-    mcpVersion = pkg.version ?? "unknown";
-  } catch { /* leave as unknown */ }
-
-  let bundleVersion = "unknown";
-  try {
-    const m = JSON.parse(await readFile(path.join(root, "mcp_server", "manifest.json"), "utf8"));
-    bundleVersion = m.version ?? "unknown";
-  } catch { /* leave as unknown */ }
-
-  const rows = [
-    { artifact: "mcp", reported: mcpVersion, status: compareArtifact(mcpVersion, expected) },
-    { artifact: "mcp-bundle", reported: bundleVersion, status: compareArtifact(bundleVersion, expected) },
-  ];
-
   // Firmware + web come from the board's /api/status in one call.
+  const rows = [];
   let reachable = true;
   try {
     const res = await fetchFn(`${boardUrl}/api/status`, { signal: AbortSignal.timeout(8000) });
     const status = await res.json();
     const fw = status.fw_version;
     const web = status.web_version;
-    rows.unshift(
+    rows.push(
       { artifact: "firmware", reported: fw ?? "unknown", status: compareArtifact(fw, expected), built: status.fw_built },
       { artifact: "web", reported: web ?? "unknown", status: compareArtifact(web, expected) },
     );
   } catch {
     reachable = false;
-    rows.unshift(
+    rows.push(
       { artifact: "firmware", reported: "?", status: "unreachable" },
       { artifact: "web", reported: "?", status: "unreachable" },
     );
@@ -75,7 +60,7 @@ export function formatReport({ expected, rows }) {
     const built = r.built ? `  (built ${r.built})` : "";
     const hint =
       r.status === "drift" ? `  → stale, redeploy ${r.artifact}` :
-      r.status === "unknown" && r.artifact !== "mcp" ? "  → pre-versioning deploy, redeploy to track" : "";
+      r.status === "unknown" ? "  → pre-versioning deploy, redeploy to track" : "";
     lines.push(`  ${r.artifact.padEnd(9)} ${String(r.reported).padEnd(8)} ${mark[r.status]}${built}${hint}`);
   }
   return lines.join("\n");

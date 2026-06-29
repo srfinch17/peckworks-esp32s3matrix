@@ -2,7 +2,10 @@
 //
 //   VERSION ──►  esp32_matrix_webserver/version.h        (#define FW_VERSION)
 //           ──►  esp32_matrix_webserver/data/version.json (served from LittleFS)
-//           ──►  mcp_server/package.json                  ("version" field)
+//
+// This is the firmware repo — its two independently-deployed artifacts are the
+// firmware (flash) and the web bundle (LittleFS upload). The MCP server lives in
+// the separate claude-expression-studio repo and stamps itself there.
 //
 // Run directly (`node scripts/version-stamp.js`) or import `stamp()` for tests.
 // Idempotent except for the version.json "stamped" timestamp, which always
@@ -29,7 +32,7 @@ export async function readVersion(root = REPO_ROOT) {
   return version;
 }
 
-/** Write `version` into all three artifact sources under `root`. */
+/** Write `version` into both artifact sources under `root`. */
 export async function stamp(version, root = REPO_ROOT) {
   parseSemver(version); // guard against stamping garbage
 
@@ -48,18 +51,6 @@ export async function stamp(version, root = REPO_ROOT) {
     "utf8",
   );
 
-  // 3. MCP server manifest — read/modify/write to preserve the rest of the file
-  const pkgPath = path.join(root, "mcp_server", "package.json");
-  const pkg = JSON.parse(await readFile(pkgPath, "utf8"));
-  pkg.version = version;
-  await writeFile(pkgPath, JSON.stringify(pkg, null, 2) + "\n", "utf8");
-
-  // 4. MCP bundle manifest (.mcpb) — read/modify/write to preserve other fields
-  const manifestPath = path.join(root, "mcp_server", "manifest.json");
-  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-  manifest.version = version;
-  await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");
-
   return version;
 }
 
@@ -67,5 +58,5 @@ export async function stamp(version, root = REPO_ROOT) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const version = await readVersion();
   await stamp(version);
-  console.log(`Stamped v${version} → version.h, data/version.json, mcp_server/package.json, mcp_server/manifest.json`);
+  console.log(`Stamped v${version} → version.h, data/version.json`);
 }
