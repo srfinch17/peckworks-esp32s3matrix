@@ -1,5 +1,0 @@
-*.ts
-*.test.ts
-tsconfig.json
-.env
-mcp_launch.cmd
