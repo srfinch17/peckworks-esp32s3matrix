@@ -1,212 +1,531 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>ESP32-S3 Matrix — an 8×8 LED panel you talk to</title>
-<meta name="description" content="Firmware for the Waveshare ESP32-S3-Matrix: a standalone 8×8 WS2812B LED panel with an onboard web UI, WiFi captive-portal setup, and an HTTP API anything can drive — including Claude." />
+<meta name="description" content="Open-source firmware for the Waveshare ESP32-S3-Matrix: a standalone 8×8 WS2812B LED panel with an onboard web UI, WiFi captive-portal setup, and an HTTP API anything can drive — including Claude. No app, no cloud, no computer." />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23080B09'/%3E%3Crect x='0.5' y='0.5' width='31' height='31' rx='6.5' fill='none' stroke='%231C241D'/%3E%3Cg%3E%3Crect x='7' y='7' width='4.4' height='4.4' rx='1' fill='%2315201A'/%3E%3Crect x='13.8' y='7' width='4.4' height='4.4' rx='1' fill='%232BD576'/%3E%3Crect x='20.6' y='7' width='4.4' height='4.4' rx='1' fill='%2315201A'/%3E%3Crect x='7' y='13.8' width='4.4' height='4.4' rx='1' fill='%23FF9D2F'/%3E%3Crect x='13.8' y='13.8' width='4.4' height='4.4' rx='1' fill='%2315201A'/%3E%3Crect x='20.6' y='13.8' width='4.4' height='4.4' rx='1' fill='%2336D9D3'/%3E%3Crect x='7' y='20.6' width='4.4' height='4.4' rx='1' fill='%2315201A'/%3E%3Crect x='13.8' y='20.6' width='4.4' height='4.4' rx='1' fill='%232BD576'/%3E%3Crect x='20.6' y='20.6' width='4.4' height='4.4' rx='1' fill='%2315201A'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#080b09; --panel:#0e130f; --line:#1c241d; --line2:#28332a;
-    --green:#2bd576; --green-dim:#1c8f4e; --amber:#ff9d2f; --cyan:#36d9d3;
-    --text:#e7efe8; --dim:#8ea399; --code:#0a0f0c;
+    --ink:#080b09; --ink-2:#0e130f; --ink-3:#141b16;
+    --line:#1c241d; --line-soft:#161d18;
+    --text:#e7efe8; --muted:#8ea399; --muted-2:#5f7166;
+    --green:#2bd576; --cyan:#36d9d3; --amber:#ff9d2f;
+    --emotion:#ff5008;            /* reserved for the Claude handoff */
+    --adjacent:#6e9bff; --violet:#b98cff; --red:#ff5c82;
+    --maxw:1080px; --r:14px;
   }
-  *{box-sizing:border-box}
-  html{scroll-behavior:smooth}
-  body{margin:0;background:var(--bg);color:var(--text);
-    font-family:ui-monospace,"IBM Plex Mono","SF Mono",Menlo,monospace;
-    line-height:1.6;font-size:15px;
-    background-image:radial-gradient(900px 500px at 80% -5%, rgba(43,213,118,.10), transparent),
-      radial-gradient(700px 400px at 0% 0%, rgba(54,217,211,.06), transparent);}
-  a{color:var(--green);text-decoration:none}
-  a:hover{text-decoration:underline}
-  .wrap{max-width:980px;margin:0 auto;padding:0 22px}
-  header{padding:18px 0;border-bottom:1px solid var(--line);position:sticky;top:0;
-    background:rgba(8,11,9,.82);backdrop-filter:blur(8px);z-index:9}
-  header .wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-  .logo{display:flex;align-items:center;gap:10px;font-weight:700}
-  .logo .grid{width:26px;height:26px;border-radius:6px;display:grid;
-    grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(4,1fr);gap:2px;
-    background:#0c120e;padding:3px;border:1px solid var(--line2)}
-  .logo .grid i{border-radius:1px;background:#15201a}
-  .logo .grid i:nth-child(3n){background:var(--green)}
-  .logo .grid i:nth-child(4n){background:var(--amber)}
-  .logo .grid i:nth-child(7n){background:var(--cyan)}
-  nav{margin-left:auto;display:flex;gap:18px;font-size:13px;color:var(--dim)}
-  nav a{color:var(--dim)} nav a:hover{color:var(--text);text-decoration:none}
-  .hero{display:grid;grid-template-columns:1.1fr .9fr;gap:34px;align-items:center;padding:54px 0 40px}
-  .hero h1{font-size:34px;line-height:1.18;margin:0 0 14px;letter-spacing:-.01em}
-  .hero h1 .hl{color:var(--green)}
-  .hero p.lead{color:var(--dim);font-size:16px;margin:0 0 22px}
-  .badges{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 24px}
-  .badge{font-size:12px;color:var(--dim);border:1px solid var(--line2);
-    border-radius:999px;padding:4px 11px;background:#0c120e}
-  .badge b{color:var(--green);font-weight:600}
-  .cta{display:flex;flex-wrap:wrap;gap:10px}
-  .btn{display:inline-block;border:1px solid var(--line2);border-radius:9px;
-    padding:10px 16px;font-size:14px;color:var(--text);background:#0d130f;transition:.15s}
-  .btn:hover{border-color:var(--green-dim);text-decoration:none}
-  .btn.primary{background:var(--green);color:#04130a;border-color:var(--green);font-weight:600}
-  .btn.primary:hover{filter:brightness(1.08)}
-  .hero .shot{border:1px solid var(--line2);border-radius:16px;background:#fff;
-    overflow:hidden;box-shadow:0 30px 80px rgba(43,213,118,.10)}
-  .hero .shot img{display:block;width:100%}
-  section{padding:46px 0;border-top:1px solid var(--line)}
-  h2{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--green);margin:0 0 6px}
-  .sec-lead{font-size:22px;margin:0 0 26px;letter-spacing:-.01em}
-  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-  .card{border:1px solid var(--line);border-radius:13px;background:var(--panel);padding:18px}
-  .card h3{margin:0 0 7px;font-size:15px}
-  .card p{margin:0;color:var(--dim);font-size:13.5px}
-  .card .ico{font-size:22px;margin-bottom:8px}
-  .gallery{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
-  .figure{border:1px solid var(--line2);border-radius:13px;overflow:hidden;background:var(--panel)}
-  .figure img{display:block;width:100%;border-bottom:1px solid var(--line)}
-  .figure .cap{padding:10px 14px;font-size:13px;color:var(--dim)}
-  .figure .cap b{color:var(--text);font-weight:600}
-  pre{background:var(--code);border:1px solid var(--line2);border-radius:11px;
-    padding:15px 16px;overflow:auto;font-size:13px;line-height:1.5;margin:0 0 14px}
-  pre .c{color:var(--dim)} pre .k{color:var(--amber)} pre .s{color:var(--green)} pre .u{color:var(--cyan)}
-  .api-row{display:grid;grid-template-columns:130px 1fr;gap:10px 16px;border-top:1px solid var(--line);
-    padding:11px 0;align-items:baseline}
-  .api-row:first-of-type{border-top:none}
-  .meth{font-size:12px;color:var(--amber)}
-  .meth .path{color:var(--text)}
-  .api-row .d{color:var(--dim);font-size:13.5px}
-  .studio{display:grid;grid-template-columns:.85fr 1.15fr;gap:30px;align-items:center}
-  .studio .shot{border:1px solid var(--line2);border-radius:14px;overflow:hidden;background:#0c0a12}
-  .studio .shot img{display:block;width:100%}
-  footer{border-top:1px solid var(--line);padding:30px 0 50px;color:var(--dim);font-size:13px}
-  footer a{color:var(--dim)} footer a:hover{color:var(--text)}
-  .note{color:var(--dim);font-size:12.5px;margin-top:6px}
-  @media(max-width:760px){
-    .hero,.studio{grid-template-columns:1fr} .grid3,.gallery{grid-template-columns:1fr}
-    .hero{padding-top:34px} .hero h1{font-size:28px} nav{display:none}
-    .api-row{grid-template-columns:1fr;gap:2px}
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0; background:var(--ink); color:var(--text);
+    font-family:"IBM Plex Sans",system-ui,sans-serif; line-height:1.58;
+    -webkit-font-smoothing:antialiased;
+    background-image:linear-gradient(var(--line-soft) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+    background-size:46px 46px, 46px 46px; background-position:center top;
   }
+  body::before{content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:radial-gradient(120% 80% at 50% -10%, transparent 30%, var(--ink) 78%);}
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px; position:relative; z-index:1;}
+  a{color:inherit;}
+  ::selection{background:var(--green); color:#04130a;}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace;}
+  .eyebrow{font-family:"IBM Plex Mono",monospace; font-size:.72rem; letter-spacing:.22em; text-transform:uppercase; color:var(--muted);}
+
+  /* topbar */
+  .topbar{position:sticky; top:0; z-index:30; backdrop-filter:blur(8px);
+    background:rgba(8,11,9,.85); border-bottom:1px solid var(--line);}
+  .topbar .wrap{display:flex; align-items:center; gap:18px; height:54px;}
+  .brand{font-family:"Space Grotesk",sans-serif; font-weight:600; letter-spacing:-.01em; white-space:nowrap; display:flex; align-items:center; gap:10px;}
+  .brand .grid{width:22px; height:22px; border-radius:5px; display:grid;
+    grid-template-columns:repeat(4,1fr); grid-template-rows:repeat(4,1fr); gap:2px;
+    background:#0c120e; padding:3px; border:1px solid var(--line); flex:none;}
+  .brand .grid i{border-radius:1px; background:#15201a;}
+  .brand .grid i:nth-child(3n){background:var(--green);}
+  .brand .grid i:nth-child(4n){background:var(--amber);}
+  .brand .grid i:nth-child(7n){background:var(--cyan);}
+  .brand .sub{color:var(--muted-2); font-family:"IBM Plex Mono",monospace; font-size:.66rem; letter-spacing:.12em; text-transform:uppercase;}
+  .navcodes{display:flex; gap:4px; flex-wrap:wrap; margin-left:auto; overflow:auto;}
+  .navcodes a{font-family:"IBM Plex Mono",monospace; font-size:.7rem; color:var(--muted);
+    text-decoration:none; padding:4px 7px; border:1px solid transparent; border-radius:7px;}
+  .navcodes a:hover{color:var(--text); border-color:var(--line); background:var(--ink-2);}
+  .navcodes a.gh{color:var(--green); border-color:color-mix(in srgb,var(--green) 35%,transparent);}
+
+  /* hero */
+  .hero{padding:74px 0 26px;}
+  .hero .eyebrow{margin-bottom:22px;}
+  .thesis{font-family:"Space Grotesk",sans-serif; font-weight:600;
+    font-size:clamp(2.1rem,5.4vw,3.7rem); line-height:1.05; letter-spacing:-.025em; margin:0 0 14px; max-width:22ch;}
+  .thesis .hl{color:var(--green);}
+  .thesis-by{font-family:"IBM Plex Mono",monospace; font-size:.78rem; color:var(--muted-2); margin-bottom:26px;}
+  .lede{max-width:68ch; color:#cbd6cd; font-size:1.08rem;}
+  .lede strong{color:var(--text); font-weight:600;}
+  .lede .m{font-family:"IBM Plex Mono",monospace; color:var(--cyan);}
+  .herobtns{display:flex; gap:12px; flex-wrap:wrap; margin-top:26px;}
+  .btn{display:inline-flex; align-items:center; gap:9px; font-family:"IBM Plex Mono",monospace; font-size:.82rem;
+    text-decoration:none; padding:11px 17px; border-radius:10px; border:1px solid var(--line); background:var(--ink-2); color:var(--text); transition:border-color .15s, transform .15s;}
+  .btn:hover{border-color:var(--green); transform:translateY(-2px);}
+  .btn.primary{background:#0c1f12; border-color:var(--green); color:#b9f5d2;}
+  .btn svg{width:16px; height:16px;}
+  .statband{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-top:38px;}
+  .statband .s{border:1px solid var(--line); border-radius:12px; background:var(--ink-2); padding:14px 16px;}
+  .statband .s .v{font-family:"Space Grotesk",sans-serif; font-weight:700; font-size:1.5rem; color:var(--green);}
+  .statband .s.c .v{color:var(--cyan);} .statband .s.a .v{color:var(--amber);} .statband .s.b .v{color:var(--adjacent);}
+  .statband .s .k{font-family:"IBM Plex Mono",monospace; font-size:.68rem; color:var(--muted); letter-spacing:.05em; margin-top:3px;}
+
+  /* table of contents */
+  .toc{margin-top:34px; border:1px solid var(--line); border-radius:16px; background:var(--ink-2); padding:20px 22px;}
+  .toc h2{font-family:"IBM Plex Mono",monospace; font-size:.72rem; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin:0 0 14px; font-weight:500;}
+  .toc-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:10px;}
+  .toc a{display:flex; gap:12px; align-items:baseline; text-decoration:none; border:1px solid var(--line-soft);
+    border-radius:10px; padding:11px 14px; background:var(--ink); transition:border-color .15s, transform .15s;}
+  .toc a:hover{border-color:var(--green); transform:translateY(-2px);}
+  .toc a .n{font-family:"IBM Plex Mono",monospace; font-size:.8rem; color:var(--green); font-weight:600;}
+  .toc a .t{font-family:"Space Grotesk",sans-serif; font-weight:600; font-size:.98rem; color:var(--text);}
+  .toc a .d{font-size:.8rem; color:var(--muted); display:block; margin-top:2px;}
+
+  /* phase divider */
+  .phase{display:flex; align-items:center; gap:16px; margin:64px 0 6px;}
+  .phase .ph-code{font-family:"IBM Plex Mono",monospace; font-size:.72rem; color:var(--green); letter-spacing:.16em; white-space:nowrap;}
+  .phase h3{font-family:"Space Grotesk",sans-serif; font-weight:600; font-size:1.25rem; margin:0; letter-spacing:-.01em;}
+  .phase .rule{flex:1; height:1px; background:linear-gradient(90deg,var(--line),transparent);}
+
+  /* teaching layer */
+  .teach{border:1px solid var(--line); border-left:4px solid var(--green); border-radius:14px; background:var(--ink-2); padding:22px 24px; margin-top:18px;}
+  .teach.cyan{border-left-color:var(--cyan);} .teach.violet{border-left-color:var(--violet);} .teach.amber{border-left-color:var(--amber);} .teach.blue{border-left-color:var(--adjacent);} .teach.emotion{border-left-color:var(--emotion);}
+  .teach .kicker{font-family:"IBM Plex Mono",monospace; font-size:.72rem; letter-spacing:.14em; text-transform:uppercase; color:var(--green); margin:0 0 13px; display:flex; align-items:center; gap:9px;}
+  .teach.cyan .kicker{color:var(--cyan);} .teach.violet .kicker{color:var(--violet);} .teach.amber .kicker{color:var(--amber);} .teach.blue .kicker{color:var(--adjacent);} .teach.emotion .kicker{color:var(--emotion);}
+  .teach .kicker svg{width:19px; height:19px; flex:none;}
+  .teach h3.tt{font-family:"Space Grotesk",sans-serif; font-weight:600; font-size:1.32rem; letter-spacing:-.01em; margin:0 0 10px; color:#fff;}
+  .teach p{margin:0 0 13px; color:#cbd6cd; font-size:.96rem; max-width:90ch;}
+  .teach p strong{color:#fff; font-weight:600;}
+  .teach p.lead{color:var(--text); font-size:1.05rem;}
+  .teach .m{font-family:"IBM Plex Mono",monospace; color:var(--cyan);}
+  .teach a.inline{color:var(--green); text-decoration:none; border-bottom:1px solid color-mix(in srgb,var(--green) 40%,transparent);}
+  .teach.emotion a.inline{color:var(--emotion); border-bottom-color:color-mix(in srgb,var(--emotion) 40%,transparent);}
+  .teach ul{margin:0 0 13px; padding-left:0; list-style:none;}
+  .teach ul li{position:relative; padding-left:22px; margin-bottom:7px; font-size:.93rem; color:#cbd6cd;}
+  .teach ul li::before{content:"▸"; position:absolute; left:4px; color:var(--green);}
+  .teach.cyan ul li::before{color:var(--cyan);} .teach.violet ul li::before{color:var(--violet);} .teach.amber ul li::before{color:var(--amber);} .teach.emotion ul li::before{color:var(--emotion);}
+  .teach h4.sub{font-family:"Space Grotesk",sans-serif; font-weight:600; font-size:1.02rem; color:#fff; margin:20px 0 8px;}
+
+  .fig{margin:6px 0 16px; border:1px solid var(--line); border-radius:12px; background:var(--ink);
+    background-image:radial-gradient(circle at 1px 1px, var(--line-soft) 1px, transparent 0); background-size:22px 22px; padding:18px; overflow:auto;}
+  .fig svg{display:block; margin:0 auto; max-width:100%; height:auto;}
+  .figcap{font-family:"IBM Plex Mono",monospace; font-size:.7rem; color:var(--muted); text-align:center; margin-top:11px; letter-spacing:.05em;}
+  .figcap b{color:var(--green);}
+
+  /* photo / screenshot figures */
+  .shotfig{margin:6px 0 16px; border:1px solid var(--line); border-radius:13px; overflow:hidden; background:var(--ink-2);}
+  .shotfig img{display:block; width:100%; border-bottom:1px solid var(--line);}
+  .shotfig .cap{padding:11px 15px; font-size:.84rem; color:var(--muted);}
+  .shotfig .cap b{color:var(--text); font-weight:600;}
+  .gallery{display:grid; grid-template-columns:repeat(2,1fr); gap:14px;}
+  .boardphoto{border:1px solid var(--line); border-radius:16px; overflow:hidden; background:#0c120e; margin:6px 0 4px;
+    box-shadow:0 30px 80px -40px rgba(43,213,118,.25);}
+  .boardphoto img{display:block; width:100%;}
+
+  /* live sample animation cards (real captured board frames) */
+  .anim-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin:4px 0 6px;}
+  @media (max-width:680px){ .anim-grid{grid-template-columns:repeat(2,1fr);} }
+  @media (max-width:420px){ .anim-grid{grid-template-columns:1fr;} }
+  .anim-card{margin:0; border:1px solid var(--line); border-radius:13px; background:var(--ink-2); padding:14px; text-align:center;
+    transition:border-color .15s, transform .15s;}
+  .anim-card:hover{border-color:var(--green); transform:translateY(-2px);}
+  .anim-card canvas{display:block; width:100%; max-width:140px; aspect-ratio:1; height:auto; margin:0 auto 12px;
+    border-radius:10px; background:#060608; border:1px solid var(--line-soft);}
+  .anim-card figcaption{display:flex; flex-direction:column; gap:3px;}
+  .anim-card .an{font-family:"Space Grotesk",sans-serif; font-weight:600; font-size:.95rem; color:#fff;}
+  .anim-card .ad{font-size:.78rem; color:var(--muted); line-height:1.35;}
+  .anim-card .at{font-family:"IBM Plex Mono",monospace; font-size:.68rem; color:var(--cyan); margin-top:5px;
+    background:var(--ink); border:1px solid var(--line-soft); border-radius:6px; padding:3px 7px; align-self:center;}
+
+  .analogy{border-left:3px solid var(--amber); background:#15110a; border-radius:0 10px 10px 0; padding:11px 16px; margin:0 0 15px; font-size:.94rem; color:#e7dcc4;}
+  .analogy b{color:var(--amber); font-weight:600;}
+
+  .tgrid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; margin:0 0 15px;}
+  .tcard{background:var(--ink); border:1px solid var(--line); border-radius:10px; padding:13px 15px;}
+  .tcard .th{font-family:"IBM Plex Mono",monospace; font-size:.67rem; letter-spacing:.06em; text-transform:uppercase; margin-bottom:6px; color:var(--green); display:flex; align-items:center; gap:7px;}
+  .tcard.c .th{color:var(--cyan);} .tcard.a .th{color:var(--amber);} .tcard.v .th{color:var(--violet);} .tcard.b .th{color:var(--adjacent);}
+  .tcard .td{font-size:.85rem; color:#cbd6cd;}
+  .tcard .td .m{font-family:"IBM Plex Mono",monospace; color:var(--cyan);}
+
+  /* hardware facts table */
+  .facts{width:100%; border-collapse:collapse; margin:6px 0 8px; font-size:.88rem;}
+  .facts th{text-align:left; font-family:"IBM Plex Mono",monospace; font-size:.66rem; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); padding:8px 12px; border-bottom:1px solid var(--line);}
+  .facts td{padding:9px 12px; border-bottom:1px solid var(--line-soft); color:#cbd6cd; vertical-align:top;}
+  .facts td.k{font-family:"IBM Plex Mono",monospace; color:var(--green); white-space:nowrap;}
+  .facts td .m{font-family:"IBM Plex Mono",monospace; color:var(--cyan);}
+  .facts td .warn{color:var(--amber);}
+
+  /* terminal mockup */
+  .term{border:1px solid var(--line); border-radius:12px; overflow:hidden; background:#060a07; margin:8px 0 16px; box-shadow:0 14px 40px -22px rgba(0,0,0,.9);}
+  .term .bar{display:flex; align-items:center; gap:7px; padding:9px 13px; background:var(--ink-3); border-bottom:1px solid var(--line);}
+  .term .bar i{width:11px; height:11px; border-radius:50%; display:inline-block;}
+  .term .bar .r{background:#ff5c82;} .term .bar .y{background:#ff9d2f;} .term .bar .g{background:#2bd576;}
+  .term .bar .tt{margin-left:8px; font-family:"IBM Plex Mono",monospace; font-size:.7rem; color:var(--muted);}
+  .term pre{margin:0; padding:15px 16px; font-family:"IBM Plex Mono",monospace; font-size:.79rem; line-height:1.65; color:#cbd6cd; overflow-x:auto; white-space:pre;}
+  .term .c{color:var(--muted-2);} .term .k{color:var(--amber);} .term .s{color:var(--green);} .term .u{color:var(--cyan);} .term .hl{color:#fff;}
+
+  /* api surface table */
+  .tooltable{width:100%; border-collapse:collapse; margin:6px 0 8px; font-size:.86rem;}
+  .tooltable th{text-align:left; font-family:"IBM Plex Mono",monospace; font-size:.66rem; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); padding:8px 12px; border-bottom:1px solid var(--line);}
+  .tooltable td{padding:9px 12px; border-bottom:1px solid var(--line-soft); color:#cbd6cd; vertical-align:top;}
+  .tooltable td.nm{font-family:"IBM Plex Mono",monospace; color:var(--cyan); white-space:nowrap;}
+  .tooltable td.mt{font-family:"IBM Plex Mono",monospace; color:var(--amber); white-space:nowrap;}
+  .tooltable td code{font-family:"IBM Plex Mono",monospace; color:var(--green); font-size:.92em;}
+
+  /* steps */
+  .steps{counter-reset:step; margin:10px 0 4px; padding:0; list-style:none;}
+  .steps li{position:relative; padding:2px 0 16px 46px; border-left:1px solid var(--line); margin-left:14px;}
+  .steps li:last-child{border-left-color:transparent;}
+  .steps li::before{counter-increment:step; content:counter(step); position:absolute; left:-15px; top:-2px;
+    width:30px; height:30px; border-radius:8px; background:var(--ink-3); border:1px solid var(--green); color:var(--green);
+    display:grid; place-items:center; font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:.82rem;}
+  .steps li b{color:#fff; font-family:"Space Grotesk",sans-serif;}
+  .steps li code{font-family:"IBM Plex Mono",monospace; color:var(--cyan); font-size:.86em;}
+  .steps li p{margin:4px 0 0; color:#cbd6cd; font-size:.92rem;}
+  .steps li a{color:var(--green); text-decoration:none; border-bottom:1px solid color-mix(in srgb,var(--green) 40%,transparent);}
+
+  footer{margin:70px 0 70px; border-top:1px solid var(--line); padding-top:26px;}
+  footer p{font-size:.88rem; color:#aeb6ac; margin:0 0 10px; max-width:78ch;}
+  footer a{color:var(--green); text-decoration:none; border-bottom:1px solid color-mix(in srgb,var(--green) 40%, transparent);}
+  .meta-line{font-family:"IBM Plex Mono",monospace; font-size:.7rem; color:var(--muted-2); margin-top:20px; letter-spacing:.04em;}
+  a:focus-visible, .navcodes a:focus-visible{outline:2px solid var(--green); outline-offset:3px; border-radius:5px;}
+
+  @media (max-width:760px){ .navcodes a:not(.gh){display:none;} .gallery{grid-template-columns:1fr;} }
+  @media (prefers-reduced-motion:reduce){ html{scroll-behavior:auto;} }
 </style>
 </head>
 <body>
-<header><div class="wrap">
-  <span class="logo"><span class="grid"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span> ESP32-S3 Matrix</span>
-  <nav>
-    <a href="#what">What</a><a href="#ui">Web UI</a><a href="#api">API</a><a href="#claude">Claude</a><a href="https://github.com/srfinch17/peckworks-esp32s3matrix">GitHub ↗</a>
-  </nav>
-</div></header>
 
-<div class="wrap">
+<div class="topbar">
+  <div class="wrap">
+    <span class="brand">
+      <span class="grid" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+      ESP32-S3&nbsp;Matrix <span class="sub">Peckworks&nbsp;Lab</span>
+    </span>
+    <nav class="navcodes" aria-label="Jump to section">
+      <a href="#what">WHAT</a><a href="#ui">WEB UI</a><a href="#api">API</a>
+      <a href="#render">RENDER</a><a href="#claude">CLAUDE</a><a href="#flash">FLASH</a>
+      <a class="gh" href="https://github.com/srfinch17/peckworks-esp32s3matrix">GITHUB ↗</a>
+    </nav>
+  </div>
+</div>
 
-  <div class="hero">
-    <div>
-      <h1>An <span class="hl">8×8 LED panel</span> you talk to — over WiFi, over HTTP, or just from your phone.</h1>
-      <p class="lead">Open-source firmware for the Waveshare ESP32-S3-Matrix: 64 RGB LEDs on a tiny ESP32-S3 board. It sets up its own WiFi, serves its own control panel, and exposes an HTTP API that <em>anything</em> can drive — fire, rain, fireworks, weather, a clock, scrolling text, or your own pixels. No app, no cloud, no computer required.</p>
-      <div class="badges">
-        <span class="badge"><b>8×8</b> · 64 WS2812B RGB</span>
-        <span class="badge"><b>ESP32-S3</b> + 6-axis IMU</span>
-        <span class="badge">Runs <b>standalone</b></span>
-        <span class="badge">WiFi <b>captive portal</b></span>
-        <span class="badge">Open <b>HTTP API</b></span>
-      </div>
-      <div class="cta">
-        <a class="btn primary" href="https://github.com/srfinch17/peckworks-esp32s3matrix/tree/master/install">⚡ Flash it</a>
-        <a class="btn" href="#api">View the API</a>
-        <a class="btn" href="https://github.com/srfinch17/peckworks-esp32s3matrix">GitHub ↗</a>
-      </div>
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Peckworks Lab · open-source ESP32-S3 firmware · HTTP-native</p>
+    <h1 class="thesis">An <span class="hl">8×8 LED panel</span> you talk to — over WiFi, over HTTP, or just from your phone.</h1>
+    <p class="thesis-by mono">// 64 RGB LEDs on a ~$15 board that runs the whole show itself — no app, no cloud, no computer in the loop.</p>
+    <p class="lede">Flash one binary onto a Waveshare ESP32-S3-Matrix and it becomes a self-contained little display: it opens its own WiFi setup hotspot, serves its <strong>own control panel</strong> from the device, and exposes an HTTP API that <em>anything</em> can drive — <span class="m">fire</span>, <span class="m">rain</span>, <span class="m">fireworks</span>, weather, a clock, scrolling text, or your own 8×8 pixels. It boots back into whatever it was last showing. And because it's all just HTTP, it doubles as an ambient status light for <strong>Claude</strong>.</p>
+    <div class="herobtns">
+      <a class="btn primary" href="#flash"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>Flash one yourself</a>
+      <a class="btn" href="#api"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 6-6 6 6 6M16 6l6 6-6 6"/></svg>See the API</a>
+      <a class="btn" href="https://github.com/srfinch17/peckworks-esp32s3matrix"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.49v-1.7c-2.78.62-3.37-1.21-3.37-1.21-.46-1.18-1.11-1.49-1.11-1.49-.91-.64.07-.62.07-.62 1 .07 1.53 1.06 1.53 1.06.89 1.56 2.34 1.11 2.91.85.09-.66.35-1.11.63-1.36-2.22-.26-4.55-1.14-4.55-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.27 2.75 1.05a9.4 9.4 0 0 1 5 0c1.91-1.32 2.75-1.05 2.75-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.81-4.57 5.06.36.32.68.94.68 1.9v2.81c0 .27.18.6.69.49A10.26 10.26 0 0 0 22 12.25C22 6.58 17.52 2 12 2z"/></svg>View on GitHub</a>
     </div>
-    <div class="shot"><img src="./assets/board.webp" alt="Waveshare ESP32-S3-Matrix — an 8×8 grid of WS2812B RGB LEDs on a USB-C ESP32-S3 board" /></div>
+
+    <div class="statband">
+      <div class="s"><div class="v">64</div><div class="k">WS2812B RGB LEDs · 8×8</div></div>
+      <div class="s c"><div class="v">ESP32-S3</div><div class="k">+ QMI8658C 6-axis IMU</div></div>
+      <div class="s a"><div class="v">0</div><div class="k">cloud · app · computer deps</div></div>
+      <div class="s b"><div class="v">1 API</div><div class="k">every capability is HTTP</div></div>
+    </div>
+
+    <nav class="toc" aria-label="Contents">
+      <h2>What this page covers</h2>
+      <div class="toc-grid">
+        <a href="#what"><span class="n">01</span><span><span class="t">What it is &amp; why</span><span class="d">a display that's genuinely yours</span></span></a>
+        <a href="#ui"><span class="n">02</span><span><span class="t">The onboard web UI</span><span class="d">served straight from the board</span></span></a>
+        <a href="#api"><span class="n">03</span><span><span class="t">The HTTP API</span><span class="d">the contract anything can drive</span></span></a>
+        <a href="#render"><span class="n">04</span><span><span class="t">How it renders</span><span class="d">XY, setPixel &amp; calibration</span></span></a>
+        <a href="#claude"><span class="n">05</span><span><span class="t">Drive it with Claude</span><span class="d">the board as an expression channel</span></span></a>
+        <a href="#flash"><span class="n">06</span><span><span class="t">Flash one yourself</span><span class="d">~$15 board, one-click flash</span></span></a>
+      </div>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ 01 WHAT ============ -->
+  <div class="phase" id="what"><span class="ph-code">PART&nbsp;01</span><h3>What it is — a display that's genuinely yours</h3><span class="rule"></span></div>
+
+  <div class="boardphoto">
+    <img src="./assets/board.webp" alt="The Waveshare ESP32-S3-Matrix: an 8×8 grid of WS2812B RGB LEDs on a small USB-C ESP32-S3 board" loading="lazy" />
   </div>
 
-  <section id="what">
-    <h2>What it is &amp; why</h2>
-    <p class="sec-lead">A self-contained little display that's genuinely <em>yours</em> — and that any program can light up.</p>
-    <div class="grid3">
-      <div class="card"><div class="ico">🔌</div><h3>Plug-in &amp; standalone</h3><p>Power it over USB-C and it boots straight into whatever it was last showing. No computer in the loop — it runs the show by itself.</p></div>
-      <div class="card"><div class="ico">📶</div><h3>Self-onboarding WiFi</h3><p>First boot opens a <b>setup hotspot</b>; join it, pick your network, done. After that it's reachable at <code>esp32matrix.local</code>. Hold BOOT to reset.</p></div>
-      <div class="card"><div class="ico">🎛️</div><h3>Its own control panel</h3><p>A full web UI is served <em>from the board</em> — animations, brightness, weather, clock, a pixel painter, and a calibration lab. Open it on your phone.</p></div>
-      <div class="card"><div class="ico">🔥</div><h3>A real animation library</h3><p>Fire, matrix rain, fireworks, dance floor, comet, an IMU-reactive liquid, snow, starfield, and more — each tunable live.</p></div>
-      <div class="card"><div class="ico">🌡️</div><h3>Useful, not just pretty</h3><p>Live weather by ZIP, an NTP clock + countdown timers, scrolling text, and a vibration-reactive VU meter.</p></div>
-      <div class="card"><div class="ico">🧩</div><h3>An open API</h3><p>Every capability is an HTTP endpoint. Send a built-in animation, push your own 8×8 frames, set brightness, or read sensors — from any language.</p></div>
+  <section class="teach">
+    <p class="kicker">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>
+      The whole idea in one line
+    </p>
+    <h3 class="tt">A tiny standalone panel that runs the show by itself — and that any program can light up.</h3>
+    <p class="lead">Most LED-matrix projects are tethered: a sketch on your laptop pushes pixels over USB, and the moment you unplug, it's dark. This firmware flips that. Everything the panel needs lives <strong>on the board</strong> — the animations, the web UI, the WiFi onboarding, the persistence. Power it over USB-C and it boots straight into whatever it was last showing. Open its address on your phone and you've got a full control panel. Point any HTTP client at it and you're driving pixels from any language.</p>
+    <div class="tgrid">
+      <div class="tcard"><div class="th">Plug-in &amp; standalone</div><div class="td">Boots into its last animation, brightness, and settings — all persisted to flash. No computer in the loop.</div></div>
+      <div class="tcard c"><div class="th">Self-onboarding WiFi</div><div class="td">First boot opens a <span class="m">ESP32-Matrix-Setup</span> hotspot; join it, pick your network, done. Then it's at <span class="m">esp32matrix.local</span>.</div></div>
+      <div class="tcard"><div class="th">Its own control panel</div><div class="td">A full web UI served from the device — animations, brightness, weather, clock, a pixel painter, a calibration lab.</div></div>
+      <div class="tcard a"><div class="th">A real animation library</div><div class="td">Fire, matrix rain, fireworks, dance floor, comet, an IMU-reactive liquid, snow, starfield — each tunable live.</div></div>
+      <div class="tcard"><div class="th">Useful, not just pretty</div><div class="td">Live weather by ZIP, an NTP clock + countdown timers, scrolling text, and a vibration-reactive VU meter.</div></div>
+      <div class="tcard b"><div class="th">An open API</div><div class="td">Every capability is an HTTP endpoint — send a built-in effect, push your own frames, set brightness, read sensors.</div></div>
     </div>
+    <div class="analogy"><b>The shape of it:</b> think of a smart bulb that happens to be an 8×8 canvas — it has an IP address, a web page, and an API, and it keeps glowing whether or not anything is talking to it. Except this one is fully open, runs offline, and you flash it yourself.</div>
   </section>
 
-  <section id="ui">
-    <h2>The onboard web UI</h2>
-    <p class="sec-lead">Served straight from the device — no install. These are live screenshots of the real board.</p>
+  <section class="teach cyan">
+    <p class="kicker">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m5 3 14 9-14 9V3z"/></svg>
+      See them move — real frames, captured from the panel
+    </p>
+    <h3 class="tt">A few of the good ones, running.</h3>
+    <p>These aren't mockups or re-implementations: each card replays an actual frame sequence pulled straight off the board over <span class="m">/api/display/framebuffer</span>, bloom-rendered the way the LEDs read in person. Every effect is tunable live from its own control page.</p>
+    <div class="anim-grid" id="anim-grid" aria-label="Sample animations captured from the board"></div>
+    <p class="figcap" style="text-align:left; margin-top:14px;">// 9 of ~20 built-in animations · captured at the board's raw pre-brightness colors · <b>fire · matrix_rain · fireworks · dancefloor · rainbow · frostbite · claudesweep · clock · spiral</b></p>
+  </section>
+
+  <!-- ============ 02 WEB UI ============ -->
+  <div class="phase" id="ui"><span class="ph-code">PART&nbsp;02</span><h3>The onboard web UI — no install, served from the device</h3><span class="rule"></span></div>
+
+  <section class="teach cyan">
+    <p class="kicker">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      What you get the moment it's on WiFi
+    </p>
+    <h3 class="tt">Open <span class="m">esp32matrix.local</span> on any phone and the board hands you a control panel.</h3>
+    <p>The UI ships <em>inside</em> the firmware (LittleFS) and is served with no cache, so there's nothing to install and nothing to keep in sync. These are live screenshots of the real board:</p>
     <div class="gallery">
-      <div class="figure"><img src="./assets/ui-index.png" alt="The board's web control panel" /><div class="cap"><b>Control panel</b> — the home screen: Text, Weather, Time, Vibrations, Animations, System, Sketch, and a brightness slider with a heat guard.</div></div>
-      <div class="figure"><img src="./assets/ui-fire.png" alt="The Fire animation control page with a live preview" /><div class="cap"><b>Per-animation controls</b> — a live preview plus theme &amp; motion sliders (intensity, tendrils, speed, sparks) that apply to the panel as you drag.</div></div>
-      <div class="figure"><img src="./assets/ui-animations.png" alt="The animations hub" /><div class="cap"><b>Animations hub</b> — every effect on the board, each with its own tuning page.</div></div>
-      <div class="figure"><img src="./assets/ui-calibrate.png" alt="The calibration lab" /><div class="cap"><b>Calibration lab</b> — measure the panel's real color/brightness with your eyes; the correction is saved on-device and applied live.</div></div>
+      <figure class="shotfig"><img src="./assets/ui-index.png" alt="The board's web control panel home screen" loading="lazy" /><figcaption class="cap"><b>Control panel</b> — the home screen: Text, Weather, Time, Vibrations, Animations, System, Sketch, and a brightness slider with a heat guard.</figcaption></figure>
+      <figure class="shotfig"><img src="./assets/ui-fire.png" alt="The Fire animation control page with a live preview" loading="lazy" /><figcaption class="cap"><b>Per-animation controls</b> — a live preview plus theme &amp; motion sliders that apply to the panel as you drag.</figcaption></figure>
+      <figure class="shotfig"><img src="./assets/ui-animations.png" alt="The animations hub" loading="lazy" /><figcaption class="cap"><b>Animations hub</b> — every effect on the board, each with its own tuning page.</figcaption></figure>
+      <figure class="shotfig"><img src="./assets/ui-calibrate.png" alt="The calibration lab" loading="lazy" /><figcaption class="cap"><b>Calibration lab</b> — measure the panel's real color/brightness by eye; the correction is saved on-device and applied live.</figcaption></figure>
     </div>
   </section>
 
-  <section id="api">
-    <h2>The HTTP API</h2>
-    <p class="sec-lead">Anything that can make an HTTP request can drive the panel. Base URL = <code>http://esp32matrix.local</code>.</p>
+  <!-- ============ 03 API ============ -->
+  <div class="phase" id="api"><span class="ph-code">PART&nbsp;03</span><h3>The HTTP API — the contract anything can drive</h3><span class="rule"></span></div>
 
-    <p style="color:var(--dim);margin:0 0 10px">Launch a built-in animation (the <span style="color:var(--amber)">transient</span> flag keeps it out of boot-resume):</p>
-<pre><span class="c"># roar some fire at half intensity</span>
+  <section class="teach amber">
+    <p class="kicker">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17V7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="m8 9 3 3-3 3M14 15h3"/></svg>
+      One surface, every capability
+    </p>
+    <h3 class="tt">If it can make an HTTP request, it can drive the panel.</h3>
+    <p class="lead">There's no SDK to adopt and no protocol to learn — the board's entire feature set is a small set of JSON endpoints under <span class="m">http://esp32matrix.local</span>. This is also the documented <strong>contract</strong> that external clients (including the Claude integration) depend on, so it stays stable.</p>
+
+    <p>Launch a built-in animation — the <span class="m">transient</span> flag keeps it out of boot-resume:</p>
+    <div class="term">
+      <div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i><span class="tt">curl — fire at half intensity</span></div>
+<pre><span class="c"># roar some fire, classic theme</span>
 curl -X POST http://esp32matrix.local<span class="u">/api/display/animation</span> \
   -H <span class="s">"Content-Type: application/json"</span> \
   -d <span class="s">'{"type":"fire","transient":true,"intensity":6,"theme":"classic"}'</span></pre>
+    </div>
 
-    <p style="color:var(--dim);margin:0 0 10px">Push your <em>own</em> animation — up to 24 frames, each 64 <code>RRGGBB</code> pixels (row-major):</p>
-<pre><span class="c"># a 2-frame blink; loop:0 = forever</span>
+    <p>Push your <em>own</em> animation — up to 24 frames, each 64 <span class="m">RRGGBB</span> pixels in row-major order:</p>
+    <div class="term">
+      <div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i><span class="tt">curl — a custom 2-frame blink</span></div>
+<pre><span class="c"># loop:0 = forever</span>
 curl -X POST http://esp32matrix.local<span class="u">/api/display/frames</span> \
   -d <span class="s">'{"frames":["…384 hex chars…","…"],"frame_ms":150,"loop":0}'</span></pre>
+    </div>
 
-    <p style="color:var(--dim);margin:0 0 10px">And the rest of the surface:</p>
-    <div class="api-row"><span class="meth">GET <span class="path">/api/status</span></span><span class="d">firmware/web version + live heap telemetry; use it for reachability checks.</span></div>
-    <div class="api-row"><span class="meth">POST <span class="path">/api/brightness</span></span><span class="d"><code>{ level: 0–255 }</code> — global brightness (persisted).</span></div>
-    <div class="api-row"><span class="meth">POST <span class="path">/api/display/text</span></span><span class="d">scroll a message, with color/gradient options.</span></div>
-    <div class="api-row"><span class="meth">POST <span class="path">/api/display/matrix</span></span><span class="d">set a single static 8×8 frame.</span></div>
-    <div class="api-row"><span class="meth">GET <span class="path">/api/display/framebuffer</span></span><span class="d">read the live 8×8 as 64 <code>RRGGBB</code> — mirror it anywhere.</span></div>
-    <div class="api-row"><span class="meth">GET/POST <span class="path">/api/presence</span></span><span class="d">a semantic status message (intent + headline + data) any renderer can show.</span></div>
-    <div class="api-row"><span class="meth">GET/POST <span class="path">/api/settings</span></span><span class="d">NVS-backed config (idle screensaver, default brightness, timezone…).</span></div>
-    <div class="api-row"><span class="meth">GET/POST <span class="path">/api/calibration</span></span><span class="d">read/overwrite the LED correction profile — live-reloaded, no reflash.</span></div>
-    <p class="note">Full reference: <a href="https://github.com/srfinch17/peckworks-esp32s3matrix/blob/master/docs/API.md">docs/API.md</a>. The board persists its last animation, brightness, and settings to flash, so it powers back up into whatever it was doing.</p>
+    <h4 class="sub">The rest of the surface</h4>
+    <table class="tooltable">
+      <tr><th>Method</th><th>Endpoint</th><th>What it does</th></tr>
+      <tr><td class="mt">GET</td><td class="nm">/api/status</td><td>Firmware/web version + live heap telemetry; use it for reachability checks.</td></tr>
+      <tr><td class="mt">POST</td><td class="nm">/api/brightness</td><td><code>{ level: 0–255 }</code> — global brightness (persisted to flash).</td></tr>
+      <tr><td class="mt">POST</td><td class="nm">/api/display/text</td><td>Scroll a message, with color / gradient options.</td></tr>
+      <tr><td class="mt">POST</td><td class="nm">/api/display/matrix</td><td>Set a single static 8×8 frame.</td></tr>
+      <tr><td class="mt">GET</td><td class="nm">/api/display/framebuffer</td><td>Read the live 8×8 back as 64 <code>RRGGBB</code> — mirror it anywhere.</td></tr>
+      <tr><td class="mt">GET/POST</td><td class="nm">/api/presence</td><td>A semantic status message (intent + headline + data) any renderer can show.</td></tr>
+      <tr><td class="mt">GET/POST</td><td class="nm">/api/settings</td><td>NVS-backed config — idle screensaver, default brightness, timezone…</td></tr>
+      <tr><td class="mt">GET/POST</td><td class="nm">/api/calibration</td><td>Read / overwrite the LED correction profile — live-reloaded, no reflash.</td></tr>
+    </table>
+    <p>Full reference: <a class="inline" href="https://github.com/srfinch17/peckworks-esp32s3matrix/blob/master/docs/API.md">docs/API.md</a>. The board persists its last animation, brightness, and settings, so it powers back up into whatever it was doing.</p>
   </section>
 
-  <section id="claude">
-    <h2>Drive it with Claude</h2>
-    <div class="studio">
-      <div class="shot"><a href="https://srfinch17.github.io/claude-expression-studio/"><img src="./assets/ui-fire.png" alt="The Claude Expression Studio" style="display:none" /></a>
-        <div style="padding:22px;text-align:center;background:radial-gradient(400px 200px at 50% 0%, rgba(255,80,8,.18), transparent)">
-          <div style="font-size:40px;line-height:1.1">🟠</div>
-          <div style="font-size:13px;color:var(--dim);margin-top:8px;letter-spacing:.04em">Claude Expression Studio</div>
-          <a class="btn" style="margin-top:14px" href="https://srfinch17.github.io/claude-expression-studio/">Open the live demo ↗</a>
-        </div>
-      </div>
-      <div>
-        <p class="sec-lead" style="margin-bottom:14px">The panel doubles as <em>Claude's</em> expression channel.</p>
-        <p style="color:var(--dim);margin:0 0 14px">Because the whole board is just an HTTP API, a companion project turns it into an ambient status light for AI coding sessions: Claude shows a spinner while it works, a checkmark when it's done, a glyph when it's waiting on you — all by POSTing to the same endpoints above.</p>
-        <p style="color:var(--dim);margin:0 0 18px">That lives in its own repo, <b>Claude Expression Studio</b> — a renderer-agnostic presence &amp; expression system with a browser studio to design and wire animations. It talks to this board only over the API on the left, and it runs board-free too (everything simulates in the browser).</p>
-        <div class="cta">
-          <a class="btn primary" href="https://srfinch17.github.io/claude-expression-studio/">Live studio demo ↗</a>
-          <a class="btn" href="https://github.com/srfinch17/claude-expression-studio">Studio repo ↗</a>
-        </div>
-      </div>
+  <!-- ============ 04 RENDER ============ -->
+  <div class="phase" id="render"><span class="ph-code">PART&nbsp;04</span><h3>How it actually renders — from a pixel to a lit LED</h3><span class="rule"></span></div>
+
+  <section class="teach">
+    <p class="kicker">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><circle cx="8" cy="16" r="1.4"/><circle cx="13" cy="11" r="1.4"/><circle cx="18" cy="6" r="1.4"/></svg>
+      The part most 8×8 projects get subtly wrong
+    </p>
+    <h3 class="tt">The grid is plain row-major — not serpentine.</h3>
+    <p class="lead">Plenty of LED matrices zig-zag their wiring, so even rows run left-to-right and odd rows run right-to-left. This panel does <strong>not</strong>. The mapping is the boring, predictable one: <span class="m">XY(x, y) = y * 8 + x</span>, origin top-left, x increasing right, y increasing down. Out-of-bounds returns <span class="m">-1</span>. Getting this assumption right is the difference between a clean image and a mirrored mess on every other row.</p>
+
+    <div class="fig">
+      <svg viewBox="0 0 560 340" role="img" aria-label="An 8 by 8 grid of cells numbered 0 to 63 in plain reading order, left to right then top to bottom. The top-left cell is marked origin 0,0. An arrow along the top points right labelled x, and an arrow down the left points down labelled y. Three example cells are highlighted with their coordinate-to-index formula.">
+        <text x="280" y="20" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="12" fill="#8ea399">index = y · 8 + x   ·   row-major, origin top-left</text>
+        <!-- axes -->
+        <line x1="60" y1="40" x2="540" y2="40" stroke="#36d9d3" stroke-width="1.4" marker-end="url(#ax)"/>
+        <text x="528" y="34" text-anchor="end" font-family="'IBM Plex Mono',monospace" font-size="12" fill="#36d9d3">x</text>
+        <line x1="46" y1="54" x2="46" y2="320" stroke="#ff9d2f" stroke-width="1.4" marker-end="url(#ay)"/>
+        <text x="34" y="312" font-family="'IBM Plex Mono',monospace" font-size="12" fill="#ff9d2f">y</text>
+        <!-- grid 8x8, cell 58px? use 58 -> 8*34=272 wide; cells 34 -->
+        <g font-family="'IBM Plex Mono',monospace" font-size="10.5" fill="#5f7166">
+          <!-- generated rows -->
+          <!-- row 0 -->
+          <g>
+            <rect x="60" y="54" width="33" height="33" rx="3" fill="#0c1f12" stroke="#2bd576"/><text x="76" y="74" text-anchor="middle" fill="#2bd576">0</text>
+            <rect x="93" y="54" width="33" height="33" rx="3" fill="#0e130f" stroke="#1c241d"/><text x="109" y="74" text-anchor="middle">1</text>
+            <rect x="126" y="54" width="33" height="33" rx="3" fill="#0e130f" stroke="#1c241d"/><text x="142" y="74" text-anchor="middle">2</text>
+            <rect x="159" y="54" width="33" height="33" rx="3" fill="#0e130f" stroke="#1c241d"/><text x="175" y="74" text-anchor="middle">3</text>
+            <rect x="192" y="54" width="33" height="33" rx="3" fill="#0e130f" stroke="#1c241d"/><text x="208" y="74" text-anchor="middle">4</text>
+            <rect x="225" y="54" width="33" height="33" rx="3" fill="#0e130f" stroke="#1c241d"/><text x="241" y="74" text-anchor="middle">5</text>
+            <rect x="258" y="54" width="33" height="33" rx="3" fill="#0e130f" stroke="#1c241d"/><text x="274" y="74" text-anchor="middle">6</text>
+            <rect x="291" y="54" width="33" height="33" rx="3" fill="#0e130f" stroke="#1c241d"/><text x="307" y="74" text-anchor="middle">7</text>
+          </g>
+          <!-- row 1 -->
+          <g>
+            <rect x="60" y="87" width="33" height="33" rx="3" fill="#0e130f" stroke="#1c241d"/><text x="76" y="107" text-anchor="middle">8</text>
+            <rect x="93" y="87" width="33" height="33" rx="3" fill="#0e130f" stroke="#1c241d"/><text x="109" y="107" text-anchor="middle">9</text>
+            <rect x="126" y="87" width="33" height="33" rx="3" fill="#0e130f" stroke="#1c241d"/><text x="142" y="107" text-anchor="middle">10</text>
+            <rect x="159" y="87" width="33" height="33" rx="3" fill="#0e130f" stroke="#1c241d"/><text x="175" y="107" text-anchor="middle">11</text>
+            <rect x="192" y="87" width="33" height="33" rx="3" fill="#141b16" stroke="#36d9d3"/><text x="208" y="107" text-anchor="middle" fill="#36d9d3">12</text>
+            <rect x="225" y="87" width="33" height="33" rx="3" fill="#0e130f" stroke="#1c241d"/><text x="241" y="107" text-anchor="middle">13</text>
+            <rect x="258" y="87" width="33" height="33" rx="3" fill="#0e130f" stroke="#1c241d"/><text x="274" y="107" text-anchor="middle">14</text>
+            <rect x="291" y="87" width="33" height="33" rx="3" fill="#0e130f" stroke="#1c241d"/><text x="307" y="107" text-anchor="middle">15</text>
+          </g>
+          <!-- rows 2..6 compact -->
+          <g fill="#5f7166">
+            <rect x="60" y="120" width="264" height="33" rx="3" fill="#0b0f0c" stroke="#161d18"/><text x="192" y="140" text-anchor="middle" fill="#5f7166">16 · 17 · 18 · 19 · 20 · 21 · 22 · 23</text>
+            <rect x="60" y="153" width="264" height="33" rx="3" fill="#0b0f0c" stroke="#161d18"/><text x="192" y="173" text-anchor="middle" fill="#5f7166">24 · 25 · 26 · 27 · 28 · 29 · 30 · 31</text>
+            <rect x="60" y="186" width="264" height="33" rx="3" fill="#0b0f0c" stroke="#161d18"/><text x="192" y="206" text-anchor="middle" fill="#5f7166">32 · 33 · 34 · 35 · 36 · 37 · 38 · 39</text>
+            <rect x="60" y="219" width="264" height="33" rx="3" fill="#0b0f0c" stroke="#161d18"/><text x="192" y="239" text-anchor="middle" fill="#5f7166">40 · 41 · 42 · 43 · 44 · 45 · 46 · 47</text>
+            <rect x="60" y="252" width="264" height="33" rx="3" fill="#0b0f0c" stroke="#161d18"/><text x="192" y="272" text-anchor="middle" fill="#5f7166">48 · 49 · 50 · 51 · 52 · 53 · 54 · 55</text>
+          </g>
+          <!-- row 7 -->
+          <g>
+            <rect x="60" y="285" width="33" height="33" rx="3" fill="#0e130f" stroke="#1c241d"/><text x="76" y="305" text-anchor="middle">56</text>
+            <rect x="93" y="285" width="33" height="33" rx="3" fill="#0e130f" stroke="#1c241d"/><text x="109" y="305" text-anchor="middle">57</text>
+            <rect x="126" y="285" width="33" height="33" rx="3" fill="#0e130f" stroke="#1c241d"/><text x="142" y="305" text-anchor="middle">58</text>
+            <rect x="159" y="285" width="33" height="33" rx="3" fill="#0e130f" stroke="#1c241d"/><text x="175" y="305" text-anchor="middle">59</text>
+            <rect x="192" y="285" width="33" height="33" rx="3" fill="#0e130f" stroke="#1c241d"/><text x="208" y="305" text-anchor="middle">60</text>
+            <rect x="225" y="285" width="33" height="33" rx="3" fill="#0e130f" stroke="#1c241d"/><text x="241" y="305" text-anchor="middle">61</text>
+            <rect x="258" y="285" width="33" height="33" rx="3" fill="#0e130f" stroke="#1c241d"/><text x="274" y="305" text-anchor="middle">62</text>
+            <rect x="291" y="285" width="33" height="33" rx="3" fill="#0e130f" stroke="#1c241d"/><text x="307" y="305" text-anchor="middle">63</text>
+          </g>
+        </g>
+        <!-- callouts -->
+        <g font-family="'IBM Plex Mono',monospace" font-size="11.5">
+          <text x="352" y="74" fill="#2bd576">(0,0) → 0</text>
+          <text x="352" y="107" fill="#36d9d3">(4,1) → 1·8+4 = 12</text>
+          <text x="352" y="305" fill="#8ea399">(7,7) → 7·8+7 = 63</text>
+          <text x="352" y="150" fill="#5f7166" font-size="10.5">every row just continues</text>
+          <text x="352" y="166" fill="#5f7166" font-size="10.5">counting — no zig-zag.</text>
+        </g>
+        <defs>
+          <marker id="ax" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0 0L7 3L0 6Z" fill="#36d9d3"/></marker>
+          <marker id="ay" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0 0L7 3L0 6Z" fill="#ff9d2f"/></marker>
+        </defs>
+      </svg>
+      <p class="figcap"><b>The coordinate system.</b> Always draw through <b>setPixel(x, y, CRGB)</b> — it's bounds-checked, so an off-grid write is a safe no-op instead of memory you didn't mean to touch.</p>
+    </div>
+
+    <h4 class="sub">One more twist: the color order is RGB, not GRB</h4>
+    <p>WS2812B strips almost always expect green-first (<span class="m">GRB</span>). This panel is wired so FastLED's <span class="m">COLOR_ORDER</span> is plain <span class="m">RGB</span> — meaning <span class="m">CRGB(r, g, b)</span> maps straight through. It's a small thing that costs an afternoon if you assume the default.</p>
+
+    <table class="facts">
+      <tr><th>Hardware fact</th><th>Value</th></tr>
+      <tr><td class="k">LEDs</td><td>64 × WS2812B, data on <span class="m">pin 14</span></td></tr>
+      <tr><td class="k">COLOR_ORDER</td><td><span class="m">RGB</span> <span class="warn">⚠ not the usual GRB</span></td></tr>
+      <tr><td class="k">XY(x,y)</td><td><span class="m">y · 8 + x</span> — row-major, origin top-left, OOB → −1</td></tr>
+      <tr><td class="k">IMU</td><td>QMI8658C 6-axis · I²C <span class="m">SDA 11 / SCL 12</span></td></tr>
+      <tr><td class="k">Flash / PSRAM</td><td>4 MB flash + 2 MB PSRAM · web UI in LittleFS</td></tr>
+    </table>
+
+    <h4 class="sub">Calibration without a reflash: the matrixShow() chokepoint</h4>
+    <p>Real LEDs lie — the panel's green runs hot and dim content gets crushed. Rather than bake corrections into every animation, the firmware applies one global per-pixel transform at the single point every frame passes through on its way to the hardware: <span class="m">matrixShow()</span>. It saves the frame, corrects in place, pushes it, then restores the originals — so animation code keeps working on clean <span class="m">leds[]</span> values and never knows calibration happened.</p>
+
+    <div class="fig">
+      <svg viewBox="0 0 760 220" role="img" aria-label="A horizontal pipeline. Animation code writes to the leds array. That feeds matrixShow, drawn as a box containing four steps: save a copy of the frame, apply the per-pixel correction in place, call the LED controller show, then restore the saved originals. The corrected light goes out to the physical panel. A note says the correction profile is loaded from calibration json and can be live-reloaded over the API with no reflash, and that an uncorrected frame fails safe by showing raw.">
+        <!-- leds[] -->
+        <rect x="20" y="78" width="120" height="56" rx="9" fill="#0e130f" stroke="#1c241d"/>
+        <text x="80" y="102" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="12" fill="#8ea399">animation</text>
+        <text x="80" y="120" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="12" fill="#36d9d3">leds[ ]</text>
+        <line x1="140" y1="106" x2="176" y2="106" stroke="#2bd576" stroke-width="1.6" marker-end="url(#ag)"/>
+        <!-- matrixShow box -->
+        <rect x="180" y="40" width="420" height="132" rx="12" fill="#0c1f12" stroke="#2bd576" stroke-width="1.4"/>
+        <text x="196" y="60" font-family="'IBM Plex Mono',monospace" font-size="11.5" fill="#2bd576">matrixShow( )</text>
+        <g font-family="'IBM Plex Mono',monospace" font-size="10.5" fill="#cbd6cd">
+          <rect x="196" y="72" width="180" height="26" rx="6" fill="#0b0f0c" stroke="#1c241d"/><text x="206" y="89">1 · save a copy</text>
+          <rect x="196" y="104" width="180" height="26" rx="6" fill="#0b0f0c" stroke="#36d9d3"/><text x="206" y="121" fill="#36d9d3">2 · correct in place</text>
+          <rect x="404" y="72" width="180" height="26" rx="6" fill="#0b0f0c" stroke="#1c241d"/><text x="414" y="89">3 · controller.show()</text>
+          <rect x="404" y="104" width="180" height="26" rx="6" fill="#0b0f0c" stroke="#ff9d2f"/><text x="414" y="121" fill="#ff9d2f">4 · restore originals</text>
+        </g>
+        <text x="390" y="156" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="9.5" fill="#5f7166">leds[] is left exactly as the animation wrote it</text>
+        <line x1="600" y1="106" x2="636" y2="106" stroke="#2bd576" stroke-width="1.6" marker-end="url(#ag)"/>
+        <!-- panel -->
+        <rect x="640" y="78" width="100" height="56" rx="9" fill="#141b16" stroke="#2bd576"/>
+        <text x="690" y="102" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="11" fill="#2bd576">8×8 panel</text>
+        <text x="690" y="120" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" fill="#8ea399">corrected</text>
+        <text x="380" y="200" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="9.5" fill="#5f7166">profile loaded from calibration.json · live-reload over /api/calibration · no reflash · an uncorrected frame fails SAFE (shows raw)</text>
+        <defs>
+          <marker id="ag" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0 0L7 3L0 6Z" fill="#2bd576"/></marker>
+        </defs>
+      </svg>
+      <p class="figcap"><b>One transform, one place.</b> Calibration is a save → correct-in-place → restore wrapper around the hardware push — so it's always-on, never double-applied, and tunable live from the <b>calibration lab</b> without a firmware rebuild.</p>
     </div>
   </section>
 
-  <section id="flash">
-    <h2>Get one going</h2>
-    <p class="sec-lead">It's a ~$15 board and a one-click flash.</p>
-    <div class="grid3">
-      <div class="card"><div class="ico">🛒</div><h3>1 · Get the board</h3><p>The Waveshare ESP32-S3-Matrix — an 8×8 WS2812B grid on a USB-C ESP32-S3. <a href="https://www.amazon.com/Waveshare-ESP32-S3-Matrix-Development-QMI8658C-Bluetooth/dp/B0D3DPLFL8">On Amazon ↗</a></p></div>
-      <div class="card"><div class="ico">⚡</div><h3>2 · Flash it</h3><p>Use the browser flasher or the offline <code>flash.bat</code>/<code>flash.sh</code> in <a href="https://github.com/srfinch17/peckworks-esp32s3matrix/tree/master/install">install/</a>. One merged binary — app + web UI.</p></div>
-      <div class="card"><div class="ico">📶</div><h3>3 · Join WiFi</h3><p>Connect to the <b>ESP32-Matrix-Setup</b> hotspot, pick your network, and open <code>esp32matrix.local</code>. That's it.</p></div>
+  <!-- ============ 05 CLAUDE ============ -->
+  <div class="phase" id="claude"><span class="ph-code">PART&nbsp;05</span><h3>Drive it with Claude — the panel as an expression channel</h3><span class="rule"></span></div>
+
+  <section class="teach emotion">
+    <p class="kicker">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 6v6c0 5 3.4 8.3 8 10 4.6-1.7 8-5 8-10V6l-8-4z"/><path d="M9 12l2 2 4-4"/></svg>
+      What an open HTTP API unlocks
+    </p>
+    <h3 class="tt">Because the whole board is just an API, it becomes an ambient status light for AI coding sessions.</h3>
+    <p class="lead">A separate, public companion project — <strong>Claude Expression Studio</strong> — turns the panel into Claude's expression channel: a spinner while it works, a checkmark when it's done, a glyph when it's waiting on you. It does this purely by <span class="m">POST</span>ing to the same endpoints documented above. No shared code, no firmware coupling — just the contract.</p>
+    <ul>
+      <li><strong>Renderer-agnostic.</strong> The board is one optional renderer; the Studio runs fully <em>board-free</em> too, simulating everything in the browser.</li>
+      <li><strong>A browser studio</strong> to design, preview, and wire ~40 animations to moments in a coding session.</li>
+      <li><strong>Couples only over this API</strong> — point it at <span class="m">esp32matrix.local</span> and the same expressions light up real LEDs.</li>
+    </ul>
+    <div class="herobtns">
+      <a class="btn primary" style="background:#1f0d05;border-color:var(--emotion);color:#ffd0bb" href="https://srfinch17.github.io/claude-expression-studio/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>Open the live studio demo ↗</a>
+      <a class="btn" href="https://github.com/srfinch17/claude-expression-studio">Studio repo ↗</a>
     </div>
   </section>
 
-</div>
+  <!-- ============ 06 FLASH ============ -->
+  <div class="phase" id="flash"><span class="ph-code">PART&nbsp;06</span><h3>Flash one yourself — a ~$15 board and one binary</h3><span class="rule"></span></div>
+
+  <section class="teach">
+    <p class="kicker">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      From zero to a glowing panel
+    </p>
+    <h3 class="tt">Three steps, no toolchain required.</h3>
+    <ol class="steps">
+      <li><b>Get the board.</b><p>The Waveshare ESP32-S3-Matrix — an 8×8 WS2812B grid on a USB-C ESP32-S3. <a href="https://www.amazon.com/Waveshare-ESP32-S3-Matrix-Development-QMI8658C-Bluetooth/dp/B0D3DPLFL8">On Amazon ↗</a></p></li>
+      <li><b>Flash one binary.</b><p>Use the browser flasher or the offline <code>flash.bat</code> / <code>flash.sh</code> in <a href="https://github.com/srfinch17/peckworks-esp32s3matrix/tree/master/install">install/</a>. It's a single merged image — app + web UI — so there's nothing to assemble.</p></li>
+      <li><b>Join WiFi.</b><p>Connect to the <code>ESP32-Matrix-Setup</code> hotspot, pick your network, then open <code>esp32matrix.local</code>. From here you're back at Part 02 — the onboard control panel.</p></li>
+    </ol>
+    <p>Want to build from source instead? The firmware is plain Arduino (<span class="m">.ino</span>) — see the repo's <a class="inline" href="https://github.com/srfinch17/peckworks-esp32s3matrix#readme">README</a> for the Arduino IDE setup and library list.</p>
+  </section>
+
+</main>
 
 <footer><div class="wrap">
-  ESP32-S3 Matrix firmware · open source ·
-  <a href="https://github.com/srfinch17/peckworks-esp32s3matrix">GitHub</a> ·
-  <a href="https://github.com/srfinch17/peckworks-esp32s3matrix/blob/master/docs/API.md">API docs</a> ·
-  <a href="https://srfinch17.github.io/claude-expression-studio/">Claude Expression Studio</a>
-  <div class="note">Built on the Waveshare ESP32-S3-Matrix. Board photo: Waveshare. The Claude integration lives in the separate claude-expression-studio repo and drives this board only over the documented HTTP API.</div>
+  <p>ESP32-S3 Matrix firmware — open-source firmware + onboard web UI for the Waveshare ESP32-S3-Matrix. Standalone, HTTP-native, yours to flash and hack.</p>
+  <p>
+    <a href="https://github.com/srfinch17/peckworks-esp32s3matrix">GitHub</a> ·
+    <a href="https://github.com/srfinch17/peckworks-esp32s3matrix/blob/master/docs/API.md">API docs</a> ·
+    <a href="https://srfinch17.github.io/claude-expression-studio/">Claude Expression Studio</a>
+  </p>
+  <p class="meta-line">// Board photo: Waveshare. The Claude integration lives in the separate claude-expression-studio repo and drives this board only over the documented HTTP API — no code is shared.</p>
 </div></footer>
+
+<script src="./assets/anim-cards.js" defer></script>
 </body>
 </html>
