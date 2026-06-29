@@ -1,96 +1,31 @@
-# ESP32-S3 Matrix — Project Brief (read me first)
+# ESP32-S3 Matrix — Firmware Project Brief (read me first)
 
-Waveshare ESP32-S3-Matrix (8×8 WS2812B) controlled in natural language via
-Claude → MCP server (Node) → HTTP → Arduino firmware → LEDs.
-
-This file is the canonical project brief and loads every session. Keep it
-current. Deeper material is split out:
-- `docs/PITFALLS.md` — hardware/firmware gotchas we've hit (read before debugging)
-- `docs/superpowers/specs/` — per-feature design specs
-- `docs/superpowers/plans/` — per-feature implementation plans
+Waveshare ESP32-S3-Matrix (8×8 WS2812B) firmware + its self-contained onboard web UI.
+The board runs standalone (no computer): WiFi captive-portal onboarding, an animation
+selector, weather/clock, a calibration lab, and an HTTP API. It exposes that API
+(`docs/API.md`) so external clients can drive it.
 
 > **Privacy:** never use the maintainer's real name in code, comments, or docs —
-> this repo is distributable, so refer to "the user" instead.
+> this repo is distributable; refer to "the user" instead.
+
+> **The Claude integration lives elsewhere.** The MCP server, the Expression Studio,
+> the trigger manifest, and the Claude Code hooks are in the separate
+> **`claude-expression-studio`** repo. They drive this board ONLY via `docs/API.md`;
+> no code is shared. See `docs/PITFALLS.md` before debugging hardware.
 
 ---
 
 ## How we work (the dev loop)
 
-**I (Claude) cannot compile, flash, or see the LEDs.** I write C++/HTML; **you**
-compile + flash in the Arduino IDE and report back. So:
+**Claude cannot compile, flash, or see the LEDs.** Claude edits firmware (`.ino`) and
+web UI (`data/*.html`); **you** flash and report back:
 
-1. I edit firmware (`.ino`) and/or web UI (`data/*.html`).
-2. You **Sketch → Upload** (firmware) and, if `data/` changed,
-   **Tools → ESP32 LittleFS Data Upload** (web files). *Both are separate steps.*
-3. You paste the **Serial Monitor** output and/or describe the LED behavior.
-4. We iterate.
+1. **Sketch → Upload** (firmware), and if `data/` changed, **Tools → ESP32 LittleFS
+   Data Upload** (web files). *Two separate steps.*
+2. Paste the **Serial Monitor** output and/or describe the LED behavior.
 
-**This two-step upload is the developer path only.** End users flash a single
-pre-merged binary (app + web UI) from `install/` — no LittleFS upload step.
-That binary is produced by `npm run build:release` (`scripts/build-release.mjs`).
-The MCP extension for Claude Desktop is packed by `npm run build:mcpb`.
-
-**Claude Code onboarding = `npm run setup`** (`scripts/setup.mjs` + pure `scripts/setup-lib.mjs`,
-unit-tested): the turnkey installer that wires the hooks into `~/.claude/settings.json` AND
-registers the MCP server in `~/.claude.json` (each backed-up + idempotently merged — touches only
-its own entries), deploys the hook scripts to `~/.claude/hooks/`, and writes
-`~/.claude/hooks/matrix_config.json` (`mcp_dir`/`board_url`) so the hooks find this repo — which is
-how `matrix_signal.py` now resolves `MCP_DIR`/`BOARD_URL` (env → that config → default; the old
-hardcoded maintainer path is GONE). **Board-OPTIONAL** (panel-first; `--board <url>` opts hardware in).
-`--dry-run` previews, `--uninstall` reverses. Serves the [[installable-product-target]] "turnkey
-onboarding" gap. Spec/plan: `docs/superpowers/specs|plans/2026-06-27-onboarding-installer*`.
-
-**`site/`** = the public **showcase / landing page** (`site/index.html`, self-contained,
-GitHub-Pages-deployable): a live in-browser 8×8 LED simulation that plays the real
-expression frames + an interactive playground + the presence-protocol pitch. No build
-step, no hardware. See `site/README.md` for Pages deployment. `install/` = the actual
-flasher (ESP Web Tools browser button + offline `flash.bat`/`flash.sh`).
-
-**`shared/`** = the **one render core** both web surfaces import (no second copy — grep-enforced):
-`expressions.js` (char-art → lit-pixel resolve), `render.js` (the bloom `Panel`: `setFrames`/
-`setStepper`/`setGenerator` + `tick`/`draw`), `firmware-sims.js` (**15** JS ports of `anim_*.ino`,
-each `make<Name>(opts)→{frame_ms, frame()}` registered in `FIRMWARE_SIMS` — claudesweep/frostbite/
-fire/matrix_rain/snow/fireworks/dancefloor + the decision-C ports rainbow/breathe/wave/comet/spiral/
-starfield/sun/liquid; sims emit per-cell RGB, the bloom renderer adds the glow — **add #16 = one
-`make*` + one registry line**, the Gallery's firmware list derives from `Object.keys(FIRMWARE_SIMS)`;
-`liquid` substitutes the IMU with a synthetic auto-rotating gravity vector; critique a generative sim
-board-free via `node scripts/dump-sim-frames.mjs <name> -o x.json` → `render-contact-sheet.py` raw-RGB),
-`catalog.js` (rotation-role classify), `desk-sim.js` (the floating desk companion), `presence-card.js`
-(the presence-card render core: pure `vocabFor`/`dataBlock`/`sparklinePoints`/`motionClass`/`formatAge` +
-DOM `renderPresenceCard` — extracted from the board's card so the web surface isn't a 3rd copy) + its
-`presence-vocab.js` (parity-tested vs the board's `data/presence-vocab.js`). Pure-logic
-files are unit-tested (`node --test`); `render.js`/`desk-sim.js` are DOM and covered by Playwright
-smoke checks. **`studio/`** = the **Expression Studio** tool (`studio/index.html` + `gallery.js`):
-a static Gallery showing the WHOLE animation library — canned + saved + bored + the 15 firmware
-sims — animating with the real bloom renderer, grouped by rotation role with **orphans** (saved-but-
-unwired, currently `{claude-idle, idea}`) ring-flagged. Its `gallery-data.json` is GENERATED by
-`scripts/build-gallery-data.mjs` (`npm run build:gallery`) — don't hand-edit, **and commit the
-regenerated file** when source changes (it's a committed generated artifact — an uncommitted regen
-leaves the live Gallery stale, as 8 new sims did until caught at the taste gate). Preview both:
-`python -m http.server 8766` from repo root → `/studio/index.html` and `/site/index.html`. **Studio
-surfaces now (all under `studio/`):** `index.html` (Gallery) · `editor.html` (binding/pool/weight +
-params/labels editor over the manifest) · `frame-editor.html` (paint/edit a saved expression) ·
-`board.html` (local-first virtual board — native render, SSE/framebuffer mirror behind an engine probe) ·
-`presence.html` (the presence card + playground + best-effort live `/api/presence`). A shared self-injecting
-`studio-nav.js` links them; engine-write features gate on a `/api/manifest` probe and degrade to read-only.
-**The "v2 Workshop / Node studio server" is BUILT — it's the engine** (`mcp_server/engine-server.ts`, the
-MCP server's `startEngineServer`; `matrix_studio` prints its localhost URL): serves `/studio/`+`/shared/`,
-`GET/PUT /api/manifest`, `PUT /api/expression/:name`, `POST /api/approval/:name`, the `/api/framebuffer` board
-proxy, **`GET/POST /api/presence`** (GET = board-preferred with an in-memory STORE fallback so a board-LESS
-card still shows lifecycle presence; POST = a localhost relay the hooks mirror to — see the No-board presence
-note below), and `/events` SSE (the no-board virtual board — `index.ts` broadcasts resolved
-renders here even when the board is unreachable). **Pages-deployable:** `scripts/build-pages.mjs`
-(`npm run build:pages`) assembles a read-only `pages-dist/` (landing + studio + shared, mirroring the dev
-layout; `.test.js` excluded); `.github/workflows/pages.yml` deploys it (one-time repo setting:
-Settings→Pages→Source=GitHub Actions). The **goal this all serves** = a stranger-installable, board-OPTIONAL
-product (see auto-memory `installable-product-target`). Spec/plan:
-`docs/superpowers/specs|plans/2026-06-23-expression-studio-*`, `…/2026-06-27-pages-showcase-*`,
-`…/2026-06-27-presence-card-web-surface-*`.
-
-**Never claim a change "works" until you've confirmed it on hardware.** I can
-reason about correctness, but "compiles in my head" ≠ "runs on the board."
-
----
+End users instead flash one pre-merged binary (`install/`, produced by
+`npm run build:release`). **Never claim a change "works" until confirmed on hardware.**
 
 ## Hardware facts (don't re-derive these)
 
@@ -101,424 +36,67 @@ reason about correctness, but "compiles in my head" ≠ "runs on the board."
 | `LED_TYPE` | `WS2812B` |
 | **`COLOR_ORDER`** | **`RGB`** ⚠️ not the usual GRB — `CRGB(r,g,b)` maps straight through |
 | IMU | QMI8658C 6-axis, I2C **SDA=11 SCL=12**, addr **0x6B** |
-| Flash / PSRAM | **4MB** embedded flash + 2MB PSRAM (verified from esptool). LittleFS lives in the 1MB SPIFFS region of the `huge_app` partition. |
-| Default brightness | 40 / 255 (LEDs are bright + draw real current at full) |
+| Flash / PSRAM | **4MB** flash + 2MB PSRAM. LittleFS in the 1MB SPIFFS region of `huge_app`. |
+| Default brightness | 40 / 255 |
 
 ### Coordinate system
-`XY(x, y)` returns `y * 8 + x` — **plain row-major, NOT serpentine.** Origin
-top-left, x→right, y→down. Out-of-bounds returns `-1`. Always draw via
-`setPixel(x, y, CRGB)` (bounds-checked) — defined in `esp32_matrix_webserver.ino`.
-
----
+`XY(x, y)` returns `y * 8 + x` — **plain row-major, NOT serpentine.** Origin top-left,
+x→right, y→down. Out-of-bounds returns `-1`. Always draw via `setPixel(x, y, CRGB)`
+(bounds-checked, in `esp32_matrix_webserver.ino`).
 
 ## Arduino IDE setup
 
-**Libraries (Tools → Manage Libraries):** FastLED · ArduinoJson · PNGdec ·
-**WiFiManager *by tzapu*** (watch for lookalikes). WiFi/WebServer/mDNS/
-WiFiClientSecure are in the ESP32 core.
+**Libraries:** FastLED · ArduinoJson · PNGdec · **WiFiManager *by tzapu***.
+**Board settings:** Board `Waveshare ESP32-S3-Matrix`; **PSRAM `Enabled`** (the board
+has 2MB — leaving it off starved the heap and caused WiFi/web instability); USB Mode
+`Hardware CDC and JTAG`; USB CDC On Boot `Enabled`; Upload Speed `921600`; Flash Size
+`4MB`; Partition `Huge APP (3MB No OTA / 1MB SPIFFS)`.
+**Web-file upload (IDE 2.x):** install `arduino-littlefs-upload` `.vsix`, then
+**Ctrl+Shift+P → "Upload LittleFS to Pico/ESP8266/ESP32"** (Command Palette; close the
+Serial Monitor first). See `docs/PITFALLS.md`.
 
-**Web-file (`data/`) upload — Arduino IDE 2.x:** install the
-**`arduino-littlefs-upload`** `.vsix` plugin into `~/.arduinoIDE/plugins/`, then
-**Ctrl+Shift+P → "Upload LittleFS to Pico/ESP8266/ESP32"** (Command Palette only,
-NOT the Tools menu; close the Serial Monitor first). The LittleFS *library* in
-Library Manager is unrelated — it adds no upload command. See `docs/PITFALLS.md`.
+## WiFi
 
-**Board settings (Tools menu):**
-- Board: `Waveshare ESP32-S3-Matrix` (or `ESP32S3 Dev Module`)
-- **PSRAM: `Enabled`** — the board has 2MB. Leaving it Disabled starves the heap
-  (~300KB SRAM only) and caused WiFi / web-server instability under load. Keep ON.
-- USB Mode: `Hardware CDC and JTAG` · USB CDC On Boot: `Enabled` (needed for the Serial Monitor over USB)
-- Upload Speed: `921600`
-- Flash Size: `4MB (32Mb)` (this board is 4MB — verified via esptool)
-- Partition Scheme: `Huge APP (3MB No OTA / 1MB SPIFFS)` — LittleFS data folder is
-  small (~hundreds of KB) so it fits the 1MB region. Watch this if the data
-  folder ever grows (sketch/image assets).
-
----
-
-## WiFi (runtime portal, or a secrets.h dev override)
-
-WiFiManager captive portal. On boot it tries saved WiFi (LEDs **blue**); on
-failure it opens hotspot **`ESP32-Matrix-Setup`** (LEDs **amber**) at
-`192.168.4.1`. Hold **BOOT (GPIO 0)** while powering on to wipe creds and force
-setup. Reachable at `http://esp32matrix.local` once joined.
-
-**`secrets.h` dev override (gitignored):** if `esp32_matrix_webserver/secrets.h`
-defines `WIFI_SSID`/`WIFI_PASSWORD`, the firmware connects directly and **skips the
-portal** (`#ifdef WIFI_SSID` path) — convenient for your own board, but it **compiles
-your WiFi creds into the app binary**. ⚠️ A **distributable** merged `.bin` must be
-exported with `secrets.h` ABSENT, or it leaks your password (`strings` it) AND can never
-onboard another user (no portal). `scripts/build-release.mjs` **refuses to build if
-`secrets.h` is present** (`--allow-secrets` = personal build only). See `docs/PITFALLS.md`.
-
----
+WiFiManager captive portal. Boot tries saved WiFi (LEDs blue); on failure opens hotspot
+**`ESP32-Matrix-Setup`** (amber) at `192.168.4.1`. Hold **BOOT (GPIO 0)** at power-on to
+wipe creds. Reachable at `http://esp32matrix.local`. A gitignored `secrets.h`
+(`WIFI_SSID`/`WIFI_PASSWORD`) skips the portal — but **a distributable `.bin` must be
+built WITHOUT it** (`build-release.mjs` refuses if present; `--allow-secrets` = personal).
 
 ## Firmware layout (all `.ino` in `esp32_matrix_webserver/` compile as one unit)
 
-| File | Contents |
-|---|---|
-| `esp32_matrix_webserver.ino` | globals, `setup()`, `loop()`, `XY`/`setPixel`, dispatch |
-| `api_handlers.ino` | all HTTP route handlers |
-| `anim_*.ino` | one animation each (fire, liquid, matrix, comet, gradient, claudesweep, …) |
-| `scroll_text.ino` | 5×7/3×5/3×3 scrolling text |
-| `fonts.ino` | 3×3 and 3×5 pixel fonts |
-| `weather.ino` | weather fetch + icon draw + chip temp |
-| `clock_timer.ino` | NTP clock + 3 timer modes |
-| `data/*.html` | per-mode web control pages (served from LittleFS) |
-| `data/{app.css,backnav.js,header.js,bright.js,previews.js,palettes.js}` | shared web design system (v1.1.0 revamp): `app.css` tokens+chrome; `backnav.js` breadcrumb (`data-parent`/`data-label`); `header.js` logo card; `bright.js` brightness widget; `previews.js` canvas preview engine; `palettes.js` `DF_PAL`+presets. All are `data-auto` self-injecting drop-ins. |
+`esp32_matrix_webserver.ino` (globals, setup/loop, `XY`/`setPixel`, dispatch) ·
+`api_handlers.ino` (HTTP routes) · `anim_*.ino` (one animation each) · `scroll_text.ino`
+· `fonts.ino` · `weather.ino` · `clock_timer.ino` · `anim_presence.ino` (native presence
+render) · `data/*.html` + the shared web design system (`app.css`, `backnav.js`,
+`header.js`, `bright.js`, `previews.js`, `palettes.js` — all `data-auto` self-injecting).
 
-### Adding a new animation touches these files (the recurring recipe)
-1. New `anim_<name>.ino` — state globals + `run<Name>Frame()` / `step<Name>Frame()`
-2. Dispatch branch in `esp32_matrix_webserver.ino` loop: `else if (animationName == "<name>") run<Name>Frame();`
-3. `api_handlers.ino` `handleAnimation()` — parse params, set globals, set `animationName`
-4. `data/<name>.html` — its OWN control page on the shared design system (clone `rainbow.html`):
-   `app.css` + `.panel`/`.subcard`/`.subhead`/`.chips`/`.preview-frame`; breadcrumb via `backnav.js`
-   (`data-parent="/animations.html"`); `header.js`/`bright.js`; `previews.js`+`palettes.js` for the
-   full-strength canvas preview + palette grid. Live-apply default-on, debounced ~180ms.
-5. `data/animations.html` — add a `.card` link-out to the new page (the Animations HUB, **NOT** `index.html`)
-6. README features table (optional)
+### Adding an animation (recipe)
+1. `anim_<name>.ino` — state + `run<Name>Frame()`. 2. Dispatch branch in the main `.ino`
+loop. 3. `api_handlers.ino` `handleAnimation()` — parse params + set `animationName`.
+4. `data/<name>.html` control page (clone `rainbow.html`; shared design system). 5. Card
+in `data/animations.html` (the hub, NOT index). See the `add-animation` skill.
 
----
+## API, settings, NVS, calibration
 
-## MCP server (`mcp_server/`)
+- **API:** full HTTP surface in `docs/API.md` (the contract `claude-expression-studio`
+  depends on).
+- **Auto-resume (NVS):** persists last animation + brightness (`Preferences`, namespace
+  `matrix`); restores on boot. `transient:true` on an animation POST skips NVS write.
+- **Settings (NVS):** `POST/GET /api/settings` (partial merge). Keys: `idle_*`,
+  `default_brightness`, `boot_animation`, `timezone`, `calibration_correction`.
+- **Idle screensaver:** armed by `POST /api/idle/arm`; rotates `idle_apps` at
+  `idle_brightness` after `idle_after_secs`.
+- **Calibration:** the Lab (`data/calibrate.html`) measures into `data/calibration.json`
+  (`GET/POST /api/calibration`, live-reload). Correction runs at the `matrixShow()`
+  chokepoint (save→correct-in-place→restore). White-balance green gain **0.863**; gamma
+  kept at 1.0 (global value-domain gamma crushed dim content). See the calibration specs.
 
-TypeScript, pre-compiled to `dist/index.js` — the live server runs the COMPILED
-dist, so TS edits are invisible until rebuilt **and** the server is reconnected.
+## Versioning & discovery
 
-**Rebuild is automated.** A Claude Code hook (`.claude/settings.json` →
-`scripts/rebuild-mcp.mjs`) runs `tsc` whenever the `mcp_server/*.ts` sources are
-newer than `dist` — fired on every Edit/Write (PostToolUse) and at SessionStart.
-It's a no-op when dist is current, surfaces TS errors if the build fails, and on a
-successful rebuild prints a reminder. So after I edit TS you only need to **`/mcp`
-reconnect** to pick up the new build (the hook can't reconnect the running server).
-Manual fallback: `cd mcp_server; npx tsc --project tsconfig.json`.
+Canonical `VERSION` → `version.h` (`FW_VERSION`) + `data/version.json`. `GET /api/status`
+reports `fw_version`/`fw_built`/`web_version`. `npm run check` flags drift. Board address =
+`ESP32_URL` env (default `http://esp32matrix.local`). (Follow-up: `scripts/version-stamp.js`
+still references `mcp_server/` artifacts from the pre-split monorepo — trim to firmware-only.)
 
-On Windows, MCP spawn is finicky — see global `~/.claude/CLAUDE.md` for the
-cmd.exe-wrapper template and debug checklist. `mcp_launch.cmd` must NOT redirect
-stderr to a fixed shared logfile: a long-lived server holds that handle, an orphan
-locks it, and the next spawn's redirect fails → `-32000 Connection closed` (the real
-error is in Claude's per-session `mcp-logs-esp32-matrix`, not the board). Prefer the
-board's **IP address over `esp32matrix.local`** in MCP config (mDNS is unreliable in
-spawned procs).
-
----
-
-## API surface
-
-```
-GET  /api/status            # + fw_version, fw_built (__DATE__ __TIME__), web_version — see Versioning; + heap telemetry free_heap/largest_block/min_free_heap/free_psram (watch alloc pressure over HTTP, no Serial)
-GET  /api/presence          # current PresenceMessage (semantic status for any renderer)
-POST /api/presence          { intent, headline?, detail?, data?, urgency? }  # board stamps ts
-GET  /api/sensors/{temperature,accelerometer,weather}
-GET  /api/display/framebuffer  # live 8×8 leds[] as 64 "RRGGBB" (row-major) — exact board mirror any page can poll for a preview
-POST /api/display/clear
-POST /api/brightness        { level: 0-255 }
-POST /api/display/text      { text, color, color2, gradient, small, tiny, scroll_speed }
-POST /api/display/animation { type, transient?, ...mode-specific }   # transient:true skips NVS auto-resume (used by the wait role); clock/calendar accept tz (POSIX TZ, DST) or timezone (int offset)
-POST /api/display/matrix    { matrix: [[8×8 hex]] }
-POST /api/display/frames    { frames: ["384-hex RRGGBB×64", …≤24], frame_ms, loop }  # expression channel; loop 0=forever, N=passes then hold last
-POST /api/weather/mode      { mode: temp|humidity|uv|pressure|cycle }
-GET  /api/settings          # all current board settings (NVS-backed)
-POST /api/settings          { partial keys }  # merge-update — only sent keys change; see Settings section
-POST /api/idle/arm          # arm the idle screensaver countdown (fired by the Stop hook — matrix_signal.py on the `done` signal)
-GET  /api/calibration       # the measured LED calibration profile (calibration.json) or identity defaults if unmeasured
-POST /api/calibration       # overwrite calibration.json (validates JSON) AND live-reloads the correction (no reflash) — Lab saves here; exploit for retuning
-POST /api/grid-test/set     { mode, brightness, ... }  # Calibration Lab patterns: ramp_r/g/b, sweep_r/g/b, patch_rgb(+pr/pg/pb), gamma, pixel(+index)
-```
-
-## ⭐ The matrix is Claude's expression window (use it ambiently)
-
-The display doubles as **Claude's autonomous status/emotion channel** — the
-user's top-priority direction for this project. Via MCP: `matrix_express`
-(canned: working / done / alert / check / cross / party / spaceship / smiley /
-sleep / …), `matrix_animate` (draw custom 8×8 text-art frames, animate, and
-`save_as` the good ones), `matrix_list_expressions`. **Use it without being
-asked**: long task starts → `wait`; finished → `done`; blocked on the user →
-`alert` (the silent shoulder-tap); celebrate wins; be playful when it fits. One
-expression per state change — no spam. Everything shown must pass the
-silhouette test (a human identifies it at a glance). Record what the user
-likes/dislikes in auto-memory. Spec:
-`docs/superpowers/specs/2026-06-11-claude-expression-display.md`.
-
-**⚠️ Expression library overhaul (2026-06-24 — content phase COMPLETE, wiring PENDING):** a big
-content pass retired the canned `question`/`check`/`done` glyphs, reworked `alert`/`cross` into
-non-inverting GLOWS, made `heart` beat, and **built + USER-APPROVED a ~40-animation library**
-(goldfish, skull, jupiter, ufo, aurora, atom, double-slit, jellyfish, butterfly, galaxy,
-black-hole, tornado, volcano, mushroom-cloud, newtons-cradle, lightning, rain, meteor, bomb,
-potion, warrocket, …) as saved frame-expressions in `mcp_server/expressions/`. **Every one is
-user-approved (green ✓ in the studio) but still UNWIRED** (orphan group) — a dedicated
-**wiring/reset pass** (assign each → hook event + weights) is PENDING, so glyph→event mappings
-here stay in-flux until then. ⚠️ Renames to know: `shooting-star`→`meteor` (an *old* bored-rotation
-`shooting-star` still exists — reconcile in wiring), `grenade`→`bomb`, `flask`→`potion`. The studio
-renders the green ✓ from the `APPROVED` set in `scripts/build-gallery-data.mjs` — **RULE: when you
-EDIT an approved expression, remove it from that set so it re-enters review (orange).** Tooling: the
-**`building-8x8-animations` skill** (`.claude/skills/`, the canonical 8x8 animation reference —
-~20 lessons + the render-and-critique loop) + **`scripts/render-contact-sheet.py`** (frames-JSON →
-PNG contact sheet = build/critique board-free; the basis of the animator-subagent + main-agent-critic
-loop, proven at ~40 animations). Build log: `docs/superpowers/specs/2026-06-23-animation-roster-baseline.md`;
-full hook→animation map: `docs/superpowers/specs/2026-06-24-hooks-and-animation-moments.md`.
-
-**⭐ Expression Trigger Manifest (LIVE — the "wiring" built as real architecture):** the
-wiring/reset pass above is now a **renderer-agnostic protocol**, not ad-hoc glue. One
-**`shared/manifest.json`** (the SINGLE SOURCE OF TRUTH) maps **moment → intent → renderer**:
-`intents` (a curated-core + `x-`-extension vocabulary with **fallback chains**; 6 conformance roots
-info/working/done/attention/fail/idle), `harnesses` (per-harness moment→intent, Claude-first), and
-`renderers` (per-renderer intent→animation bindings; **any** intent is poolable + weighted via
-`{weight,params,label}` entries + pool `brightness`/`noRepeat`; a binding is a reference so every
-animation is always assignable). A pure resolver (`shared/resolver.js`, mirrored in
-`claude-hooks/manifest_resolver.py`, **parity-tested** so they can't drift) + a bespoke validator
-(`scripts/check-manifest.mjs` → `npm run check:manifest`, gated in `npm test`). Renderers are 1-method
-plugins `{id, render(value)}` — `esp32-8x8` / `web-sim`(inherits esp32) / `card`. Spec:
-`docs/superpowers/specs/2026-06-25-expression-trigger-manifest-design.md`; plans:
-`docs/superpowers/plans/2026-06-25-trigger-manifest-plan*.md`.
-
-**Architecture = RESOLVER-ONLY:** the MCP server (TS) and the Python hook EACH resolve a moment/intent
-via the shared resolver (one brain), then render with their OWN proven board HTTP I/O — NOT the
-registry/renderer plugins (those stay for web-sim/Studio/Plan-4 engine). `mcp_server/engine.ts`'s pure
-`decideRender` + `index.ts`'s `runPlan` and the hook's `render_resolved` are the two mirrored dispatchers
-(firmware name → `/api/display/animation` transient + params; else frame-expression → `/api/display/frames`;
-brightness first; never-blank fallback). `shared/firmware-names.js` (mirrored as a Python literal) decides
-which path. The MCP is slated to later **become an engine** serving the Studio + a WS virtual board.
-
-**Status (2026-06-25): Plans 1+2+3a+3b ALL EXECUTED + opus-reviewed** (commits through **abacab9** on
-`feat/expression-studio`; full suite **122/122** + `manifest OK` + `.mcpb` packs). **The migration is LIVE:**
-every consumer — `matrix_express("wait")`, `presence_set`, `matrix_idle`, the gallery classifier
-(`catalog.js`), and the Python hook — resolves via the manifest, and the old scattered config is **DELETED**
-(`wait.ts`, `idle.ts`, `wait-weights.json`, `presence.ts` `INTENT_TO_CANNED`/`cannedFor`). Two structural
-notes: (1) **idle/screensaver split** — the `idle` conformance root binds the quiet **`sleep` glyph**
-(presence-idle, matches the card's Zzz), and a NEW **`screensaver`** intent (fallback→idle) holds the 8-app
-firmware pool that `matrix_idle` resolves; a renderer with no `screensaver` binding degrades to `idle`.
-(2) **`done` glyph** lives at `mcp_server/expressions/done.json` (ported from the hook's art so MCP≡hook);
-`mcp_server/manifest-assets.test.ts` guards that EVERY esp32 binding leaf resolves to a real
-CANNED∪saved∪firmware asset. **`.mcpb` bundles the shared engine** (`copy-shared-runtime.mjs` prebuild copies
-manifest+resolver+firmware-names into `mcp_server/shared-runtime/`; engine loads repo-first/bundle-fallback).
-**Hook re-keyed to manifest MOMENTS** (`settings.hooks.snippet.json` passes `hook:Stop` etc.; PostToolUse split
-per-tool; bored-watcher intact). ⚠ **Plan 3b is DEPLOYED to `~/.claude` but NOT yet hardware-verified or merged:**
-the live changes (presence `ok`→done-glyph, `alert`→ask-attention, `celebrate`→pool, presence-`idle`→sleep glyph,
-`matrix_idle` now TRANSIENT) need a **D1 hardware-verification pass on the physical board** (after a Claude Code
-restart + `/mcp` reconnect) before merge. Plans 4/5/6 (engine+Studio+virtual board / Pages showcase / assign the
-~40) remain; all on `feat/expression-studio`, merge at the very end. SDD ledger: `.superpowers/sdd/progress.md`.
-
-**Wait-animation library (now manifest-driven):** `matrix_express("wait")` resolves the manifest's
-**`working` intent** — a weighted pool on the `esp32-8x8` renderer, picked by **pure weighted random
-(repeats allowed — there is NO no-immediate-repeat guard here, by design: a high-weight favorite like
-`wait-claude` genuinely shows that often; the no-repeat guard is reserved for the idle/screensaver pool)**.
-The pool is **type-aware**: frame-expressions (saved `wait-*` JSON via
-`/api/display/frames`) AND firmware animations (`claudesweep`, launched transiently via
-`/api/display/animation {transient:true}` so they don't clobber NVS auto-resume) — `shared/firmware-names.js`
-decides the path. ⚠ **The old `wait-*` name-convention auto-join is GONE** (`wait.ts`/`wait-weights.json`
-deleted): to ADD a wait, design it live (`matrix_animate` → `save_as:"wait-<name>"`) AND add an entry to the
-`working` pool in `shared/manifest.json` (`{"wait-<name>": <weight>}`) — read at RUNTIME, so no rebuild, but
-you DO edit the manifest now. Force a specific one with `matrix_express("<name>")`. Current pool (with weights):
-`wait-claude:40` (orange Claude-mascot alien bob+blink, the user's favorite) · `wait-rainbow:30` (old-Mac
-pinwheel) · `wait-orbit:20` (six-hue perimeter arc) · `claudesweep:20` (firmware CRT/radar sweep w/ resident
-mascot) · `working:10` (the snake) · `wait-logo-{breathe,chase,boot,ripple}:8` each. (Sibling `claude-idle` is
-the same mascot for idle/bored — not in the working pool.)
-
-**Also fired by the prompt hook:** the Claude Code `UserPromptSubmit` hook
-(`claude-hooks/matrix_signal.py hook:UserPromptSubmit`) resolves the same `working` pool via the manifest, so
-the indicator varies turn-to-turn — add a `working`-pool entry and it shows up on both the MCP and hook paths.
-
-**Awaiting-input animations:** a third board state, distinct from *busy* (working pool) and *idle*
-(screensaver) — a context-specific glyph when Claude is **blocked on the user**, flipping back to the busy pool
-the instant they answer. Host-side: Claude Code hooks fire `matrix_signal.py <moment-key>`, which resolves the
-manifest moment and posts the bound `ask-*` glyph to `/api/display/frames`. Verified hook map
-(`claude-hooks/settings.hooks.snippet.json`, merge into `~/.claude/settings.json`):
-`hook:PreToolUse:AskUserQuestion`/`hook:PreToolUse:ExitPlanMode` → `awaiting-input` → `ask-question` (the `?`
-doubles for plan-approval), `hook:Notification:permission_prompt` → `attention` → `ask-attention`, and
-`hook:PostToolUse:AskUserQuestion`/`hook:PostToolUse:ExitPlanMode` → `working` (clear-on-answer, now SPLIT into
-two per-tool blocks). The `ask-*` glyphs are generated by `scripts/gen-ask-icons.py`. Spec:
-`docs/superpowers/specs/2026-06-21-awaiting-input-display-design.md`.
-
-**Weighted preference:** weights live in the manifest pool entries (`{"name": {"weight": N}}` or shorthand
-`{"name": N}`; unlisted/absent = not in pool; pure weighted random, repeats allowed except the no-repeat guard).
-Read at RUNTIME (no rebuild/reconnect to retune). To honor "show the rainbow 80% of the time," edit the
-`working` pool weights in `shared/manifest.json`. Both callers — `matrix_express("wait")` and the prompt hook —
-use this pool.
-
-`matrix_idle` (MCP) resolves the manifest **`screensaver` intent** — a random PRE-APPROVED firmware app (fire /
-dance floor / fireworks / clock / frostbite / matrix rain / snow / claudesweep) at ambient brightness 5, no
-immediate repeat, launched **transiently** — use it unprompted when idle/bored. The lineup + params + brightness
-live in the `esp32-8x8` `screensaver` binding in `shared/manifest.json` (edit at runtime, no rebuild). NOTE the
-`idle` intent itself is the quiet `sleep` glyph (presence-idle); the screensaver is the separate `screensaver`
-intent. Spec: `docs/superpowers/specs/2026-06-17-matrix-idle-design.md`.
-
-## Presence (semantic status — the protocol-in-embryo)
-
-`presence_set` (MCP) emits a **PresenceMessage** — `intent` (working/thinking/done/ok/
-celebrate/alert/error/question/info/idle) + optional `headline`/`detail`/`data`
-(progress | 1–3 readouts | sparkline) + `urgency`. One call renders on BOTH the 8×8
-(canned glyph via the frame path) and the **desktop card** (`/presence-card.html`, polls
-`/api/presence`). The board stores the last message at `/api/presence` (RAM). This is the
-first slice of the "presence protocol" — one semantic message, many renderers. The 8×8 shows the intent glyph (MCP frame push) for glyph-only presences; when a presence
-carries `data`, the board renders it NATIVELY (v0.5) — progress as a **big number (the percent — a solid
-fill doesn't read on 8×8; see `anim_presence.ino` `PRES_PROGRESS`)**, `series` as a column sparkline,
-`values` as a cycling 3×5 number, all in the intent's color (`anim_presence.ino`). The desktop card always renders the full rich message. Spec:
-`docs/superpowers/specs/2026-06-17-presence-protocol-v0-design.md`.
-
-**Presence is now hook-driven (lifecycle, not just explicit `presence_set`).** The Claude Code hooks
-(`claude-hooks/matrix_signal.py`) ALSO `POST /api/presence` per moment so the card tracks Claude's state
-instead of going stale: `UserPromptSubmit`/`PostToolUse:*`→`working`, `PreToolUse:Ask|ExitPlan`→`question`,
-`Notification:permission_prompt`→`alert`, `Stop`→`done`, and `matrix_idle.py`→`idle` when the bored watcher
-is idle (`MOMENT_PRESENCE` map + `post_presence()`). Best-effort/fail-silent; the board's `POST /api/presence`
-is a **pure store** (no LED render, no screensaver disarm — `handlePresencePost`), so this never touches the
-display (the glyph is still rendered separately by `render_moment`). An explicit `presence_set` (rich
-data/headline) still wins while it's the most recent write. Spec:
-`docs/superpowers/specs/2026-06-28-presence-lifecycle-design.md`.
-
-**No-board presence (DONE 2026-06-28) — the engine now HOLDS presence.** The lifecycle caveat above
-("board-only") is resolved: the engine (`mcp_server/engine-server.ts`) has an **in-memory presence STORE** —
-`POST /api/presence` (localhost relay like `POST /api/render`: validates object+non-empty-`intent`, stamps
-epoch `ts` if absent → 204; non-GET/POST → 405), and `GET /api/presence` now **prefers the live BOARD when
-reachable, falls back to the STORE when the board is unreachable/errors, and only 503 `{reachable:false}`
-when board-down AND store-empty** (the card's honest "no source"). The hook's `post_presence()` **mirrors the
-same body to BOTH the board and the engine** (`_engine_url()`, independent fail-silent try/excepts so a down
-board never skips the engine mirror; `matrix_idle.py` inherits it). So a board-LESS user's `studio/presence.html`
-card now shows Claude's lifecycle. Board stays SOURCE-OF-TRUTH. ⚠ Engine (TS) change → the **running engine must
-be RESTARTED** to pick up the new routes. Spec/plan: `docs/superpowers/specs|plans/2026-06-28-no-board-presence-*`.
-
-## Versioning (know what's actually deployed)
-
-One canonical version in the repo-root **`VERSION`** file (SemVer, currently **0.12.0**),
-stamped into all four independently-deployed artifacts so each self-reports:
-- **firmware** → `version.h` `#define FW_VERSION`; `GET /api/status` returns
-  `fw_version` + `fw_built` (the compiler's `__DATE__ __TIME__`, auto-updates every
-  reflash even without a bump).
-- **web bundle** → `data/version.json`, read at boot, reported as `web_version`.
-- **MCP server** → `mcp_server/package.json`, read at runtime (no longer hardcoded).
-- **`.mcpb` bundle** → `mcp_server/manifest.json` `version` field, checked by `npm run check`.
-
-> **Version reset note:** the repo was reset from 1.1.0 → 0.12.0 because 1.1.0 was tagged
-> before the project was genuinely end-user installable. **The real 1.0.0 is the first
-> properly installable release** (merged firmware binary + `.mcpb`, hardware-verified
-> end-to-end). Do not bump to 1.0.0 until that milestone is reached.
-
-**Bump deliberately:** `npm run bump:patch|minor|major` (root `package.json`) → rewrites
-`VERSION`, stamps all four artifacts, commits `chore: bump vX.Y.Z`. Then **deploy each
-artifact to make it live**: flash (firmware), LittleFS-upload (web), rebuild+reconnect
-(MCP) — a bump is *not* live until its artifact is redeployed.
-
-**For end-user releases:** `npm run build:release` merges firmware + web into
-`release/esp32matrix-<version>-merged.bin` + `release/manifest.json` and expects
-the `.mcpb` produced by `npm run build:mcpb` to already be in `release/` (it warns
-if missing). Use `npm run build:mcpb` to rebuild the extension alone.
-
-**Check drift:** `npm run check` (terminal) or the **`matrix_version`** MCP tool — both
-compare repo `VERSION` to what each artifact reports and flag `⚠ DRIFT`. The general,
-reusable discipline lives in the user-scoped `versioning` skill (this repo is its worked
-example). Spec: `docs/superpowers/specs/2026-06-16-version-certainty-design.md`.
-
-> Don't hand-edit `version.h` / `data/version.json` — they're generated by
-> `scripts/version-stamp.js`. Edit `VERSION` (via `npm run bump:*`) instead.
-
-## Auto-resume (NVS)
-
-The board persists its **last animation** + **brightness** to NVS (`Preferences`,
-namespace `matrix`) and restores them on boot — so it powers back up into
-whatever it was showing. `handleAnimation` is split into `applyAnimationBody(body)`
-(shared by the HTTP handler and the boot-time restore in `setup()`). Clearing the
-display (`/api/display/clear`) makes it boot blank. Text/sketch are transient
-(not auto-resumed). **Pass `transient: true`** in a `POST /api/display/animation`
-body to launch an animation without writing to NVS — useful for the wait role so a
-busy-spinner doesn't replace the user's actual last animation on the next boot.
-If you're puzzled why the board "starts showing something" on power-up — that's this.
-
-## Settings (NVS-backed, survives flashes)
-
-Persistent board configuration lives in NVS (`Preferences`, namespace `matrix`,
-a separate key from animation state) and is loaded at boot before any display
-logic runs. Settings are written via `POST /api/settings` (partial updates — only
-the keys you send are changed; everything else is preserved). `GET /api/settings`
-reads the current values. The web control page is `data/settings.html` (linked
-from the index). Two MCP tools mirror the same endpoint: `matrix_get_settings`
-(read) and `matrix_set_settings` (write). **The board is the single source of
-truth** — the web page and MCP tools both talk to `/api/settings`, never to each
-other.
-
-**Settings keys:**
-
-| Key | Type | Default | Meaning |
-|---|---|---|---|
-| `idle_enabled` | bool | true | Enable the idle screensaver |
-| `idle_apps` | string (CSV) | `fire,matrix_rain,clock,fireworks,frostbite,snow,dancefloor,claudesweep` | Apps in the screensaver rotation |
-| `idle_after_secs` | int | 120 | Seconds of host inactivity before screensaver starts |
-| `idle_rotate_secs` | int | 240 | How long each screensaver app runs before rotating |
-| `idle_brightness` | int | 5 | Brightness used while the screensaver is running |
-| `default_brightness` | int | 40 | Default + boot brightness (unified with auto-resume brightness) |
-| `boot_animation` | string | `""` | If non-empty, overrides auto-resume on boot with this animation type |
-| `timezone` | string | `""` | POSIX TZ string applied to the clock live on POST |
-| `calibration_correction` | bool | true | Apply the measured LED correction (`matrixShow()` chokepoint). Off = raw output, for A/B |
-
-**Merge-on-boot:** `loadSettings()` merges stored keys over firmware defaults, so
-a new firmware build that adds a new setting key boots with a sane default even
-when the stored blob predates that key — no factory-reset required on upgrade.
-
-## Idle screensaver
-
-When the board is armed (via `POST /api/idle/arm`, fired by the Claude Code
-`Stop` hook — `matrix_signal.py` on the `done` signal), it starts a countdown timer. If no real display command
-arrives within `idle_after_secs`, the board enters screensaver mode: it picks a
-random app from `idle_apps` (calling `idleParamsFor` to build the same params
-`matrix_idle` would use), runs it at `idle_brightness`, and rotates to the next
-app every `idle_rotate_secs`. Any real display command disarms the screensaver
-and restores the pre-screensaver brightness.
-
-**End-to-end flow with host hooks:**
-1. Claude finishes a turn → `Stop` hook (`done`) fires `POST /api/idle/arm`.
-2. User is idle → board counts down → screensaver starts rotating apps.
-3. User sends a new prompt → `UserPromptSubmit` hook fires a wait-spinner expression
-   (disarms the screensaver automatically as a side-effect of the display command).
-
-The screensaver survives the laptop sleeping (the arm fires before sleep; the
-board keeps running independently). `idle_apps` and timing are tunable at runtime
-via settings — no reflash needed.
-
-## LED calibration (the path to v1.0.0)
-
-The board's real color/brightness behavior diverges from theory. The **Calibration Lab**
-(`data/calibrate.html`, the former Grid Test) measures it with human eyes into a single
-**`data/calibration.json`** (version.json pattern: `GET`/`POST /api/calibration`,
-identity-default fallback if unmeasured). Schema: per-channel `floors`, `white_balance`
-gains (dimmest channel = 1.0, others attenuated), `gamma` (+ `gamma_measured`/`notes`),
-verified `palette`, `steps`, optional `pixel_trim`. Lab patterns render via
-`/api/grid-test/set` (ramp/sweep/patch/gamma/pixel). Design:
-`docs/superpowers/specs/2026-06-21-led-calibration-battery-design.md`.
-
-**The active correction layer (Phase 3, SHIPPED + hardware-verified 2026-06-21).**
-`loadCalibration()` reads `calibration.json` at boot into the `calib` struct (identity
-fallback). `applyCalibration()` runs at the **`matrixShow()` chokepoint** — which does
-**save → correct-in-place → restore** on `leds[]` (NOT a second FastLED buffer), so
-animations never see the correction compound AND any `FastLED.show()` left un-converted
-(boot status colors, `handleClear`, **the grid-test/Lab patterns**) stays RAW automatically
-— the Lab keeps measuring the real panel for free. Gated by the `calibration_correction`
-setting (default on, A/B toggle), mirrored in `ledsim.js` previews + the MCP. A
-`POST /api/calibration` **live-reloads** the profile (no reflash) — exploit this to retune.
-Plan: `docs/superpowers/plans/2026-06-21-calibration-phase3-correction-layer.md`.
-
-> **⚠️ Measured values & the gamma lesson:** `floors` are all 1 (the floor hypothesis
-> didn't pan out); `white_balance` green gain = **0.863** — and note this is the
-> *white-validated* value, NOT the isolated-band-match 0.471 (band-matching ≠ white-point;
-> the band gain tints white magenta — always validate gains on white). **Gamma is NOT
-> applied as a global stage**: value-domain gamma 2.0 before brightness scaling CRUSHES dim
-> content (frostbite went full-glitter → 4-6 dots at bri 5 — the double-scaling trap). So
-> applied `gamma=1.0`, measured ~2.0 kept in `gamma_measured` for future gradient-generation
-> code. **White-balance (pure attenuation) is the active correction** — it never crushes.
-
-**⭐ Calibration phases:** (1) ✅ Lab built (2) ✅ battery run (3) ✅ correction layer
-(4) ✅ full-suite re-review — all phases complete. Correction lessons applied;
-white-balance active; gamma dropped as global stage. Status + measured values in
-auto-memory `color-threshold-calibration`. Calibration can drive the panel to 255 —
-restore a comfortable brightness when done (persists to NVS).
-
-## Board discovery
-
-The board's HTTP address is configured in **one place**: the `ESP32_URL`
-environment variable. Both the MCP server (`mcp_server/index.ts` `BOARD_URL`)
-and the Python hooks (`claude-hooks/matrix_signal.py` `BOARD_URL`) read it, with
-the same default `http://esp32matrix.local`. For a fresh install, set `ESP32_URL`
-once (e.g. to an IP address if mDNS is unreliable) and everything picks it up —
-no per-file edits required.
-
-> **v2 (parked until v1.0.0):** this single-board `ESP32_URL` evolves into a registry of
-> *named, consented* boards (Claude drives only boards you've enlisted; never touches the
-> rest). Vision: `docs/superpowers/specs/2026-06-21-presence-fabric-multi-board-design.md`.
+Deeper material: `docs/PITFALLS.md`, `docs/superpowers/specs/`, `docs/superpowers/plans/`.
