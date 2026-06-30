@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Install — ESP32-S3 Matrix</title>
+  <title>Install · ESP32-S3 Matrix</title>
   <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
   <style>
     body { font-family: system-ui, sans-serif; max-width: 44rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.55; }
@@ -12,18 +12,19 @@
   </style>
 </head>
 <body>
-  <h1>ESP32-S3 Matrix — Install</h1>
+  <h1>ESP32-S3 Matrix Install</h1>
   <p>The board and your computer must be on the <strong>same local network</strong>. After flashing, the board is reachable at <code>http://esp32matrix.local</code>.</p>
 
-  <h2>1. Flash the firmware (one click — Chrome/Edge)</h2>
+  <h2>1. Flash the firmware (one click, Chrome/Edge)</h2>
   <p>Plug the board into USB, then:</p>
   <esp-web-install-button manifest="manifest.json"></esp-web-install-button>
-  <p class="note">No button? Your browser lacks Web Serial — use the offline method below.</p>
+  <p class="note">No button? Your browser lacks Web Serial; use the offline method below.</p>
 
   <h2>1b. Flash the firmware (offline / other browsers)</h2>
   <p>Download the release, plug in the board, and run <code>flash.bat</code> (Windows) or <code>flash.sh</code> (macOS/Linux).</p>
 
-  <h2>2. Add it to Claude Desktop</h2>
-  <p>Download <a href="esp32-matrix.mcpb">esp32-matrix.mcpb</a> and double-click it — Claude Desktop installs the extension. No configuration needed.</p>
+  <h2>2. After flashing</h2>
+  <p>Join the <code>ESP32-Matrix-Setup</code> WiFi hotspot, pick your network, then open <code>http://esp32matrix.local</code>.</p>
+  <p class="note">Want to drive the panel from Claude? That lives in the separate <a href="https://github.com/srfinch17/claude-expression-studio">claude-expression-studio</a> project.</p>
 </body>
 </html>

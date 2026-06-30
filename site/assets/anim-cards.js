@@ -1,7 +1,7 @@
-/* anim-cards.js — sample animation cards for the ESP32-S3 Matrix landing page.
+/* anim-cards.js: sample animation cards for the ESP32-S3 Matrix landing page.
  *
  * Self-contained: no imports, no build step. It loads real 8×8 frames captured
- * from the live board (anim-samples.json — raw pre-brightness colors straight off
+ * from the live board (anim-samples.json: raw pre-brightness colors straight off
  * /api/display/framebuffer) and replays them on a canvas with an additive-bloom
  * renderer, so each card shows the panel's ACTUAL output, not a re-implementation.
  */
