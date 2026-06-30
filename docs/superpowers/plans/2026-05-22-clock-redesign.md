@@ -4,7 +4,7 @@
 
 **Goal:** Replace the single-color clock feature with a 3-color system (Hours / Colon / Minutes), add a live 8×8 pixel preview in the web UI, and update the firmware to render with the new layout and color scheme.
 
-**Architecture:** Three files change. Firmware changes first (Tasks 1–2), UI change last (Task 3). The firmware and UI tasks are independent after Task 2 completes — either order works. No new files. No build pipeline. HTML/CSS/JS served directly from SPIFFS.
+**Architecture:** Three files change. Firmware changes first (Tasks 1-2), UI change last (Task 3). The firmware and UI tasks are independent after Task 2 completes, either order works. No new files. No build pipeline. HTML/CSS/JS served directly from SPIFFS.
 
 **Tech Stack:** Arduino C++ (FastLED, ArduinoJson, ESP-IDF configTime), vanilla HTML/CSS/JS.
 
@@ -16,23 +16,23 @@
 
 | File | Change |
 |------|--------|
-| `esp32_matrix_webserver/esp32_matrix_webserver.ino` | Lines 147–151: replace `clockBgColor` with three color globals |
-| `esp32_matrix_webserver/clock_timer.ino` | Lines 84–166: rewrite `drawTimeDisplay()` signature + body; Lines 334–366: update `stepClockFrame()` |
-| `esp32_matrix_webserver/api_handlers.ino` | Lines 142–153: parse `colorHours`/`colorColon`/`colorMinutes` instead of `color` |
-| `esp32_matrix_webserver/data/clock.html` | Full rewrite — 8×8 preview, 3 color pickers, 32 presets, updated API call |
+| `esp32_matrix_webserver/esp32_matrix_webserver.ino` | Lines 147-151: replace `clockBgColor` with three color globals |
+| `esp32_matrix_webserver/clock_timer.ino` | Lines 84-166: rewrite `drawTimeDisplay()` signature + body; Lines 334-366: update `stepClockFrame()` |
+| `esp32_matrix_webserver/api_handlers.ino` | Lines 142-153: parse `colorHours`/`colorColon`/`colorMinutes` instead of `color` |
+| `esp32_matrix_webserver/data/clock.html` | Full rewrite, 8×8 preview, 3 color pickers, 32 presets, updated API call |
 
 ---
 
 ## Task 1: Firmware globals
 
 **Files:**
-- Modify: `esp32_matrix_webserver/esp32_matrix_webserver.ino:147–151`
+- Modify: `esp32_matrix_webserver/esp32_matrix_webserver.ino:147-151`
 
-This task is purely additive. It adds three new color globals and removes the old `clockBgColor`. The rest of the firmware still references `clockBgColor` after this step — Task 2 fixes those references. **Do not compile between Task 1 and Task 2.**
+This task is purely additive. It adds three new color globals and removes the old `clockBgColor`. The rest of the firmware still references `clockBgColor` after this step, Task 2 fixes those references. **Do not compile between Task 1 and Task 2.**
 
 - [ ] **Step 1: Replace the clock state block**
 
-Find this block (lines 146–151):
+Find this block (lines 146-151):
 
 ```cpp
 // ── Clock state ───────────────────────────────────────────────
@@ -58,20 +58,20 @@ int      clockPrevMin    = -1;
 
 ---
 
-## Task 2: Firmware logic — drawTimeDisplay, stepClockFrame, api handler
+## Task 2: Firmware logic, drawTimeDisplay, stepClockFrame, api handler
 
 **Files:**
-- Modify: `esp32_matrix_webserver/clock_timer.ino:84–166` (drawTimeDisplay)
-- Modify: `esp32_matrix_webserver/clock_timer.ino:334–366` (stepClockFrame)
-- Modify: `esp32_matrix_webserver/api_handlers.ino:142–153` (clock case)
+- Modify: `esp32_matrix_webserver/clock_timer.ino:84-166` (drawTimeDisplay)
+- Modify: `esp32_matrix_webserver/clock_timer.ino:334-366` (stepClockFrame)
+- Modify: `esp32_matrix_webserver/api_handlers.ino:142-153` (clock case)
 
-All three edits in this task must be done before compiling — they're interdependent. After all three edits, compile and flash.
+All three edits in this task must be done before compiling, they're interdependent. After all three edits, compile and flash.
 
-### 2a — Rewrite `drawTimeDisplay()`
+### 2a, Rewrite `drawTimeDisplay()`
 
 - [ ] **Step 1: Replace the entire `drawTimeDisplay()` function**
 
-Find and replace the function at lines 67–166 of `clock_timer.ino`. The old function starts at:
+Find and replace the function at lines 67-166 of `clock_timer.ino`. The old function starts at:
 
 ```cpp
 // ── drawTimeDisplay ───────────────────────────────────────────
@@ -86,21 +86,21 @@ Replace with:
 // Renders H:MM on the 8×8 matrix using three independent colors.
 //
 // LAYOUT:
-//   Rows 0–2  : hours  (FONT_3X3, 3×3 pixels)
-//   Rows 3–7  : minutes (MINI_FONT, 3×5 pixels)
-//   Col layout: colon[0] · tens[1–3] · gap[4] · units[5–7]
+//   Rows 0-2  : hours  (FONT_3X3, 3×3 pixels)
+//   Rows 3-7  : minutes (MINI_FONT, 3×5 pixels)
+//   Col layout: colon[0] · tens[1-3] · gap[4] · units[5-7]
 //   Colon dots: col 0, rows 5 and 7
 //
 // HOURS:
-//   1–9  : single digit at cols 0–2
-//   10–12: '1' at cols 0–2, units digit at cols 4–6 (col 3 gap)
+//   1-9  : single digit at cols 0-2
+//   10-12: '1' at cols 0-2, units digit at cols 4-6 (col 3 gap)
 void drawTimeDisplay(int hVal, int mVal, CRGB colorH, CRGB colorC, CRGB colorM) {
   // Colon dots
   setPixel(0, 5, colorC);
   setPixel(0, 7, colorC);
 
-  // Minutes — MINI_FONT, rows 3–7
-  // tens at cols 1–3, units at cols 5–7, col 4 is the 1-pixel gap
+  // Minutes, MINI_FONT, rows 3-7
+  // tens at cols 1-3, units at cols 5-7, col 4 is the 1-pixel gap
   int mTens  = (mVal / 10) % 10;
   int mUnits = mVal % 10;
   for (int col = 0; col < 3; col++) {
@@ -112,8 +112,8 @@ void drawTimeDisplay(int hVal, int mVal, CRGB colorH, CRGB colorC, CRGB colorM) 
     }
   }
 
-  // Hours — FONT_3X3, rows 0–2
-  // FONT_3X3 digits are at indices 26–35 (0=index 26, 1=index 27, …, 9=index 35)
+  // Hours, FONT_3X3, rows 0-2
+  // FONT_3X3 digits are at indices 26-35 (0=index 26, 1=index 27, …, 9=index 35)
   if (hVal <= 9) {
     int idx = 26 + hVal;
     for (int col = 0; col < 3; col++) {
@@ -122,13 +122,13 @@ void drawTimeDisplay(int hVal, int mVal, CRGB colorH, CRGB colorC, CRGB colorM) 
         if ((bits >> row) & 1) setPixel(col, row, colorH);
     }
   } else {
-    // Draw '1' (index 27) at cols 0–2
+    // Draw '1' (index 27) at cols 0-2
     for (int col = 0; col < 3; col++) {
       uint8_t bits = pgm_read_byte(&FONT_3X3[27][col]);
       for (int row = 0; row < 3; row++)
         if ((bits >> row) & 1) setPixel(col, row, colorH);
     }
-    // Draw units digit at cols 4–6
+    // Draw units digit at cols 4-6
     int idxU = 26 + (hVal % 10);
     for (int col = 0; col < 3; col++) {
       uint8_t bits = pgm_read_byte(&FONT_3X3[idxU][col]);
@@ -139,7 +139,7 @@ void drawTimeDisplay(int hVal, int mVal, CRGB colorH, CRGB colorC, CRGB colorM) 
 }
 ```
 
-### 2b — Update `stepClockFrame()`
+### 2b, Update `stepClockFrame()`
 
 - [ ] **Step 2: Replace the entire `stepClockFrame()` function**
 
@@ -149,7 +149,7 @@ Find the function starting at line 334 (`void stepClockFrame() {`) and replace t
 void stepClockFrame() {
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo, 100)) {
-    // NTP not yet synced — pulse dim white while waiting
+    // NTP not yet synced, pulse dim white while waiting
     uint8_t pulse = (uint8_t)(128 + 60 * sinf(millis() / 800.0f));
     fill_solid(leds, NUM_LEDS, CRGB(pulse, pulse, pulse));
     return;
@@ -171,11 +171,11 @@ void stepClockFrame() {
 }
 ```
 
-### 2c — Update the clock case in `handleAnimation()`
+### 2c, Update the clock case in `handleAnimation()`
 
 - [ ] **Step 3: Replace the clock case in `api_handlers.ino`**
 
-Find this block (lines 142–153 of `api_handlers.ino`):
+Find this block (lines 142-153 of `api_handlers.ino`):
 
 ```cpp
   if (animationName == "clock") {
@@ -207,13 +207,13 @@ Replace with:
   }
 ```
 
-### 2d — Compile and flash
+### 2d, Compile and flash
 
 - [ ] **Step 4: Compile the sketch**
 
 Open the Arduino IDE (or PlatformIO), select the ESP32-S3 board, and compile (`Verify` / `ctrl+R`).
 
-Expected: Compile succeeds with 0 errors. Any "use of undeclared identifier 'clockBgColor'" error means Step 1 or Step 3 was missed — check that both edits are in place.
+Expected: Compile succeeds with 0 errors. Any "use of undeclared identifier 'clockBgColor'" error means Step 1 or Step 3 was missed, check that both edits are in place.
 
 - [ ] **Step 5: Flash to the board**
 
@@ -237,17 +237,17 @@ Expected: Board shows a clock. Hours digits in red, colon dots in white, minutes
 git add esp32_matrix_webserver/esp32_matrix_webserver.ino \
         esp32_matrix_webserver/clock_timer.ino \
         esp32_matrix_webserver/api_handlers.ino
-git commit -m "feat: clock redesign — 3-color system with new pixel layout"
+git commit -m "feat: clock redesign, 3-color system with new pixel layout"
 ```
 
 ---
 
-## Task 3: UI — clock.html rewrite
+## Task 3: UI, clock.html rewrite
 
 **Files:**
 - Modify: `esp32_matrix_webserver/data/clock.html` (full rewrite)
 
-This task is independent of Task 2 — the HTML just sends different JSON. It can be done before or after flashing firmware.
+This task is independent of Task 2, the HTML just sends different JSON. It can be done before or after flashing firmware.
 
 - [ ] **Step 1: Replace the entire contents of `clock.html`**
 
@@ -259,7 +259,7 @@ Write the following as the complete file contents:
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ESP32 Matrix — Clock</title>
+  <title>ESP32 Matrix, Clock</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: system-ui, -apple-system, sans-serif; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; padding: 20px; }
@@ -332,7 +332,7 @@ Write the following as the complete file contents:
 
     <div class="preview-wrap">
       <div class="pixel-grid" id="pixelGrid"></div>
-      <div class="preview-label">Live 8×8 preview — updates every second</div>
+      <div class="preview-label">Live 8×8 preview, updates every second</div>
     </div>
 
     <div class="pickers">
@@ -388,18 +388,18 @@ Write the following as the complete file contents:
   </div>
 
   <script>
-    // FONT_3X3 digits 0–9 (indices 26–35 from fonts.ino)
-    // [col0, col1, col2] — bit0 = top row, bit2 = bottom row
+    // FONT_3X3 digits 0-9 (indices 26-35 from fonts.ino)
+    // [col0, col1, col2], bit0 = top row, bit2 = bottom row
     const FONT_3X3 = [
-      [7,5,7],[5,7,4],[1,7,4],[5,7,7],[3,2,7],
-      [4,7,1],[7,6,6],[1,1,7],[7,7,7],[3,3,7],
+      [7,5,7],[5,7,4],[1,7,4],[5,7,7],[3,2,7]
+      [4,7,1],[7,6,6],[1,1,7],[7,7,7],[3,3,7]
     ];
 
     // MINI_FONT 3×5 (from clock_timer.ino)
-    // [col0, col1, col2] — bit0 = top row, bit4 = bottom row
+    // [col0, col1, col2], bit0 = top row, bit4 = bottom row
     const MINI_FONT = [
-      [31,17,31],[2,31,16],[29,21,23],[17,21,31],[7,4,31],
-      [23,21,29],[31,21,29],[25,5,3],[31,21,31],[23,21,31],
+      [31,17,31],[2,31,16],[29,21,23],[17,21,31],[7,4,31]
+      [23,21,29],[31,21,29],[25,5,3],[31,21,31],[23,21,31]
     ];
 
     const grid = document.getElementById('pixelGrid');
@@ -436,10 +436,10 @@ Write the following as the complete file contents:
       // Colon dots: col 0, rows 5 and 7
       setPixel(0, 5, cC);
       setPixel(0, 7, cC);
-      // Minutes: tens at cols 1–3, units at cols 5–7 (col 4 gap), rows 3–7
+      // Minutes: tens at cols 1-3, units at cols 5-7 (col 4 gap), rows 3-7
       drawMini(Math.floor(m / 10), 1, 3, cM);
       drawMini(m % 10, 5, 3, cM);
-      // Hours: 1–9 at cols 0–2; 10–12: '1' at cols 0–2, units at cols 4–6
+      // Hours: 1-9 at cols 0-2; 10-12: '1' at cols 0-2, units at cols 4-6
       if (h <= 9) {
         draw3x3(h, 0, 0, cH);
       } else {
@@ -452,9 +452,9 @@ Write the following as the complete file contents:
       const now = new Date();
       const h = now.getHours() % 12 || 12;
       const m = now.getMinutes();
-      renderClock(h, m,
-        document.getElementById('cHours').value,
-        document.getElementById('cColon').value,
+      renderClock(h, m
+        document.getElementById('cHours').value
+        document.getElementById('cColon').value
         document.getElementById('cMins').value
       );
     }
@@ -510,8 +510,8 @@ Write the following as the complete file contents:
     async function post(url, data) {
       try {
         const r = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST'
+          headers: { 'Content-Type': 'application/json' }
           body: JSON.stringify(data)
         });
         return r.ok;
@@ -520,18 +520,18 @@ Write the following as the complete file contents:
 
     async function startClock() {
       const ok = await post('/api/display/animation', {
-        type:         'clock',
-        colorHours:   document.getElementById('cHours').value,
-        colorColon:   document.getElementById('cColon').value,
-        colorMinutes: document.getElementById('cMins').value,
+        type:         'clock'
+        colorHours:   document.getElementById('cHours').value
+        colorColon:   document.getElementById('cColon').value
+        colorMinutes: document.getElementById('cMins').value
         timezone:     parseInt(document.getElementById('timezone').value, 10)
       });
-      setStatus(ok ? 'Clock started. NTP sync may take a few seconds…' : 'Error — is the board reachable?', !ok);
+      setStatus(ok ? 'Clock started. NTP sync may take a few seconds…' : 'Error, is the board reachable?', !ok);
     }
 
     async function stopClock() {
       const ok = await post('/api/display/clear', {});
-      setStatus(ok ? 'Display cleared.' : 'Error — is the board reachable?', !ok);
+      setStatus(ok ? 'Display cleared.' : 'Error, is the board reachable?', !ok);
     }
   </script>
   </div>
@@ -543,11 +543,11 @@ Write the following as the complete file contents:
 
 Open the file directly. Verify:
 1. An 8×8 grid appears with the current time rendered in red (hours) / white (colon) / cyan (minutes).
-2. The colon dots are at the far left (col 0), rows 5 and 7 — not centered.
+2. The colon dots are at the far left (col 0), rows 5 and 7, not centered.
 3. There is a visible 1-pixel gap between the tens and units minute digits.
-4. For hours 1–9, the digit is at the left edge of the grid.
-5. Click a color preset — all 3 color pickers update and the preview re-renders.
-6. Change a color picker manually — preview updates immediately.
+4. For hours 1-9, the digit is at the left edge of the grid.
+5. Click a color preset, all 3 color pickers update and the preview re-renders.
+6. Change a color picker manually, preview updates immediately.
 7. The grid ticks every second (minute changes are visible by running the page across a minute boundary, or you can temporarily change `now.getMinutes()` to `now.getSeconds() % 60` to see all digit transitions quickly, then revert).
 
 - [ ] **Step 3: Upload `clock.html` to the board via SPIFFS**
@@ -565,5 +565,5 @@ Open the board's web UI, navigate to Clock, pick a preset, click "Start Clock". 
 
 ```bash
 git add esp32_matrix_webserver/data/clock.html
-git commit -m "feat: clock UI — 8x8 preview, 3-color pickers, 32 presets"
+git commit -m "feat: clock UI, 8x8 preview, 3-color pickers, 32 presets"
 ```

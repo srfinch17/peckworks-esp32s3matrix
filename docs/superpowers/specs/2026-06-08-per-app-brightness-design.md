@@ -1,4 +1,4 @@
-# S1 · Per-App Brightness Widget — Design Spec
+# S1 · Per-App Brightness Widget, Design Spec
 **Date:** 2026-06-08
 **Roadmap item:** S1 (shared UI component)
 
@@ -6,13 +6,13 @@
 
 A single reusable brightness control that drops into every app page, so you can
 adjust brightness without navigating back to the main page. Implemented as the
-project's **first shared web include** (`data/bright.js`) — one source of truth
+project's **first shared web include** (`data/bright.js`), one source of truth
 for the slider, the power-safety lock, debounced POSTs, and persistence.
 
 **No firmware changes.** The `onNotFound` handler in
 `esp32_matrix_webserver.ino` already streams any LittleFS file with the right
 MIME type (`.js → application/javascript`), and `POST /api/brightness` already
-exists. This is a pure web-UI change → only a **LittleFS Data Upload** is needed,
+exists. This is a pure web-UI change → only a **LittleFS Data Upload** is needed
 no sketch reflash.
 
 ---
@@ -22,22 +22,22 @@ no sketch reflash.
 The board has exactly **one** physical brightness (the global FastLED
 `brightness`, set by `/api/brightness`). Only one mode runs at a time. So:
 
-- **Chosen — Model A (single global value):** every page's widget reads/writes
+- **Chosen, Model A (single global value):** every page's widget reads/writes
   the *same* brightness, shared via one `localStorage` key. Open any app page →
   the slider shows the current board brightness and you can tweak it in place.
   This fully satisfies "don't make me go back to the main page," and brightness
   never surprises you by jumping when you switch apps.
-- **Rejected for v1 — Model B (per-app remembered brightness):** each app
-  remembers its own preferred level and pushes it on launch. More moving parts,
+- **Rejected for v1, Model B (per-app remembered brightness):** each app
+  remembers its own preferred level and pushes it on launch. More moving parts
   surprising jumps between apps, and the hardware can't hold independent values
   anyway. Parking it; revisit only if you explicitly want per-mode presets.
 
 ### Cleanup this also achieves
 Today there are **two** divergent brightness implementations:
-- `index.html` — rich version: 0–255 slider, safe/hot heat track, high-bright
+- `index.html`, rich version: 0-255 slider, safe/hot heat track, high-bright
   **lock**, debounced POST, persistence (`matrix_brightness` /
   `matrix_highbright`).
-- `animations.html` — its own ad-hoc version under a different key
+- `animations.html`, its own ad-hoc version under a different key
   (`sun_brightness`), no lock.
 
 S1 replaces both with the shared widget on a single key. The `sun_brightness`
@@ -48,9 +48,9 @@ key and animations.html's bespoke brightness code are removed.
 ## The power-safety lock (must preserve)
 
 index.html clamps brightness to **≤100 unless explicitly unlocked** (checkbox →
-`matrix_highbright='1'`), because all 64 LEDs near full white can pull ~3–4 A and
+`matrix_highbright='1'`), because all 64 LEDs near full white can pull ~3-4 A and
 brown out the board (see `docs/PITFALLS.md`). This safety logic **must** live in
-the shared widget — consolidating it is actually safer (one place to get it
+the shared widget, consolidating it is actually safer (one place to get it
 right) than today's state where animations.html has no lock at all.
 
 Behavior:
@@ -63,7 +63,7 @@ Behavior:
 ## Shared module: `data/bright.js`
 
 A self-contained script (logic + injected CSS, single file) exposing a small
-global. No build step, no framework — plain ES5/ES6 that the ESP32 serves as-is.
+global. No build step, no framework, plain ES5/ES6 that the ESP32 serves as-is.
 
 ### Public API
 ```js
@@ -75,29 +75,29 @@ MatrixBright.mount('#brightnessSlot', {
 
 `mount()`:
 1. Injects the widget markup into the target: value readout, range input
-   (0–255), safe/hot heat track, and the "unlock high brightness" checkbox.
+   (0-255), safe/hot heat track, and the "unlock high brightness" checkbox.
    Markup/classes mirror index.html's current control so it looks identical.
 2. Injects a `<style>` block (once) for `.mb-*` classes so any page gets the
    styling without a separate CSS file.
-3. On load: reads `matrix_brightness` (default 10) and `matrix_highbright`,
+3. On load: reads `matrix_brightness` (default 10) and `matrix_highbright`
    applies the lock cap, sets the slider, and POSTs the current value once so the
    board matches the UI (same as index.html's `initBrightness`).
-4. `oninput`: clamp to lock, update readout, persist to `matrix_brightness`,
+4. `oninput`: clamp to lock, update readout, persist to `matrix_brightness`
    **debounce 250 ms**, then `POST /api/brightness {level}`; report via
    `onStatus` if provided (silent if not).
 5. Exposes `MatrixBright.get()` / `MatrixBright.set(v)` for pages that want to
    read/sync the value (e.g. a preview canvas dimming to match).
 
 ### localStorage keys (standardized)
-- `matrix_brightness` — last value (0–255)
-- `matrix_highbright` — `'1'` if the high-bright cap is unlocked
+- `matrix_brightness`, last value (0-255)
+- `matrix_highbright`, `'1'` if the high-bright cap is unlocked
 
 ### POST shape (unchanged)
 `POST /api/brightness` → `{ "level": 0-255 }`
 
 ---
 
-## Page integration — two mechanisms
+## Page integration, two mechanisms
 
 The widget self-styles and carries its own status line, so a page needs no
 markup of its own. Two ways to add it:
@@ -111,23 +111,23 @@ markup of its own. Two ways to add it:
   we want a specific location and to wire the page's own status line.
 
 ### What actually got the widget (scope as built)
-- **Explicit:** `index.html` — its rich inline brightness block (slider + heat
+- **Explicit:** `index.html`, its rich inline brightness block (slider + heat
   track + lock) was replaced by the widget; that markup became the widget's
   template, so it looks unchanged and is now the single source of truth.
-- **Auto-mount (9 pages with no prior brightness control):** `clock`, `fire`,
+- **Auto-mount (9 pages with no prior brightness control):** `clock`, `fire`
   `imu`, `liquid`, `temp`, `text`, `timer`, `weather`, `weather2`.
 
-### Scope update (2026-06-10 — reflects what was actually built)
+### Scope update (2026-06-10, reflects what was actually built)
 The original plan left `animations.html`, `matrix_rain.html`, `emoji.html`, and
 `grid_test.html` with bespoke sliders. The build went further:
 - **`matrix_rain.html` and `emoji.html` were MIGRATED** to bright.js + ledsim.js
-  (their bespoke sliders and the `emoji_brightness` key are gone — the shared
+  (their bespoke sliders and the `emoji_brightness` key are gone, the shared
   `matrixbrightness` broadcast drives their previews now).
 - **`animations.html`** got the auto-mounted widget; its leftover bespoke Sun-panel
   "Board Brightness" slider (which bypassed the >100 heat lock and fought the
   widget over the board's one brightness) was removed in the 2026-06-10 review
   pass. The `sun_brightness` localStorage key is retired.
-- **`grid_test.html` alone keeps a bespoke control** — brightness IS the
+- **`grid_test.html` alone keeps a bespoke control**, brightness IS the
   calibration tool there (intentionally starts at 255). The firmware guards the
   hazard: grid-test brightness never persists to NVS (`resumeBri` snapshots only
   values committed via `/api/brightness`), so the board can't boot back into 255.
@@ -136,7 +136,7 @@ The original plan left `animations.html`, `matrix_rain.html`, `emoji.html`, and
 Mount no longer POSTs localStorage to the board. The board is the source of
 truth: mount reads `/api/status` and shows the board's real brightness
 (localStorage is just the placeholder/offline fallback). Only user input POSTs.
-This is what makes Model A true in practice — and it stops page loads from
+This is what makes Model A true in practice, and it stops page loads from
 clobbering NVS auto-resume and MCP-set brightness.
 
 ---
@@ -144,13 +144,13 @@ clobbering NVS auto-resume and MCP-set brightness.
 ## New / modified files
 
 **New**
-- `data/bright.js` — the shared widget (logic + injected styles)
+- `data/bright.js`, the shared widget (logic + injected styles)
 
 **Modified (web only)**
-- `data/index.html` — inline brightness replaced by `MatrixBright.mount(...)`
-- `data/{clock,fire,imu,liquid,temp,text,timer,weather,weather2}.html` — added
+- `data/index.html`, inline brightness replaced by `MatrixBright.mount(...)`
+- `data/{clock,fire,imu,liquid,temp,text,timer,weather,weather2}.html`, added
   the one-line `data-auto` script tag (9 pages)
-- `data/{animations,matrix_rain,emoji}.html` — migrated to the shared widget
+- `data/{animations,matrix_rain,emoji}.html`, migrated to the shared widget
   (see scope update above); only `grid_test.html` keeps a bespoke control
 
 **Firmware:** none.
@@ -160,7 +160,7 @@ clobbering NVS auto-resume and MCP-set brightness.
 ## Verification (hardware)
 
 After a LittleFS Data Upload (no reflash needed):
-1. Open two different app pages — both sliders show the same current value.
+1. Open two different app pages, both sliders show the same current value.
 2. Move the slider on an app page → LEDs dim/brighten without leaving the page.
 3. Reload → value persists. Cross-page → value is consistent.
 4. Lock behavior: capped at 100 by default; unlock allows up to 255; re-lock
@@ -170,7 +170,7 @@ After a LittleFS Data Upload (no reflash needed):
 ---
 
 ## Out of scope
-- Per-app remembered brightness (Model B) — parked.
+- Per-app remembered brightness (Model B), parked.
 - Any firmware change to `/api/brightness`.
-- Extracting S2 (palette) / S3 (canvas) — separate roadmap items, though
+- Extracting S2 (palette) / S3 (canvas), separate roadmap items, though
   `bright.js` establishes the shared-include pattern they'll follow.

@@ -1,13 +1,13 @@
-# Phase 2 · Liquid Mode Fixes — Design Spec
+# Phase 2 · Liquid Mode Fixes, Design Spec
 **Date:** 2026-06-08
 **Roadmap:** Phase 2
 
-Three fixes to `liquid` mode: (1) broken colors, (2) physics that dies at ~45°,
+Three fixes to `liquid` mode: (1) broken colors, (2) physics that dies at ~45°
 (3) a custom top/bottom gradient. Firmware + `liquid.html`. No new endpoint.
 
 ---
 
-## 1. Color bug — root cause & fix
+## 1. Color bug, root cause & fix
 
 **Root cause:** `stepLiquidFrame()` hardcodes the water color
 `CRGB col = CRGB(0, v>>1, v)` (teal) and reads no palette. Meanwhile the API
@@ -24,7 +24,7 @@ palette: surface = bright/frothy stops, depth = darker stops.
 
 ---
 
-## 2. Physics — 1D heightfield → 2D closed-container (gravity projection)
+## 2. Physics, 1D heightfield → 2D closed-container (gravity projection)
 
 **Goal:** behave like a sealed container. Tilt any direction and the fluid pools
 against the down-edge; rotate past 45° and it spills onto the next edge/corner;
@@ -32,18 +32,18 @@ full 360°.
 
 **Why the rework:** the current model stores one height per column and a single
 left/right tilt (`atan2(-ay, az)`). A 1D heightfield can only represent
-left/right sloshing — it can't pool at top/bottom or rotate to a corner.
+left/right sloshing, it can't pool at top/bottom or rotate to a corner.
 
-### Model — gravity projection fill
+### Model, gravity projection fill
 Treat gravity as a 2D vector in the matrix plane and fill the most "downhill"
 cells:
 
 1. Read accel. Derive in-plane gravity direction `(gx, gy)` from two axes
    (mapping below). Low-pass smooth it into `liquidGX/liquidGY` for stability.
-2. Each cell's **potential** `p(x,y) = x*gx + y*gy` — larger = more downhill.
-3. Equilibrium threshold `Teq` = the value where exactly `LIQUID_CELLS` (=32,
+2. Each cell's **potential** `p(x,y) = x*gx + y*gy`, larger = more downhill.
+3. Equilibrium threshold `Teq` = the value where exactly `LIQUID_CELLS` (=32
    half full) cells have `p ≥ Teq`. (Collect all 64 `p` values, select the
-   32nd-largest — cheap on 8×8.)
+   32nd-largest, cheap on 8×8.)
 4. **Slosh:** spring a continuous `liquidLevel` toward `Teq` with momentum:
    ```
    liquidLevelVel += (Teq - liquidLevel) * stiffness;   // stiffness scales with tilt magnitude
@@ -56,10 +56,10 @@ cells:
    brightness scales with `|liquidLevelVel|`.
 
 This pools against any edge/corner, spills to the next edge as you rotate, and
-sloshes — all from one threshold. Volume is conserved by construction (≈32 cells
+sloshes, all from one threshold. Volume is conserved by construction (≈32 cells
 always filled); the old drift-correction hack is gone.
 
-### IMU axis mapping — MUST CALIBRATE ON HARDWARE
+### IMU axis mapping, MUST CALIBRATE ON HARDWARE
 Which accel axis maps to matrix x vs y, and the signs, depend on board mounting
 and aren't knowable without the board. Implementation puts the mapping in one
 clearly-marked block:
@@ -69,12 +69,12 @@ clearly-marked block:
 float gxRaw = ay;   // → matrix +x (right)
 float gyRaw = ax;   // → matrix +y (down)
 ```
-First flash is a calibration pass: tilt the board, watch which way it pools,
+First flash is a calibration pass: tilt the board, watch which way it pools
 adjust signs/axes. Record the final mapping in `docs/PITFALLS.md`.
 Flat board (gravity ⟂ screen, `ax,ay≈0`): keep the last direction (don't snap).
 
 ### Viscosity (reused)
-`liquidDamping = 0.97 - vis*0.02` stays. Low viscosity = sloshy (less decay),
+`liquidDamping = 0.97 - vis*0.02` stays. Low viscosity = sloshy (less decay)
 high = sluggish.
 
 ---
@@ -82,11 +82,11 @@ high = sluggish.
 ## 3. Gradient mode (custom top/bottom colors)
 
 Adds a 5th palette option, **Custom**, with two color pickers: **Top** (surface/
-froth) and **Bottom** (deep). When active, color = `lerp(bottomColor, topColor,
+froth) and **Bottom** (deep). When active, color = `lerp(bottomColor, topColor
 surfaceProximity)` instead of `heatToColor()`; froth still whitens the surface.
 
 > Uses plain `<input type=color>` pickers for now (no S2 dependency). When S2
-> (shared palette/picker) lands, swap these for the clock-style swatches — noted
+> (shared palette/picker) lands, swap these for the clock-style swatches, noted
 > in ROADMAP. Full per-page palette beyond top/bottom stays parked.
 
 ---
@@ -117,12 +117,12 @@ gravity dir on (re)start.
 ### `data/liquid.html`
 Add the **Custom** palette button → reveals two color pickers (Top/Bottom).
 `sendLiquid()` posts `gradient`, `top`, `bottom` when Custom is active. Update
-the tilt note to "tilt any direction — it pools to the low edge." Brightness
+the tilt note to "tilt any direction, it pools to the low edge." Brightness
 widget already present (auto-mount).
 
 ---
 
-## Verification (hardware — needs flash + LittleFS upload)
+## Verification (hardware, needs flash + LittleFS upload)
 1. Each of the 4 presets renders a *distinct* color (not all teal).
 2. Custom gradient: top/bottom colors show as surface vs deep.
 3. Tilt left/right/up/down → fluid pools to the low edge each way.

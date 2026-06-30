@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the Calibration Lab harness — a web wizard + firmware test patterns + a save/read round-trip — that produces a version-controlled `data/calibration.json`. This is Phase 1 of the spec `docs/superpowers/specs/2026-06-21-led-calibration-battery-design.md`; it ships and is useful on its own (the correction layer that consumes the file is Phase 3, a later plan).
+**Goal:** Build the Calibration Lab harness, a web wizard + firmware test patterns + a save/read round-trip, that produces a version-controlled `data/calibration.json`. This is Phase 1 of the spec `docs/superpowers/specs/2026-06-21-led-calibration-battery-design.md`; it ships and is useful on its own (the correction layer that consumes the file is Phase 3, a later plan).
 
 **Architecture:** Reuse the existing static-display grid-test mechanism. Firmware gains new static test patterns (per-channel ramps/sweeps, white-balance patches, gamma ramp, single-pixel addressing) on the existing `/api/grid-test/set` endpoint, plus a `GET`/`POST /api/calibration` pair that reads/writes a `calibration.json` on LittleFS (mirroring how `version.json` is read at boot). A new `data/calibrate.html` wizard drives those patterns, captures eyeball observations, computes derived values in-browser (using the existing `ledsim.js` FastLED math), assembles the full `calibration.json`, and POSTs it to the board.
 
@@ -10,7 +10,7 @@
 
 ## Verification model (read this first)
 
-This repo has **no automated firmware/web test framework** — per `CLAUDE.md`, Claude cannot compile, flash, or see the LEDs. The real test cycle is:
+This repo has **no automated firmware/web test framework**, per `CLAUDE.md`, Claude cannot compile, flash, or see the LEDs. The real test cycle is:
 
 1. Claude edits firmware (`.ino`) and/or web (`data/*.html`, `data/*.js`).
 2. **User** does **Sketch → Upload** (firmware changed) and/or **LittleFS Data Upload** (web/`data/` changed). *These are two separate steps; the plan states which a task needs.*
@@ -18,29 +18,29 @@ This repo has **no automated firmware/web test framework** — per `CLAUDE.md`, 
    - **Claude-runnable (HTTP):** Claude curls the board (reachable at `$ESP32_URL`, default `http://esp32matrix.local`) to confirm endpoints/JSON. These are exact commands with expected output.
    - **User-confirmed (eyeball):** the user reports what the panel shows. These are explicit "ask the user to confirm X" steps.
 
-Each task ends with both kinds of verification (where applicable) and a commit. There is no "write a failing test first" step because there is no harness to run it — this is the deliberate, instruction-priority-correct adaptation of TDD to this codebase's hardware-in-the-loop loop.
+Each task ends with both kinds of verification (where applicable) and a commit. There is no "write a failing test first" step because there is no harness to run it, this is the deliberate, instruction-priority-correct adaptation of TDD to this codebase's hardware-in-the-loop loop.
 
 ## Global Constraints
 
-- **COLOR_ORDER is `RGB`** (not GRB) — `CRGB(r,g,b)` maps straight through. Verbatim from `CLAUDE.md`.
+- **COLOR_ORDER is `RGB`** (not GRB), `CRGB(r,g,b)` maps straight through. Verbatim from `CLAUDE.md`.
 - **Data pin 14, 64 WS2812B LEDs, `XY(x,y) = y*8 + x`** (row-major, NOT serpentine). Draw via `setPixel(x,y,CRGB)` (bounds-checked).
-- **Calibration brightness must NEVER persist to NVS.** Reuse the existing `resumeBri` separation: a calibration run often drives the panel at 255, and a board booting all-lit at 255 pulls ~3-4A and browns out USB (see `docs/PITFALLS.md`). The existing `handleGridTest` already sets only the live `brightness`/`gridTestBrightness`, never `resumeBri` — preserve that.
-- **All `.ino` files compile as one translation unit.** New globals and any helper used across files go in the main `esp32_matrix_webserver.ino`; route registration lives in its `setup()`. Function-ordering/auto-prototype traps slip past code review to the flash step — keep shared `#define`s/globals in the main ino (see `feedback_firmware_review_limits`).
+- **Calibration brightness must NEVER persist to NVS.** Reuse the existing `resumeBri` separation: a calibration run often drives the panel at 255, and a board booting all-lit at 255 pulls ~3-4A and browns out USB (see `docs/PITFALLS.md`). The existing `handleGridTest` already sets only the live `brightness`/`gridTestBrightness`, never `resumeBri`, preserve that.
+- **All `.ino` files compile as one translation unit.** New globals and any helper used across files go in the main `esp32_matrix_webserver.ino`; route registration lives in its `setup()`. Function-ordering/auto-prototype traps slip past code review to the flash step, keep shared `#define`s/globals in the main ino (see `feedback_firmware_review_limits`).
 - **Web `data/` changes require a LittleFS upload to go live; firmware `.ino` changes require a flash.** A change is not testable until its artifact is deployed.
-- **Privacy:** never use the maintainer's real name in code/comments — refer to "the user".
-- **calibration.json schema is fixed by the spec** — keys: `version`, `measured_at`, `board`, `floors{r,g,b}`, `white_balance{r,g,b}`, `gamma`, `palette{}`, `steps`, `pixel_trim`. Phase 1 ships identity defaults; Phase 2 fills real values.
-- **Absence/parse-failure must degrade to identity** (floors=1, gains=1.0, gamma=1.0, palette={}, steps=0, pixel_trim=null) — never break rendering or the page.
-- **Don't hand-edit `version.h`/`data/version.json`** — generated. Version bumps go through `npm run bump:*`.
+- **Privacy:** never use the maintainer's real name in code/comments, refer to "the user".
+- **calibration.json schema is fixed by the spec**, keys: `version`, `measured_at`, `board`, `floors{r,g,b}`, `white_balance{r,g,b}`, `gamma`, `palette{}`, `steps`, `pixel_trim`. Phase 1 ships identity defaults; Phase 2 fills real values.
+- **Absence/parse-failure must degrade to identity** (floors=1, gains=1.0, gamma=1.0, palette={}, steps=0, pixel_trim=null), never break rendering or the page.
+- **Don't hand-edit `version.h`/`data/version.json`**, generated. Version bumps go through `npm run bump:*`.
 
 ## File Structure
 
-- `esp32_matrix_webserver/api_handlers.ino` — modify `handleGridTest()` to add the new pattern modes; add `handleCalibrationGet()` and `handleCalibrationPost()`.
-- `esp32_matrix_webserver/esp32_matrix_webserver.ino` — register the two new routes in `setup()`; (no boot-time read of calibration.json in Phase 1 — that is Phase 3).
-- `esp32_matrix_webserver/data/calibration.json` — **new**, identity defaults, committed so `GET` and a future LittleFS upload always have a known file.
-- `esp32_matrix_webserver/data/calibrate.html` — **new**, the Lab wizard (carries over the red ramp/sweep logic + chrome from `grid_test.html`).
-- `esp32_matrix_webserver/data/grid_test.html` — replace body with a redirect stub to `/calibrate.html` (preserve bookmarks; the Lab supersedes it).
-- `esp32_matrix_webserver/data/system.html` — repoint the 🔬 card to `/calibrate.html` and relabel "Calibration Lab".
-- `docs/LED_BRIGHTNESS.md` — replace the empty "Empirical observations (TO FILL IN)" section with a pointer to `data/calibration.json` as the machine-readable source of truth.
+- `esp32_matrix_webserver/api_handlers.ino`, modify `handleGridTest()` to add the new pattern modes; add `handleCalibrationGet()` and `handleCalibrationPost()`.
+- `esp32_matrix_webserver/esp32_matrix_webserver.ino`, register the two new routes in `setup()`; (no boot-time read of calibration.json in Phase 1, that is Phase 3).
+- `esp32_matrix_webserver/data/calibration.json`, **new**, identity defaults, committed so `GET` and a future LittleFS upload always have a known file.
+- `esp32_matrix_webserver/data/calibrate.html`, **new**, the Lab wizard (carries over the red ramp/sweep logic + chrome from `grid_test.html`).
+- `esp32_matrix_webserver/data/grid_test.html`, replace body with a redirect stub to `/calibrate.html` (preserve bookmarks; the Lab supersedes it).
+- `esp32_matrix_webserver/data/system.html`, repoint the 🔬 card to `/calibrate.html` and relabel "Calibration Lab".
+- `docs/LED_BRIGHTNESS.md`, replace the empty "Empirical observations (TO FILL IN)" section with a pointer to `data/calibration.json` as the machine-readable source of truth.
 
 ---
 
@@ -60,14 +60,14 @@ Each task ends with both kinds of verification (where applicable) and a commit. 
 
 ```json
 {
-  "version": 1,
-  "measured_at": "",
-  "board": "esp32-s3-matrix",
-  "floors": { "r": 1, "g": 1, "b": 1 },
-  "white_balance": { "r": 1.0, "g": 1.0, "b": 1.0 },
-  "gamma": 1.0,
-  "palette": {},
-  "steps": 0,
+  "version": 1
+  "measured_at": ""
+  "board": "esp32-s3-matrix"
+  "floors": { "r": 1, "g": 1, "b": 1 }
+  "white_balance": { "r": 1.0, "g": 1.0, "b": 1.0 }
+  "gamma": 1.0
+  "palette": {}
+  "steps": 0
   "pixel_trim": null
 }
 ```
@@ -77,7 +77,7 @@ Each task ends with both kinds of verification (where applicable) and a commit. 
 In `api_handlers.ino`, after `handleGridTest()` (~line 849), add. The identity default is returned as a literal string so a missing file still yields a valid, schema-correct response:
 
 ```cpp
-// GET /api/calibration — return the measured calibration profile (LittleFS
+// GET /api/calibration, return the measured calibration profile (LittleFS
 // /calibration.json), or identity defaults if the file is absent/unreadable.
 // Identity defaults = "do nothing": floors 1, gains 1.0, gamma 1.0, no palette.
 static const char CALIB_IDENTITY[] =
@@ -98,12 +98,12 @@ void handleCalibrationGet() {
 - [ ] **Step 3: Add the POST handler**
 
 ```cpp
-// POST /api/calibration — overwrite /calibration.json on LittleFS with the body.
+// POST /api/calibration, overwrite /calibration.json on LittleFS with the body.
 // Best-effort: the Calibration Lab saves measured results here; the repo copy is
 // committed separately so a later LittleFS upload stays byte-identical.
 void handleCalibrationPost() {
   String body = server.arg("plain");
-  // Validate it parses as JSON before persisting — never write garbage.
+  // Validate it parses as JSON before persisting, never write garbage.
   JsonDocument doc;
   if (deserializeJson(doc, body) != DeserializationError::Ok) {
     sendJson(400, "{\"error\":\"Invalid JSON\"}");
@@ -128,7 +128,7 @@ In `esp32_matrix_webserver.ino` `setup()`, immediately after the `/api/grid-test
 
 - [ ] **Step 5: User deploys**
 
-Ask the user to **Sketch → Upload** (firmware changed) **and** **LittleFS Data Upload** (new `calibration.json`). Tell them: "Both steps — firmware for the endpoints, LittleFS for the default file."
+Ask the user to **Sketch → Upload** (firmware changed) **and** **LittleFS Data Upload** (new `calibration.json`). Tell them: "Both steps, firmware for the endpoints, LittleFS for the default file."
 
 - [ ] **Step 6: Verify via HTTP (Claude runs)**
 
@@ -142,7 +142,7 @@ curl -s -X POST "$ESP32_URL/api/calibration" -H "Content-Type: application/json"
   -d '{"version":1,"measured_at":"test","board":"esp32-s3-matrix","floors":{"r":3,"g":4,"b":2},"white_balance":{"r":1.0,"g":0.7,"b":0.85},"gamma":2.1,"palette":{},"steps":24,"pixel_trim":null}'
 curl -s "$ESP32_URL/api/calibration"
 ```
-Expected: POST returns `{"status":"ok"}`; the second GET echoes `"measured_at":"test"` and `"gamma":2.1` — proving the write persisted. Then restore the default:
+Expected: POST returns `{"status":"ok"}`; the second GET echoes `"measured_at":"test"` and `"gamma":2.1`, proving the write persisted. Then restore the default:
 ```bash
 curl -s -X POST "$ESP32_URL/api/calibration" -H "Content-Type: application/json" \
   --data-binary @esp32_matrix_webserver/data/calibration.json
@@ -161,11 +161,11 @@ git commit -m "feat(calibration): calibration.json + GET/POST endpoints"
 ### Task 2: Firmware calibration test patterns
 
 **Files:**
-- Modify: `esp32_matrix_webserver/api_handlers.ino` — `handleGridTest()` (~822-849)
+- Modify: `esp32_matrix_webserver/api_handlers.ino`, `handleGridTest()` (~822-849)
 
 **Interfaces:**
 - Consumes: existing `gridTestMode` (String), `gridTestBrightness`, `brightness`, `leds[]`, `stopAll()`, `setPixel`.
-- Produces: `POST /api/grid-test/set` now accepts these `mode` values (in addition to the existing `color`/`brightness`): `ramp_r|ramp_g|ramp_b` (per-channel ramp, value `=(i+1)*4` on that channel), `sweep_r|sweep_g|sweep_b` (all 64 = full that channel — dim via `brightness` to find cutoff), `patch_rgb` (a fixed split: cols 0-2 red, 3-4 blank, 5-7… see below — equal raw value per channel for white-balance comparison), `gamma` (an 8-step value ramp, one value per row, `value=row*32`), and `pixel` (single lit pixel at index from `doc["index"]`). Called by `calibrate.html` (Tasks 3-5).
+- Produces: `POST /api/grid-test/set` now accepts these `mode` values (in addition to the existing `color`/`brightness`): `ramp_r|ramp_g|ramp_b` (per-channel ramp, value `=(i+1)*4` on that channel), `sweep_r|sweep_g|sweep_b` (all 64 = full that channel, dim via `brightness` to find cutoff), `patch_rgb` (a fixed split: cols 0-2 red, 3-4 blank, 5-7… see below, equal raw value per channel for white-balance comparison), `gamma` (an 8-step value ramp, one value per row, `value=row*32`), and `pixel` (single lit pixel at index from `doc["index"]`). Called by `calibrate.html` (Tasks 3-5).
 
 - [ ] **Step 1: Replace the pattern-render block in `handleGridTest()`**
 
@@ -217,7 +217,7 @@ Replace the comment block above `handleGridTest()` (804-821) to list all modes (
 
 - [ ] **Step 3: User deploys**
 
-Ask the user to **Sketch → Upload** (firmware only — no `data/` change this task).
+Ask the user to **Sketch → Upload** (firmware only, no `data/` change this task).
 
 - [ ] **Step 4: Verify via HTTP + eyeball**
 
@@ -257,17 +257,17 @@ Lay the body out as a vertical stack of `<section class="cal-section">` blocks, 
 ```js
 const ESP = '';  // same-origin
 const CALIB = {
-  version: 1, measured_at: new Date().toISOString().slice(0,10),
-  board: 'esp32-s3-matrix',
-  floors: { r: 1, g: 1, b: 1 },
-  white_balance: { r: 1.0, g: 1.0, b: 1.0 },
+  version: 1, measured_at: new Date().toISOString().slice(0,10)
+  board: 'esp32-s3-matrix'
+  floors: { r: 1, g: 1, b: 1 }
+  white_balance: { r: 1.0, g: 1.0, b: 1.0 }
   gamma: 1.0, palette: {}, steps: 0, pixel_trim: null
 };
 async function showPattern(mode, opts = {}) {
   const body = Object.assign({ mode, brightness: 255 }, opts);
   try {
     const r = await fetch('/api/grid-test/set', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' }
       body: JSON.stringify(body)
     });
     return r.ok;
@@ -285,7 +285,7 @@ For each channel (r, g, b), a control that: (a) "Show ramp" → `showPattern('ra
 // From the ramp: the first visible cell's raw channel value is the channel's raw
 // floor at full brightness. Convert to an EFFECTIVE-value floor (what the
 // correction layer stores): at full bri, effective == raw, so floor = that raw
-// value's effective at 255 — i.e. the raw value itself (>>0). We store the raw
+// value's effective at 255, i.e. the raw value itself (>>0). We store the raw
 // first-lit value as the effective floor reference.
 function setFloorFromRamp(ch, firstCell) {
   const idx = Math.max(1, Math.min(64, firstCell)) - 1;
@@ -302,7 +302,7 @@ Ask the user to **LittleFS Data Upload** (new `calibrate.html`; web only).
 
 - [ ] **Step 4: Verify (eyeball + interaction)**
 
-Ask the user to open `http://esp32matrix.local/calibrate.html`, confirm the page loads with the shared header, and that clicking "Show ramp" for each of R/G/B drives the matching gradient on the board. Confirm entering a "first lit cell" updates the floor readout. (No calibration.json save yet — that is Task 6.)
+Ask the user to open `http://esp32matrix.local/calibrate.html`, confirm the page loads with the shared header, and that clicking "Show ramp" for each of R/G/B drives the matching gradient on the board. Confirm entering a "first lit cell" updates the floor readout. (No calibration.json save yet, that is Task 6.)
 
 - [ ] **Step 5: Commit**
 
@@ -324,7 +324,7 @@ git commit -m "feat(calibration): Calibration Lab scaffold + per-channel floors 
 
 - [ ] **Step 1: White-balance section**
 
-"Show patches" → `showPattern('patch_rgb')` (three equal-value R/G/B bands). Protocol on screen: "All three bands are the same raw value. Adjust each band's value until the three look equally bright." Provide three number inputs (0-255, default 255) that re-POST `patch_rgb` with per-channel scaling — extend `showPattern` use by sending a custom body the firmware understands. **Note:** Task 2's `patch_rgb` uses a fixed `v=255`; to support per-band tuning, add to the firmware `patch_rgb` branch reading `doc["pr"]|255`, `doc["pg"]|255`, `doc["pb"]|255` for the three band values (small follow-up edit in this task — include it).
+"Show patches" → `showPattern('patch_rgb')` (three equal-value R/G/B bands). Protocol on screen: "All three bands are the same raw value. Adjust each band's value until the three look equally bright." Provide three number inputs (0-255, default 255) that re-POST `patch_rgb` with per-channel scaling, extend `showPattern` use by sending a custom body the firmware understands. **Note:** Task 2's `patch_rgb` uses a fixed `v=255`; to support per-band tuning, add to the firmware `patch_rgb` branch reading `doc["pr"]|255`, `doc["pg"]|255`, `doc["pb"]|255` for the three band values (small follow-up edit in this task, include it).
 
 Firmware tweak (in `api_handlers.ino`, `patch_rgb` branch):
 ```cpp
@@ -344,8 +344,8 @@ Compute gains: the matched values are inversely proportional to channel strength
 function computeWhiteBalance(vr, vg, vb) {
   const maxV = Math.max(vr, vg, vb);     // dimmest channel needed the most → ref
   CALIB.white_balance = {
-    r: +(vr / maxV).toFixed(3),
-    g: +(vg / maxV).toFixed(3),
+    r: +(vr / maxV).toFixed(3)
+    g: +(vg / maxV).toFixed(3)
     b: +(vb / maxV).toFixed(3)
   };
   // readout
@@ -399,7 +399,7 @@ async function showSolid(hex) {
   const row = Array(8).fill(hex.replace('#',''));
   const matrix = Array(8).fill(row);
   await fetch('/api/display/matrix', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: { 'Content-Type': 'application/json' }
     body: JSON.stringify({ matrix })
   });
 }
@@ -461,7 +461,7 @@ function reviewCalibration() {
 async function saveCalibration() {
   reviewCalibration();
   const r = await fetch('/api/calibration', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: { 'Content-Type': 'application/json' }
     body: JSON.stringify(CALIB)
   });
   document.getElementById('save-status').textContent =
@@ -490,11 +490,11 @@ Replace the "## Empirical observations (TO FILL IN)" section and its placeholder
 ```markdown
 ## Empirical observations → `data/calibration.json`
 
-Measured ground truth now lives in the machine-readable `data/calibration.json`,
+Measured ground truth now lives in the machine-readable `data/calibration.json`
 produced by the Calibration Lab (`/calibrate.html`) and consumed by the firmware
 correction layer, `ledsim.js`, and the MCP. See
 `docs/superpowers/specs/2026-06-21-led-calibration-battery-design.md`. Re-run the
-Lab and re-commit that file to update the numbers — do not transcribe them here.
+Lab and re-commit that file to update the numbers, do not transcribe them here.
 ```
 
 - [ ] **Step 5: User deploys**

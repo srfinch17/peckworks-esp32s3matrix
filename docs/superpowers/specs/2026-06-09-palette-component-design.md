@@ -1,4 +1,4 @@
-# S2 · Shared Palette / Color-Picker Component — Design Spec
+# S2 · Shared Palette / Color-Picker Component, Design Spec
 **Date:** 2026-06-09
 **Roadmap:** S2 (shared UI component)
 
@@ -10,7 +10,7 @@ swatches + N labeled color pickers, and reports the chosen colors via a callback
 Goal: stop hand-rolling palette UIs per page and give the whole app a unified
 look. First consumer: the Calendar app; retrofittable to clock/liquid/animations.
 
-Self-contained (injected CSS, no framework), served from LittleFS — no firmware
+Self-contained (injected CSS, no framework), served from LittleFS, no firmware
 change. Pattern mirrors `bright.js` / `ledsim.js`.
 
 ## API
@@ -59,7 +59,7 @@ RGBY   #ff0000 #00ff00 #2060ff #ffe000
 ## Files
 - New: `data/palette.js`
 - First consumer: the Calendar app (next). Retrofit clock/liquid/animations later
-  (noted in ROADMAP) — out of scope here to avoid touching working pages.
+  (noted in ROADMAP), out of scope here to avoid touching working pages.
 - Firmware: none.
 
 ## Verification

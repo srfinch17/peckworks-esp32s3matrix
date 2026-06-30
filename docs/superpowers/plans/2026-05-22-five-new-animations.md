@@ -1,4 +1,4 @@
-# Five New Animations — Implementation Plan
+# Five New Animations, Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -24,7 +24,7 @@
 
 ---
 
-## Task 1: Firmware Foundation — Globals, Dispatch, handleAnimation()
+## Task 1: Firmware Foundation, Globals, Dispatch, handleAnimation()
 
 **Files:**
 - Modify: `esp32_matrix_webserver/esp32_matrix_webserver.ino`
@@ -125,9 +125,9 @@ Find `animationActive = true;` near the end of `handleAnimation()` (line ~212) a
   }
 ```
 
-- [ ] **Step 1.4: Compile in Arduino IDE — verify 0 errors**
+- [ ] **Step 1.4: Compile in Arduino IDE, verify 0 errors**
 
-Open `esp32_matrix_webserver.ino` in Arduino IDE and click Verify (✓). The new globals and dispatch branches reference functions that don't exist yet, so the IDE will report linker errors — that's expected. Check only for syntax errors in what you added.
+Open `esp32_matrix_webserver.ino` in Arduino IDE and click Verify (✓). The new globals and dispatch branches reference functions that don't exist yet, so the IDE will report linker errors, that's expected. Check only for syntax errors in what you added.
 
 Actually, Arduino IDE resolves forward references automatically since all `.ino` files compile together. The Verify will fail with "not declared" errors until the animation files are created. Proceed to Task 2.
 
@@ -155,7 +155,7 @@ git commit -m "feat: add globals + dispatch scaffolding for 5 new animations"
 
 // ── Gradient Spiral ───────────────────────────────────────────
 // Pre-computes the 64-position clockwise inward spiral path at boot.
-// Each frame slides a color gradient along that path — the whole board
+// Each frame slides a color gradient along that path, the whole board
 // stays lit at all times, color1 chases color2 endlessly inward.
 
 static int8_t  spiralPath[64][2];   // {x, y} for each of the 64 positions
@@ -190,7 +190,7 @@ void runSpiralFrame() {
 
 - [ ] **Step 2.2: Compile and flash**
 
-Verify (✓) in Arduino IDE — expect 0 errors now that `runSpiralFrame()` is defined.
+Verify (✓) in Arduino IDE, expect 0 errors now that `runSpiralFrame()` is defined.
 Flash to board (→ Upload button).
 
 - [ ] **Step 2.3: Test spiral via curl**
@@ -292,7 +292,7 @@ void runStarfieldFrame() {
 
 - [ ] **Step 3.2: Compile and flash**
 
-Verify (✓) in Arduino IDE — expect 0 errors. Upload.
+Verify (✓) in Arduino IDE, expect 0 errors. Upload.
 
 - [ ] **Step 3.3: Test starfield outward**
 
@@ -329,8 +329,8 @@ git commit -m "feat: gradient starfield animation (outward + inward)"
 - Modify: `esp32_matrix_webserver/anim_gradient.ino`
 
 The sun shape is sourced directly from the existing `drawSunIcon()` in `weather.ino`:
-- **Core:** 4×4 disc at rows 2–5, cols 2–5, with the 4 corner pixels blacked out = 12 pixels, colored `sunColor1`
-- **Ring:** 8 ray positions `bx[]={3,6,7,6,4,1,0,1}`, `by[]={0,1,3,6,7,6,4,1}` — a 5-pixel arc spins around them
+- **Core:** 4×4 disc at rows 2-5, cols 2-5, with the 4 corner pixels blacked out = 12 pixels, colored `sunColor1`
+- **Ring:** 8 ray positions `bx[]={3,6,7,6,4,1,0,1}`, `by[]={0,1,3,6,7,6,4,1}`, a 5-pixel arc spins around them
 
 - [ ] **Step 4.1: Add Sun implementation to anim_gradient.ino**
 
@@ -372,7 +372,7 @@ void runSunFrame() {
 
 - [ ] **Step 4.2: Compile and flash**
 
-Verify (✓) in Arduino IDE — expect 0 errors. Upload.
+Verify (✓) in Arduino IDE, expect 0 errors. Upload.
 
 - [ ] **Step 4.3: Test Sun**
 
@@ -398,7 +398,7 @@ git commit -m "feat: sun animation with spinning gradient ring"
 **Files:**
 - Create: `esp32_matrix_webserver/anim_comet.ino`
 
-The comet heart is fixed at x=6–7, right edge of board. It bobs ±2px via sine wave. The 6 tail columns (x=2–5) follow using a Y-history ring buffer — each column samples a progressively older Y value, producing the tadpole ripple. Sparks spawn occasionally at the head and fly leftward.
+The comet heart is fixed at x=6-7, right edge of board. It bobs ±2px via sine wave. The 6 tail columns (x=2-5) follow using a Y-history ring buffer, each column samples a progressively older Y value, producing the tadpole ripple. Sparks spawn occasionally at the head and fly leftward.
 
 - [ ] **Step 5.1: Create anim_comet.ino**
 
@@ -452,7 +452,7 @@ void runCometFrame() {
 
   int iy = (int)cY;
 
-  // Heart: 2×2 at x=6-7, rows iy and iy+1 — color1, full brightness
+  // Heart: 2×2 at x=6-7, rows iy and iy+1, color1, full brightness
   setPixel(6, iy,   cometColor1); setPixel(7, iy,   cometColor1);
   setPixel(6, iy+1, cometColor1); setPixel(7, iy+1, cometColor1);
 
@@ -495,7 +495,7 @@ void runCometFrame() {
 
 - [ ] **Step 5.2: Compile and flash**
 
-Verify (✓) in Arduino IDE — expect 0 errors. Upload.
+Verify (✓) in Arduino IDE, expect 0 errors. Upload.
 
 - [ ] **Step 5.3: Test comet**
 
@@ -505,7 +505,7 @@ curl -X POST http://esp32matrix.local/api/display/animation \
   -d '{"type":"comet","color1":"#FFC832","color2":"#FF6400","color3":"#961E00","speed":50}'
 ```
 
-Expected: Comet heart (2×2) at right edge bobs up and down. Tail follows with a ripple delay — looks like a tadpole swimming. Occasional dim sparks fly leftward from the head. Black space on x=0–1.
+Expected: Comet heart (2×2) at right edge bobs up and down. Tail follows with a ripple delay, looks like a tadpole swimming. Occasional dim sparks fly leftward from the head. Black space on x=0-1.
 
 - [ ] **Step 5.4: Commit**
 
@@ -521,7 +521,7 @@ git commit -m "feat: comet animation with wave tail and sparks"
 **Files:**
 - Create: `esp32_matrix_webserver/anim_fireworks.ino`
 
-Single firework loop. Four-phase state machine: IDLE → LAUNCH → EXPLODE → FADE. Mortar is white, explodes at a random height between rows 2–5. Tendrils fade through color1 → color2 → color3 → black based on their `brightness` value counting down from 255.
+Single firework loop. Four-phase state machine: IDLE → LAUNCH → EXPLODE → FADE. Mortar is white, explodes at a random height between rows 2-5. Tendrils fade through color1 → color2 → color3 → black based on their `brightness` value counting down from 255.
 
 - [ ] **Step 6.1: Create anim_fireworks.ino**
 
@@ -615,7 +615,7 @@ void stepFireworksFrame() {
 
 - [ ] **Step 6.2: Compile and flash**
 
-Verify (✓) in Arduino IDE — expect 0 errors. Upload.
+Verify (✓) in Arduino IDE, expect 0 errors. Upload.
 
 - [ ] **Step 6.3: Test fireworks**
 
@@ -627,18 +627,18 @@ curl -X POST http://esp32matrix.local/api/display/animation \
 
 Expected: White pixel launches from bottom (random column), travels upward, explodes in a brief color1 flash, then 12 tendrils radiate outward cycling through color1 → color2 → color3 → black. Repeats after ~0.7s pause.
 
-Tune brightness fade rate (12 per frame) if tendrils disappear too fast or too slow — adjust the `12` in `t.brightness -= 12` and `t.brightness > 12`.
+Tune brightness fade rate (12 per frame) if tendrils disappear too fast or too slow, adjust the `12` in `t.brightness -= 12` and `t.brightness > 12`.
 
 - [ ] **Step 6.4: Commit**
 
 ```bash
 git add esp32_matrix_webserver/anim_fireworks.ino
-git commit -m "feat: fireworks animation — mortar + radial burst + fade"
+git commit -m "feat: fireworks animation, mortar + radial burst + fade"
 ```
 
 ---
 
-## Task 7: Web UI — animations.html Overhaul
+## Task 7: Web UI, animations.html Overhaul
 
 **Files:**
 - Modify: `esp32_matrix_webserver/data/animations.html`
@@ -757,7 +757,7 @@ Replace the entire file. The key structural changes:
     <div class="panel-title">Settings</div>
 
     <div class="group">
-      <label>Speed — <span id="v-speed">15</span> fps</label>
+      <label>Speed, <span id="v-speed">15</span> fps</label>
       <div class="slider-row">
         <input type="range" id="speed" min="20" max="200" value="66" oninput="updateSpeed(this.value)">
       </div>
@@ -794,7 +794,7 @@ Replace the entire file. The key structural changes:
         </div>
       </div>
       <div class="group">
-        <label>Density — <span id="v-density">8</span> stars</label>
+        <label>Density, <span id="v-density">8</span> stars</label>
         <div class="slider-row">
           <input type="range" id="star-density" min="1" max="16" value="8" oninput="document.getElementById('v-density').textContent=this.value">
         </div>
@@ -856,18 +856,18 @@ Replace the entire file. The key structural changes:
 
   <script>
     const SUN_PRESETS = [
-      { name: 'Solar',   c1: '#ffb700', c2: '#ff6600', c3: '#ff3300', c4: '#cc1100' },
-      { name: 'Arctic',  c1: '#ffffff', c2: '#88ddff', c3: '#4499ff', c4: '#0055cc' },
-      { name: 'Twilight',c1: '#ff99ff', c2: '#cc44ff', c3: '#9900cc', c4: '#550088' },
-      { name: 'Neon',    c1: '#aaffaa', c2: '#00ff44', c3: '#00cc22', c4: '#005511' },
-      { name: 'Lava',    c1: '#ffff00', c2: '#ff4400', c3: '#cc0000', c4: '#660000' },
+      { name: 'Solar',   c1: '#ffb700', c2: '#ff6600', c3: '#ff3300', c4: '#cc1100' }
+      { name: 'Arctic',  c1: '#ffffff', c2: '#88ddff', c3: '#4499ff', c4: '#0055cc' }
+      { name: 'Twilight',c1: '#ff99ff', c2: '#cc44ff', c3: '#9900cc', c4: '#550088' }
+      { name: 'Neon',    c1: '#aaffaa', c2: '#00ff44', c3: '#00cc22', c4: '#005511' }
+      { name: 'Lava',    c1: '#ffff00', c2: '#ff4400', c3: '#cc0000', c4: '#660000' }
     ];
 
     // Panel IDs for each animation type
     const PANEL_MAP = {
-      breathe: 'panel-color', solid: 'panel-color',
-      spiral: 'panel-spiral', starfield: 'panel-starfield',
-      fireworks: 'panel-fireworks', comet: 'panel-comet', sun: 'panel-sun',
+      breathe: 'panel-color', solid: 'panel-color'
+      spiral: 'panel-spiral', starfield: 'panel-starfield'
+      fireworks: 'panel-fireworks', comet: 'panel-comet', sun: 'panel-sun'
     };
 
     let selectedType = 'rainbow';
@@ -950,13 +950,13 @@ Replace the entire file. The key structural changes:
     async function applyAnimation() {
       try {
         const r = await fetch('/api/display/animation', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST'
+          headers: { 'Content-Type': 'application/json' }
           body: JSON.stringify(buildPayload())
         });
         setStatus(r.ok ? '✓ Running: ' + selectedType : 'Error: HTTP ' + r.status, !r.ok);
       } catch {
-        setStatus('Cannot reach board — check WiFi connection.', true);
+        setStatus('Cannot reach board, check WiFi connection.', true);
       }
     }
 
@@ -967,7 +967,7 @@ Replace the entire file. The key structural changes:
         });
         setStatus(r.ok ? 'Display cleared.' : 'Error: HTTP ' + r.status, !r.ok);
       } catch {
-        setStatus('Cannot reach board — check WiFi connection.', true);
+        setStatus('Cannot reach board, check WiFi connection.', true);
       }
     }
   </script>
@@ -999,7 +999,7 @@ Open `http://esp32matrix.local/animations.html`. Verify:
 
 ```bash
 git add esp32_matrix_webserver/data/animations.html
-git commit -m "feat: animations.html — 5 new cards + per-animation control panels"
+git commit -m "feat: animations.html, 5 new cards + per-animation control panels"
 ```
 
 ---
@@ -1014,36 +1014,36 @@ git commit -m "feat: animations.html — 5 new cards + per-animation control pan
 Find:
 ```typescript
 enum: [
-  "fire", "rainbow", "breathe", "wave", "solid",
-  "liquid", "imu", "chiptemp", "weather",
-  "timer_fill", "timer_snow", "timer_text",
-  "clock", "matrix_rain",
-],
+  "fire", "rainbow", "breathe", "wave", "solid"
+  "liquid", "imu", "chiptemp", "weather"
+  "timer_fill", "timer_snow", "timer_text"
+  "clock", "matrix_rain"
+]
 ```
 
 Replace with:
 ```typescript
 enum: [
-  "fire", "rainbow", "breathe", "wave", "solid",
-  "liquid", "imu", "chiptemp", "weather",
-  "timer_fill", "timer_snow", "timer_text",
-  "clock", "matrix_rain",
-  "spiral", "starfield", "fireworks", "comet", "sun",
-],
+  "fire", "rainbow", "breathe", "wave", "solid"
+  "liquid", "imu", "chiptemp", "weather"
+  "timer_fill", "timer_snow", "timer_text"
+  "clock", "matrix_rain"
+  "spiral", "starfield", "fireworks", "comet", "sun"
+]
 ```
 
 - [ ] **Step 8.2: Add new properties to inputSchema**
 
 Find the `theme` property line:
 ```typescript
-theme:       { type: "string",  description: "Matrix rain color theme: classic, blue, red, or purple." },
+theme:       { type: "string",  description: "Matrix rain color theme: classic, blue, red, or purple." }
 ```
 
 Add after it:
 ```typescript
-color4:  { type: "string",  description: "Quaternary color hex. Used by sun animation for ring tail color." },
-density: { type: "number",  description: "Starfield star density 1-16. 4=sparse, 8=medium, 14=dense." },
-inward:  { type: "boolean", description: "Starfield direction: true = stars fall inward toward center, false = radiate outward from center." },
+color4:  { type: "string",  description: "Quaternary color hex. Used by sun animation for ring tail color." }
+density: { type: "number",  description: "Starfield star density 1-16. 4=sparse, 8=medium, 14=dense." }
+inward:  { type: "boolean", description: "Starfield direction: true = stars fall inward toward center, false = radiate outward from center." }
 ```
 
 - [ ] **Step 8.3: Update the description string**
@@ -1055,9 +1055,9 @@ Find:
 
 Add after it (inside the template literal, before the closing backtick):
 ```
-- spiral: gradient snake flowing along a clockwise inward spiral — all 64 LEDs lit at all times. params: color1 (gradient start), color2 (gradient end)
+- spiral: gradient snake flowing along a clockwise inward spiral, all 64 LEDs lit at all times. params: color1 (gradient start), color2 (gradient end)
 - starfield: stars radiate from center or fall inward toward center. params: color1 (birth color), color2 (death color), density (1-16, default 8), inward (bool, default false)
-- fireworks: single looping firework — white mortar launches from bottom, explodes in colorful radial burst. params: color1 (dominant burst color), color2, color3 (fade-out colors)
+- fireworks: single looping firework, white mortar launches from bottom, explodes in colorful radial burst. params: color1 (dominant burst color), color2, color3 (fade-out colors)
 - comet: bobbing comet at right edge with wave tail and occasional sparks. params: color1 (heart), color2 (shell), color3 (tail tip)
 - sun: static disc in center with spinning gradient arc around it. params: color1 (disc), color2 (arc head), color3 (arc mid), color4 (arc tail)
 ```
@@ -1081,7 +1081,7 @@ Then ask Claude: "Start the spiral animation with red to blue gradient at medium
 ```bash
 cd mcp_server
 git add index.ts
-git commit -m "feat: mcp — add spiral/starfield/fireworks/comet/sun to tool schema"
+git commit -m "feat: mcp, add spiral/starfield/fireworks/comet/sun to tool schema"
 ```
 
 ---
@@ -1089,11 +1089,11 @@ git commit -m "feat: mcp — add spiral/starfield/fireworks/comet/sun to tool sc
 ## Self-Review Checklist
 
 - [x] All 5 animations have firmware frame functions, handleAnimation() init blocks, dispatch branches in loop(), web UI cards + panels, and MCP schema entries
-- [x] `buildSpiralPath()` called lazily on first frame via `spiralReady` guard — safe even if `setup()` is slow
+- [x] `buildSpiralPath()` called lazily on first frame via `spiralReady` guard, safe even if `setup()` is slow
 - [x] `starsInitialized` flag in starfield prevents age-check on uninitialized star data
 - [x] `cometInit` flag in comet zeroes spark pool before first use
-- [x] `fwIdleStartMs` is 0 at boot — first firework fires immediately (within 700ms), intentional
-- [x] Sun ring slot and star density use `static` frame-local state — correct pattern matching the rest of the codebase
-- [x] Web UI: existing breathe/solid/wave/rainbow/fire animations unaffected — `PANEL_MAP` only defines panels for types that need one; types not in the map show no panel (correct for rainbow/wave)
-- [x] MCP `color1/2/3` properties already existed — only `color4`, `density`, `inward` are new additions
-- [x] Speed param flows correctly: MCP translates 1-5 → ms, web UI sends raw ms — no change needed in firmware
+- [x] `fwIdleStartMs` is 0 at boot, first firework fires immediately (within 700ms), intentional
+- [x] Sun ring slot and star density use `static` frame-local state, correct pattern matching the rest of the codebase
+- [x] Web UI: existing breathe/solid/wave/rainbow/fire animations unaffected, `PANEL_MAP` only defines panels for types that need one; types not in the map show no panel (correct for rainbow/wave)
+- [x] MCP `color1/2/3` properties already existed, only `color4`, `density`, `inward` are new additions
+- [x] Speed param flows correctly: MCP translates 1-5 → ms, web UI sends raw ms, no change needed in firmware

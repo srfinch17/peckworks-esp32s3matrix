@@ -1,4 +1,4 @@
-# Phase 4 · Calendar App — Design Spec
+# Phase 4 · Calendar App, Design Spec
 **Date:** 2026-06-09
 **Roadmap:** Phase 4
 
@@ -9,24 +9,24 @@ the clock). Web page `calendar.html` is a single page with style buttons + the
 MCP gets a `calendar` mode.
 
 ## Styles (firmware `anim_calendar.ino` → `stepCalendarFrame()`)
-- **scroll** — "TUE JUN 9" scrolls L→R (3×5 font, `drawStr3x5` at a decrementing
+- **scroll**, "TUE JUN 9" scrolls L→R (3×5 font, `drawStr3x5` at a decrementing
   `calendarScrollX`; wraps). Color = primary.
-- **bignum** — day-of-month, big & centered (`drawStrCentered3x5`). Color = primary.
-- **grid** — mini month: 7 cols (Sun–Sat) × week-rows; today = primary (bright),
+- **bignum**, day-of-month, big & centered (`drawStrCentered3x5`). Color = primary.
+- **grid**, mini month: 7 cols (Sun, Sat) × week-rows; today = primary (bright)
   other days = secondary dimmed. First-of-month weekday derived from today's
   `tm_wday`/`tm_mday`; leap-aware days-in-month.
-- **clock** — month over day via the clock's `drawTimeDisplay(month, day, …)`:
+- **clock**, month over day via the clock's `drawTimeDisplay(month, day, …)`:
   month renders like hours (tiny 3×3 top), day like minutes (3×5 bottom), accent
   = colon/separator.
 
 NTP: if `getLocalTime()` hasn't synced, show the wait indicator (same as clock).
 
 ## Update 2026-06-11
-- **5th style: `square`** — a desk-calendar square: 2-letter weekday (3×3, rows
+- **5th style: `square`**, a desk-calendar square: 2-letter weekday (3×3, rows
   0-2, color2) over the big day number (3×5, rows 3-7, color1). Two letters by
   deliberate choice: three 3×3 glyphs are 11px wide on an 8px matrix, and the
   pairs SU MO TU WE TH FR SA are unambiguous.
-- **NTP wait indicator replaced** — the dim-white pulse read as "broken"; clock
+- **NTP wait indicator replaced**, the dim-white pulse read as "broken"; clock
   and calendar now share `drawNtpWaitFrame()` (clock_timer.ino): an animated
   amber hourglass with gold sand draining on a ~4s loop.
 - `tz` (POSIX, DST-aware) is preferred over integer `timezone`; the page sends it.
@@ -37,7 +37,7 @@ NTP: if `getLocalTime()` hasn't synced, show the wait indicator (same as clock).
 - timezone = UTC offset int (default -7). speed = ms/frame (drives scroll).
 
 ## Firmware
-- New `anim_calendar.ino`. Globals (in main .ino): `calendarStyle`,
+- New `anim_calendar.ino`. Globals (in main .ino): `calendarStyle`
   `calendarColor1/2/3`, `calendarScrollX`. Dispatch branch + handler branch
   (reuses clock's `configTime` + `clockTimezone` + `ntpSynced`).
 

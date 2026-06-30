@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make the project installable by a non-developer — one merged firmware binary (app + web UI) flashed via browser or a script, plus a double-click `.mcpb` Claude Desktop extension — and reset the version to tell the truth (`1.1.0` → `0.12.0`; first installable build becomes the real `1.0.0`).
+**Goal:** Make the project installable by a non-developer, one merged firmware binary (app + web UI) flashed via browser or a script, plus a double-click `.mcpb` Claude Desktop extension, and reset the version to tell the truth (`1.1.0` → `0.12.0`; first installable build becomes the real `1.0.0`).
 
 **Architecture:** The MCP server loses its only native dependency (`@napi-rs/canvas`, used solely by the now-removed emoji feature) so it packs into a tiny cross-platform `.mcpb`. A maintainer-run `scripts/build-release.mjs` builds a LittleFS image from `data/`, merges it with the Arduino-exported app/bootloader/partitions into one factory `.bin`, and emits an ESP Web Tools manifest. A static `install/` page offers both a browser flasher and an offline `flash` script over that one binary. The canonical `VERSION` gains a fourth stamped artifact (the `.mcpb` manifest).
 
@@ -11,12 +11,12 @@
 ## Global Constraints
 
 - **Zero native deps in the MCP server.** After this work the only runtime dependency is `@modelcontextprotocol/sdk`. No `@napi-rs/canvas`, no other native binary.
-- **Board URL is hardcoded** — `http://esp32matrix.local`. `BOARD_URL` already defaults to it (`index.ts:125`); no env, no config screen, no user-config manifest fields.
+- **Board URL is hardcoded**, `http://esp32matrix.local`. `BOARD_URL` already defaults to it (`index.ts:125`); no env, no config screen, no user-config manifest fields.
 - **Four stamped artifacts** from the canonical `/VERSION`: `esp32_matrix_webserver/version.h`, `esp32_matrix_webserver/data/version.json`, `mcp_server/package.json`, and the new `mcp_server/manifest.json`. `npm run check` must report zero drift on the local artifacts.
 - **ESP32-S3, Huge APP partition map** (verbatim from `huge_app.csv`): app @ `0x10000` size `0x300000`; LittleFS (spiffs) @ `0x310000` size `0xE0000`; bootloader @ `0x0`; partition table @ `0x8000`; `boot_app0` @ `0xe000`. Offsets are read from the CSV at build time, never hardcoded in logic.
 - **`.mcpb` manifest** uses `manifest_version: "0.3"`, `server.type: "node"`, `server.entry_point: "dist/index.js"`, `server.mcp_config.args: ["${__dirname}/dist/index.js"]` (`${__dirname}` = the extension's install dir at runtime).
 - **ESP Web Tools manifest**: `builds[].chipFamily: "ESP32-S3"`, single part `{ path: "<merged>.bin", offset: 0 }`.
-- **Privacy:** never use the maintainer's real name in code/docs — refer to "the user".
+- **Privacy:** never use the maintainer's real name in code/docs, refer to "the user".
 - **Version floor for `1.0.0`:** the major bump happens only after the end-to-end hardware pass in Task 11; this plan lands at `0.12.0`.
 
 ---
@@ -51,14 +51,14 @@
 ## Task 1: Strip emoji + native canvas from the MCP server
 
 **Files:**
-- Modify: `mcp_server/index.ts` (remove import line 25; the color/emoji helper block ≈201–320; the `matrix_show_emoji` tool object ≈634–670; the `case "matrix_show_emoji"` handler ≈895–920)
+- Modify: `mcp_server/index.ts` (remove import line 25; the color/emoji helper block ≈201-320; the `matrix_show_emoji` tool object ≈634-670; the `case "matrix_show_emoji"` handler ≈895-920)
 - Modify: `mcp_server/package.json` (remove the `@napi-rs/canvas` dependency)
 
 **Interfaces:**
 - Produces: a `mcp_server/dist/index.js` whose `node_modules` contains no native binary; tool list no longer includes `matrix_show_emoji`.
 - Consumes: nothing.
 
-> The grep in planning confirmed `parseHex, toHex, luma, hsv2rgb, punch, normalize, FEATURE_RATIO, FEATURE_SNAP, emojiToMatrix` are referenced **only** by the emoji pipeline — they delete as one block. `sleep` (the line immediately after) stays.
+> The grep in planning confirmed `parseHex, toHex, luma, hsv2rgb, punch, normalize, FEATURE_RATIO, FEATURE_SNAP, emojiToMatrix` are referenced **only** by the emoji pipeline, they delete as one block. `sleep` (the line immediately after) stays.
 
 - [ ] **Step 1: Remove the canvas import**
 
@@ -76,7 +76,7 @@ Delete the contiguous block from the comment line containing `These MUST stay in
 In the `ListToolsRequestSchema` handler's `tools` array, delete the entire object literal that begins:
 ```ts
     {
-      name: "matrix_show_emoji",
+      name: "matrix_show_emoji"
 ```
 through its matching closing `},` (ends just before the next tool object).
 
@@ -88,7 +88,7 @@ Delete the entire `case "matrix_show_emoji": { ... }` block in the `CallToolRequ
 
 In `mcp_server/package.json` remove the line:
 ```json
-    "@napi-rs/canvas": "^0.1.67",
+    "@napi-rs/canvas": "^0.1.67"
 ```
 Leave `"@modelcontextprotocol/sdk": "^1.11.0"` as the sole dependency.
 
@@ -204,10 +204,10 @@ Create `esp32_matrix_webserver/data/time.html` mirroring `animations.html`'s she
     <a href="/calendar.html" class="card">
       <span class="icon">📅</span>
       <div class="name">Calendar</div>
-      <div class="desc">Today's date — scrolling, big day, month grid, or clock-style</div>
+      <div class="desc">Today's date, scrolling, big day, month grid, or clock-style</div>
     </a>
 ```
-Use `animations.html`'s `<title>` pattern (e.g. `ESP32 Matrix — Time`) and its breadcrumb markup verbatim, only changing the label/parent and the cards.
+Use `animations.html`'s `<title>` pattern (e.g. `ESP32 Matrix, Time`) and its breadcrumb markup verbatim, only changing the label/parent and the cards.
 
 - [ ] **Step 3: Collapse the three index cards into one Time card**
 
@@ -257,18 +257,18 @@ git commit -m "feat(ui): group Timer/Clock/Calendar under a Time hub"
 Create `mcp_server/manifest.json` (version matches current `VERSION` = `1.1.0` for now; Task 6 re-stamps it):
 ```json
 {
-  "manifest_version": "0.3",
-  "name": "esp32-matrix",
-  "display_name": "ESP32-S3 Matrix",
-  "version": "1.1.0",
-  "description": "Control a Waveshare ESP32-S3 8x8 LED matrix from Claude — animations, text, clock, weather, and Claude's ambient expression display. Talks to the board at http://esp32matrix.local on your local network.",
-  "author": { "name": "the user" },
+  "manifest_version": "0.3"
+  "name": "esp32-matrix"
+  "display_name": "ESP32-S3 Matrix"
+  "version": "1.1.0"
+  "description": "Control a Waveshare ESP32-S3 8x8 LED matrix from Claude, animations, text, clock, weather, and Claude's ambient expression display. Talks to the board at http://esp32matrix.local on your local network."
+  "author": { "name": "the user" }
   "server": {
-    "type": "node",
-    "entry_point": "dist/index.js",
+    "type": "node"
+    "entry_point": "dist/index.js"
     "mcp_config": {
-      "command": "node",
-      "args": ["${__dirname}/dist/index.js"],
+      "command": "node"
+      "args": ["${__dirname}/dist/index.js"]
       "env": {}
     }
   }
@@ -316,8 +316,8 @@ git commit -m "feat(mcp): add .mcpb bundle manifest + ignore list"
 In `scripts/version.test.js`, in `fixtureRoot()`, after writing `mcp_server/package.json`, also write a manifest:
 ```js
   await writeFile(
-    path.join(root, "mcp_server", "manifest.json"),
-    JSON.stringify({ manifest_version: "0.3", name: "esp32-matrix", version: "0.0.0", server: { type: "node", entry_point: "dist/index.js" } }, null, 2) + "\n",
+    path.join(root, "mcp_server", "manifest.json")
+    JSON.stringify({ manifest_version: "0.3", name: "esp32-matrix", version: "0.0.0", server: { type: "node", entry_point: "dist/index.js" } }, null, 2) + "\n"
   );
 ```
 
@@ -333,13 +333,13 @@ In the `"stamp writes the version into all three artifacts"` test (rename its ti
 - [ ] **Step 3: Run it to verify it fails**
 
 Run: `node --test scripts/version.test.js`
-Expected: FAIL — `manifest.version` is still `0.0.0` (stamp doesn't touch it yet).
+Expected: FAIL, `manifest.version` is still `0.0.0` (stamp doesn't touch it yet).
 
 - [ ] **Step 4: Implement manifest stamping**
 
 In `scripts/version-stamp.js` `stamp()`, after the package.json block (before `return version;`):
 ```js
-  // 4. MCP bundle manifest (.mcpb) — read/modify/write to preserve other fields
+  // 4. MCP bundle manifest (.mcpb), read/modify/write to preserve other fields
   const manifestPath = path.join(root, "mcp_server", "manifest.json");
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
   manifest.version = version;
@@ -362,7 +362,7 @@ In `scripts/version.test.js`, in `"checkVersions reports match when board agrees
 - [ ] **Step 7: Run it to verify it fails**
 
 Run: `node --test scripts/version.test.js`
-Expected: FAIL — no `mcp-bundle` row exists yet.
+Expected: FAIL, no `mcp-bundle` row exists yet.
 
 - [ ] **Step 8: Implement the check row**
 
@@ -426,7 +426,7 @@ Expected: four matching lines.
 - [ ] **Step 4: Confirm zero drift on local artifacts**
 
 Run: `node scripts/version-check.js http://127.0.0.1:1`
-Expected: `mcp` and `mcp-bundle` rows show `✓`; firmware/web show `✗ unreachable` (no board in this session) — that's fine, the local artifacts are what matter here.
+Expected: `mcp` and `mcp-bundle` rows show `✓`; firmware/web show `✗ unreachable` (no board in this session), that's fine, the local artifacts are what matter here.
 
 - [ ] **Step 5: Commit**
 
@@ -437,11 +437,11 @@ git commit -m "chore: reset version 1.1.0 -> 0.12.0 (premature 1.0; real 1.0.0 =
 
 ---
 
-## Task 7: `build:mcpb` — produce the Claude Desktop extension
+## Task 7: `build:mcpb`, produce the Claude Desktop extension
 
 **Files:**
-- Modify: `package.json` (root) — add `build:mcpb`
-- Modify: `.gitignore` — ignore `release/`
+- Modify: `package.json` (root), add `build:mcpb`
+- Modify: `.gitignore`, ignore `release/`
 
 **Interfaces:**
 - Consumes: Task 1's canvas-free server, Task 4's manifest.
@@ -454,7 +454,7 @@ Note the exact input-dir / output-file argument order (the README documents `mcp
 
 - [ ] **Step 2: Add the build script**
 
-In root `package.json` `scripts`, add (adjust the `pack` args to match Step 1; this is the documented default form — input dir then output file):
+In root `package.json` `scripts`, add (adjust the `pack` args to match Step 1; this is the documented default form, input dir then output file):
 ```json
     "build:mcpb": "cd mcp_server && npx tsc --project tsconfig.json && cd .. && node -e \"require('fs').mkdirSync('release',{recursive:true})\" && npx @anthropic-ai/mcpb pack mcp_server release/esp32-matrix.mcpb"
 ```
@@ -463,7 +463,7 @@ In root `package.json` `scripts`, add (adjust the `pack` args to match Step 1; t
 
 Append to `.gitignore`:
 ```
-# Release build output (merged firmware, manifest, .mcpb) — produced by scripts/build-release.mjs
+# Release build output (merged firmware, manifest, .mcpb), produced by scripts/build-release.mjs
 release/
 ```
 
@@ -478,7 +478,7 @@ Run:
 ```bash
 node -e "const z=require('fs').readFileSync('release/esp32-matrix.mcpb'); console.log('size', z.length)"
 unzip -l release/esp32-matrix.mcpb | grep -i "napi\|canvas" || echo "no native canvas in bundle ✓"
-unzip -l release/esp32-matrix.mcpb | grep -E "dist/index.js|manifest.json" 
+unzip -l release/esp32-matrix.mcpb | grep -E "dist/index.js|manifest.json"
 ```
 Expected: prints a size; `no native canvas in bundle ✓`; lists `dist/index.js` and `manifest.json`.
 
@@ -491,17 +491,17 @@ git commit -m "feat: build:mcpb packs the server into a Claude Desktop extension
 
 ---
 
-## Task 8: `build-release.mjs` — merged firmware binary + flasher manifest
+## Task 8: `build-release.mjs`, merged firmware binary + flasher manifest
 
 **Files:**
 - Create: `scripts/build-release.mjs`
 - Create: `scripts/build-release.test.js`
-- Modify: `package.json` (root) — add `build:release`
+- Modify: `package.json` (root), add `build:release`
 
 **Interfaces:**
 - Consumes: Arduino "Export Compiled Binary" output under `esp32_matrix_webserver/build/**/`, the ESP32 core toolchain under `Arduino15/packages/esp32`, Task 7's `.mcpb`.
 - Produces: `release/esp32matrix-<version>-merged.bin`, `release/manifest.json` (ESP Web Tools), and a copied `release/esp32-matrix.mcpb`.
-- Exposes (for tests): `export function pickHighestVersionPath(paths: string[]): string` — given several version-stamped paths, returns the one with the greatest dotted-number segment.
+- Exposes (for tests): `export function pickHighestVersionPath(paths: string[]): string`, given several version-stamped paths, returns the one with the greatest dotted-number segment.
 
 > **This is the riskiest task** (external binaries). The pure unit (`pickHighestVersionPath`) is TDD'd; the merge orchestration is verified on hardware in Task 11. Write the pure function first.
 
@@ -515,8 +515,8 @@ import { pickHighestVersionPath } from "./build-release.mjs";
 
 test("pickHighestVersionPath prefers the highest dotted-number segment", () => {
   const paths = [
-    "/p/esp32/tools/esptool_py/4.5.1/esptool.exe",
-    "/p/esp32/tools/esptool_py/5.2.0/esptool.exe",
+    "/p/esp32/tools/esptool_py/4.5.1/esptool.exe"
+    "/p/esp32/tools/esptool_py/5.2.0/esptool.exe"
   ];
   assert.equal(pickHighestVersionPath(paths), "/p/esp32/tools/esptool_py/5.2.0/esptool.exe");
 });
@@ -529,7 +529,7 @@ test("pickHighestVersionPath returns the sole path unchanged", () => {
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `node --test scripts/build-release.test.js`
-Expected: FAIL — module/function not found.
+Expected: FAIL, module/function not found.
 
 - [ ] **Step 3: Implement the script skeleton + the pure function**
 
@@ -619,23 +619,23 @@ async function main() {
   // 4. Merge into one factory image.
   const merged = path.join(RELEASE_DIR, `esp32matrix-${version}-merged.bin`);
   execFileSync(esptool, [
-    "--chip", "esp32s3", "merge_bin", "-o", merged,
-    "--flash_mode", "dio", "--flash_freq", "80m", "--flash_size", "4MB",
-    "0x0", bootloader, "0x8000", partitions, "0xe000", bootApp0,
-    "0x10000", app, fsOffset, fsBin,
+    "--chip", "esp32s3", "merge_bin", "-o", merged
+    "--flash_mode", "dio", "--flash_freq", "80m", "--flash_size", "4MB"
+    "0x0", bootloader, "0x8000", partitions, "0xe000", bootApp0
+    "0x10000", app, fsOffset, fsBin
   ], { stdio: "inherit" });
 
   // 5. ESP Web Tools manifest.
   await writeFile(path.join(RELEASE_DIR, "manifest.json"), JSON.stringify({
-    name: "ESP32-S3 Matrix",
-    version,
-    new_install_prompt_erase: true,
-    builds: [{ chipFamily: "ESP32-S3", parts: [{ path: path.basename(merged), offset: 0 }] }],
+    name: "ESP32-S3 Matrix"
+    version
+    new_install_prompt_erase: true
+    builds: [{ chipFamily: "ESP32-S3", parts: [{ path: path.basename(merged), offset: 0 }] }]
   }, null, 2) + "\n", "utf8");
 
   // 6. Copy the .mcpb if build:mcpb already produced it.
   const mcpb = path.join(RELEASE_DIR, "esp32-matrix.mcpb");
-  if (!existsSync(mcpb)) console.warn("note: release/esp32-matrix.mcpb missing — run `npm run build:mcpb` too");
+  if (!existsSync(mcpb)) console.warn("note: release/esp32-matrix.mcpb missing, run `npm run build:mcpb` too");
 
   console.log(`\nRelease ready in release/:\n  ${path.basename(merged)}\n  manifest.json\n  esp32-matrix.mcpb (if built)`);
 }
@@ -645,7 +645,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
 }
 ```
 
-> **Execution note:** `esptool` 5.x may prefer hyphenated flags (`--flash-mode`) — if `merge_bin` errors on an argument, run `<esptool> merge_bin --help` and adjust the flag spellings. `${name}.ino.partitions.bin` is only emitted by **Export Compiled Binary**, so the maintainer must do that export first (covered in Task 11).
+> **Execution note:** `esptool` 5.x may prefer hyphenated flags (`--flash-mode`), if `merge_bin` errors on an argument, run `<esptool> merge_bin --help` and adjust the flag spellings. `${name}.ino.partitions.bin` is only emitted by **Export Compiled Binary**, so the maintainer must do that export first (covered in Task 11).
 
 - [ ] **Step 6: Add the `build:release` script**
 
@@ -657,7 +657,7 @@ In root `package.json` `scripts` add:
 - [ ] **Step 7: Verify graceful failure without an export present**
 
 Run: `npm run build:release`
-Expected (no export yet): exits non-zero with a clear `Not found under …/build: **/*.ino.bin` message — proving discovery + error handling work. (The full merge is exercised on hardware in Task 11.)
+Expected (no export yet): exits non-zero with a clear `Not found under …/build: **/*.ino.bin` message, proving discovery + error handling work. (The full merge is exercised on hardware in Task 11.)
 
 - [ ] **Step 8: Commit**
 
@@ -679,14 +679,14 @@ git commit -m "feat: build-release.mjs merges firmware+web into one flashable .b
 
 - [ ] **Step 1: Write the install page**
 
-Create `install/index.html` — the browser flasher points at the manifest that ships next to it on Pages; it also explains the offline path and links the `.mcpb`:
+Create `install/index.html`, the browser flasher points at the manifest that ships next to it on Pages; it also explains the offline path and links the `.mcpb`:
 ```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Install — ESP32-S3 Matrix</title>
+  <title>Install, ESP32-S3 Matrix</title>
   <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
   <style>
     body { font-family: system-ui, sans-serif; max-width: 44rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.55; }
@@ -695,19 +695,19 @@ Create `install/index.html` — the browser flasher points at the manifest that 
   </style>
 </head>
 <body>
-  <h1>ESP32-S3 Matrix — Install</h1>
+  <h1>ESP32-S3 Matrix, Install</h1>
   <p>The board and your computer must be on the <strong>same local network</strong>. After flashing, the board is reachable at <code>http://esp32matrix.local</code>.</p>
 
-  <h2>1. Flash the firmware (one click — Chrome/Edge)</h2>
+  <h2>1. Flash the firmware (one click, Chrome/Edge)</h2>
   <p>Plug the board into USB, then:</p>
   <esp-web-install-button manifest="manifest.json"></esp-web-install-button>
-  <p class="note">No button? Your browser lacks Web Serial — use the offline method below.</p>
+  <p class="note">No button? Your browser lacks Web Serial, use the offline method below.</p>
 
   <h2>1b. Flash the firmware (offline / other browsers)</h2>
   <p>Download the release, plug in the board, and run <code>flash.bat</code> (Windows) or <code>flash.sh</code> (macOS/Linux).</p>
 
   <h2>2. Add it to Claude Desktop</h2>
-  <p>Download <a href="esp32-matrix.mcpb">esp32-matrix.mcpb</a> and double-click it — Claude Desktop installs the extension. No configuration needed.</p>
+  <p>Download <a href="esp32-matrix.mcpb">esp32-matrix.mcpb</a> and double-click it, Claude Desktop installs the extension. No configuration needed.</p>
 </body>
 </html>
 ```
@@ -756,7 +756,7 @@ git commit -m "feat: install page (browser flasher) + offline flash scripts"
 
 ---
 
-## Task 10: Documentation — install section + dev/build flow
+## Task 10: Documentation, install section + dev/build flow
 
 **Files:**
 - Modify: `README.md`, `CLAUDE.md`
@@ -774,12 +774,12 @@ At the top of `README.md` (after the title/intro, before the Arduino setup), ins
 
 - [ ] **Step 3: Update CLAUDE.md**
 
-In `CLAUDE.md`: (a) remove `emoji` from any app/file inventory and the `data/*.html` list; (b) in the firmware-layout / dev-loop area note that **end-user installs flash a single merged binary** (`scripts/build-release.mjs`) so there is no separate LittleFS step for them — the two-step upload remains only the *developer* loop; (c) document `npm run build:mcpb` and `npm run build:release`; (d) note the version reset to `0.12.0` and that the **first installable release is the real `1.0.0`**.
+In `CLAUDE.md`: (a) remove `emoji` from any app/file inventory and the `data/*.html` list; (b) in the firmware-layout / dev-loop area note that **end-user installs flash a single merged binary** (`scripts/build-release.mjs`) so there is no separate LittleFS step for them, the two-step upload remains only the *developer* loop; (c) document `npm run build:mcpb` and `npm run build:release`; (d) note the version reset to `0.12.0` and that the **first installable release is the real `1.0.0`**.
 
 - [ ] **Step 4: Verify no emoji references survive in docs we own**
 
 Run: `grep -n "emoji" README.md CLAUDE.md`
-Expected: no matches (or only historical mentions you intentionally keep — prefer none).
+Expected: no matches (or only historical mentions you intentionally keep, prefer none).
 
 - [ ] **Step 5: Commit**
 
@@ -819,15 +819,15 @@ Join WiFi via the captive portal, browse `http://esp32matrix.local`. Confirm: th
 
 - [ ] **Step 5: Install the Claude Desktop extension**
 
-Double-click `release/esp32-matrix.mcpb` into Claude Desktop. Confirm the tools load (Settings → Developer) and that `matrix_status` / an animation command drive the board — with no JSON editing and no Node install.
+Double-click `release/esp32-matrix.mcpb` into Claude Desktop. Confirm the tools load (Settings → Developer) and that `matrix_status` / an animation command drive the board, with no JSON editing and no Node install.
 
 - [ ] **Step 6: Crown 1.0.0**
 
-Only after Steps 1–5 pass: set `VERSION` to `1.0.0`, run `npm run stamp`, re-run `npm run build:mcpb && npm run build:release`, reflash, and confirm `npm run check` (against the live board) reports all four artifacts `✓` at `1.0.0`.
+Only after Steps 1-5 pass: set `VERSION` to `1.0.0`, run `npm run stamp`, re-run `npm run build:mcpb && npm run build:release`, reflash, and confirm `npm run check` (against the live board) reports all four artifacts `✓` at `1.0.0`.
 
 ```bash
 git add VERSION esp32_matrix_webserver/version.h esp32_matrix_webserver/data/version.json mcp_server/package.json mcp_server/manifest.json
-git commit -m "chore: bump v1.0.0 — first build any user can install"
+git commit -m "chore: bump v1.0.0, first build any user can install"
 ```
 
 ---

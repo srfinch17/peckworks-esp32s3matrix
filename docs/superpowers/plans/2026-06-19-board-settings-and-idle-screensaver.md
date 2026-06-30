@@ -10,10 +10,10 @@
 
 ## Global Constraints
 
-- **Privacy:** never use the maintainer's real name in code/comments/docs — refer to "the user".
+- **Privacy:** never use the maintainer's real name in code/comments/docs, refer to "the user".
 - **NVS namespace:** reuse the existing open handle `prefs` (`Preferences`, namespace `"matrix"`). Do NOT open a second namespace.
-- **NVS key length ≤ 15 chars.** New keys: `idle_on`, `idle_apps`, `idle_after`, `idle_rot`, `idle_bri`, `boot_anim`, `tz`, `set_ver`. (No `def_bri` — "default brightness" is unified with the existing `bri` auto-resume key, never a parallel value.)
-- **Claude cannot compile/flash.** Every firmware task ends with a **hardware-verification checklist the user runs** (flash, then report Serial/LED behavior) — not an automated test.
+- **NVS key length ≤ 15 chars.** New keys: `idle_on`, `idle_apps`, `idle_after`, `idle_rot`, `idle_bri`, `boot_anim`, `tz`, `set_ver`. (No `def_bri`, "default brightness" is unified with the existing `bri` auto-resume key, never a parallel value.)
+- **Claude cannot compile/flash.** Every firmware task ends with a **hardware-verification checklist the user runs** (flash, then report Serial/LED behavior), not an automated test.
 - **Hook live-copy sync:** `claude-hooks/*.py` have installed copies at `~/.claude/hooks/`. Edit BOTH or they drift.
 - **MCP deploy:** TS edits are invisible until `npx tsc` rebuilds `dist/` AND `/mcp` reconnects. The PostToolUse hook auto-runs `tsc`; you still must reconnect.
 - **Frames heap caution:** keep any frame payloads light; never fire heavy full-panel frame bursts (`bug_frames_heap_crash`).
@@ -54,13 +54,13 @@
 - [ ] **Step 1: Create `settings.ino` with the model, defaults, and load/merge**
 
 ```cpp
-// settings.ino — persistent board settings (NVS namespace "matrix").
+// settings.ino, persistent board settings (NVS namespace "matrix").
 // Merge-on-boot: an upgraded flash keeps existing user values and only fills in
 // newly-added keys with their defaults. NVS survives a normal Sketch upload, so
 // settings persist across flashes; only a full chip-erase wipes them.
 
-// SETTINGS_VERSION is #defined in the MAIN ino (esp32_matrix_webserver.ino),
-// NOT here — because handleStatus (in api_handlers.ino) references it, and that
+// SETTINGS_VERSION is #defined in the MAIN ino (esp32_matrix_webserver.ino)
+// NOT here, because handleStatus (in api_handlers.ino) references it, and that
 // file concatenates BEFORE settings.ino in the Arduino build. A `static` const
 // defined here would be invisible to that earlier reference (hard compile error).
 // See Task 1 Step 2. Bump ONLY for a deliberate breaking change that must reset
@@ -77,7 +77,7 @@ struct Settings {
 };
 // NOTE: there is deliberately NO separate "default brightness" field. It is
 // unified with the existing live/auto-resume brightness (the NVS "bri" key) so
-// it can never become an inert parallel value — see settingsToJson/applySettingsJson.
+// it can never become an inert parallel value, see settingsToJson/applySettingsJson.
 
 // The rotation universe (mirrors mcp_server/idle.ts IDLE_APPS). Keep aligned.
 static const char* IDLE_APPS_DEFAULT =
@@ -98,11 +98,11 @@ void loadSettings() {
 
   uint16_t stored = prefs.getUShort("set_ver", 0);
   if (stored != SETTINGS_VERSION) {
-    // v1: no migration needed — just stamp. Future breaking changes branch here.
+    // v1: no migration needed, just stamp. Future breaking changes branch here.
     prefs.putUShort("set_ver", SETTINGS_VERSION);
   }
-  Serial.printf("Settings loaded: idleOn=%d after=%us rot=%us idleBri=%u apps=%s\n",
-                settings.idleOn, settings.idleAfterS, settings.idleRotS,
+  Serial.printf("Settings loaded: idleOn=%d after=%us rot=%us idleBri=%u apps=%s\n"
+                settings.idleOn, settings.idleAfterS, settings.idleRotS
                 settings.idleBri, settings.idleApps.c_str());
 }
 
@@ -124,7 +124,7 @@ String settingsToJson() {
   j += ",\"idle_after_secs\":" + String(settings.idleAfterS);
   j += ",\"idle_rotate_secs\":" + String(settings.idleRotS);
   j += ",\"idle_brightness\":"  + String(settings.idleBri);
-  // default_brightness is the SAME value as the live/auto-resume brightness — no
+  // default_brightness is the SAME value as the live/auto-resume brightness, no
   // separate stored key, so it can never go inert. (resumeBri is the last
   // user-committed brightness, which is what auto-resume restores on boot.)
   j += ",\"default_brightness\":" + String(resumeBri);
@@ -153,7 +153,7 @@ bool applySettingsJson(const String& body) {
   saveSettings();
   // default_brightness: unified with the live brightness. Apply immediately AND
   // persist via the existing auto-resume "bri" key, so it is identical to the
-  // value the board restores on boot — never an inert parallel setting.
+  // value the board restores on boot, never an inert parallel setting.
   if (!doc["default_brightness"].isNull()) {
     int b = constrain((int)(doc["default_brightness"] | resumeBri), 0, 255);
     brightness = (uint8_t)b; resumeBri = brightness;
@@ -166,7 +166,7 @@ bool applySettingsJson(const String& body) {
 
 > Note: `escapeJson` is a `static` helper in `api_handlers.ino`. Because all `.ino`
 > files concatenate into one translation unit, `settings.ino` can call it as long as
-> `settings.ino` sorts AFTER `api_handlers.ino` alphabetically — it does ("a" < "s").
+> `settings.ino` sorts AFTER `api_handlers.ino` alphabetically, it does ("a" < "s").
 > If the build complains about ordering, add a forward declaration
 > `static String escapeJson(const String&);` at the top of `settings.ino`.
 
@@ -186,7 +186,7 @@ visible to `api_handlers.ino`, which concatenates earlier), add:
 restore) so settings load FIRST and `boot_animation` can override auto-resume:
 
 ```cpp
-  loadSettings();   // settings.ino — load persisted settings (merge-on-boot)
+  loadSettings();   // settings.ino, load persisted settings (merge-on-boot)
 
   // Brightness: restore the last committed value (this IS "default_brightness").
   brightness = prefs.getUChar("bri", brightness);
@@ -207,7 +207,7 @@ restore) so settings load FIRST and `boot_animation` can override auto-resume:
 ```
 
 > If `boot_animation` holds an unknown type, `applyAnimationBody` returns false and the
-> board boots blank — acceptable, and the settings page/MCP only offer known types.
+> board boots blank, acceptable, and the settings page/MCP only offer known types.
 
 - [ ] **Step 3: Hardware verification (USER FLASHES)**
 
@@ -237,13 +237,13 @@ git commit -m "feat(fw): persistent settings model with NVS merge-on-boot"
 - [ ] **Step 1: Add the handlers in `api_handlers.ino`**
 
 ```cpp
-// GET /api/settings — full current settings as JSON.
+// GET /api/settings, full current settings as JSON.
 void handleSettingsGet() {
   sendJson(200, settingsToJson());
 }
 
-// POST /api/settings — partial update; only provided keys change. Persists + applies.
-// (applySettingsJson already applies brightness/tz live — no extra FastLED call here.)
+// POST /api/settings, partial update; only provided keys change. Persists + applies.
+// (applySettingsJson already applies brightness/tz live, no extra FastLED call here.)
 void handleSettingsPost() {
   if (!applySettingsJson(server.arg("plain"))) {
     sendJson(400, "{\"error\":\"Invalid JSON\"}");
@@ -347,7 +347,7 @@ const APPS=["fire","matrix_rain","clock","fireworks","frostbite","snow","dancefl
 const $=id=>document.getElementById(id);
 function renderApps(csv){
   // Render the UNION of the known apps and whatever the board returned, so an app
-  // stored on the board that this page doesn't hardcode is still shown — and never
+  // stored on the board that this page doesn't hardcode is still shown, and never
   // silently dropped when the form is re-saved.
   const stored=(csv||"").split(",").map(s=>s.trim()).filter(Boolean);
   const on=new Set(stored);
@@ -372,9 +372,9 @@ $("f").addEventListener("submit",async e=>{
   e.preventDefault();
   const apps=[...document.querySelectorAll(".app:checked")].map(c=>c.value).join(",");
   const body={
-    idle_enabled:$("idle_enabled").checked, idle_apps:apps,
-    idle_after_secs:+$("idle_after_secs").value, idle_rotate_secs:+$("idle_rotate_secs").value,
-    idle_brightness:+$("idle_brightness").value, default_brightness:+$("default_brightness").value,
+    idle_enabled:$("idle_enabled").checked, idle_apps:apps
+    idle_after_secs:+$("idle_after_secs").value, idle_rotate_secs:+$("idle_rotate_secs").value
+    idle_brightness:+$("idle_brightness").value, default_brightness:+$("default_brightness").value
     boot_animation:$("boot_animation").value.trim(), timezone:$("timezone").value.trim()
   };
   await fetch("/api/settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
@@ -428,9 +428,9 @@ git commit -m "feat(web): settings page + index link"
 - [ ] **Step 1: Create `idle_engine.ino`**
 
 ```cpp
-// idle_engine.ino — board-side "dead-man's switch" screensaver.
+// idle_engine.ino, board-side "dead-man's switch" screensaver.
 // Armed by Claude's Stop hook (POST /api/idle/arm). While the host goof-watcher
-// keeps pushing frames, idleNoteActivity(true) resets the timer WITHOUT disarming,
+// keeps pushing frames, idleNoteActivity(true) resets the timer WITHOUT disarming
 // so the board stays out of the way. When the host falls silent (cap reached or
 // laptop sleeps), the timer expires and the board enters a low-brightness rotation
 // of enabled screensaver apps. Any real command (idleNoteActivity(false)) disarms.
@@ -531,28 +531,28 @@ void idleTick() {
 
 > `random(n)` is the Arduino PRNG (returns 0..n-1). It's fine here; no seeding needed
 > for a screensaver. `applyAnimationBody` already exists and is what `handleAnimation`
-> uses — reusing it keeps one launch path.
+> uses, reusing it keeps one launch path.
 
 - [ ] **Step 2: Wire activity marking into the real command handlers**
 
-In `api_handlers.ino`, add `idleNoteActivity(false);` at the TOP of EVERY real,
+In `api_handlers.ino`, add `idleNoteActivity(false);` at the TOP of EVERY real
 user/Claude-driven handler that paints or changes the display, so any of them disarms
-idle: `handleAnimation`, `handleText`, `handleMatrix`, `handleBrightness`,
+idle: `handleAnimation`, `handleText`, `handleMatrix`, `handleBrightness`
 `handleClear`, `handleGridTest`, `handleTemperature`, `handleWeatherMode`. Example for
 `handleAnimation` (insert as first line of the function body):
 
 ```cpp
-  idleNoteActivity(false);   // a real command — disarm idle / cancel screensaver
+  idleNoteActivity(false);   // a real command, disarm idle / cancel screensaver
 ```
 
 > IMPORTANT: the marker goes in the HTTP HANDLERS, NOT in `applyAnimationBody`. The
 > screensaver's `idleLaunch` calls `applyAnimationBody` directly (bypassing
-> `handleAnimation`), so it must NOT hit `idleNoteActivity` — otherwise the screensaver
+> `handleAnimation`), so it must NOT hit `idleNoteActivity`, otherwise the screensaver
 > would disarm itself on every rotation. Do not move the marker down into
 > `applyAnimationBody`.
 
 For `handleFrames` (the expression/goof channel), the marking depends on a flag the
-caller sends — see Step 3.
+caller sends, see Step 3.
 
 - [ ] **Step 3: Add the idle marker to `handleFrames` + the arm handler**
 
@@ -567,7 +567,7 @@ accordingly (default false = real content):
 Add the arm handler (near the other handlers):
 
 ```cpp
-// POST /api/idle/arm — Claude's Stop hook calls this when a turn ends. Arms the
+// POST /api/idle/arm, Claude's Stop hook calls this when a turn ends. Arms the
 // dead-man's switch so the board will screensaver once it goes quiet.
 void handleIdleArm() {
   idleArm();
@@ -587,20 +587,20 @@ And in `loop()`, after the animation-tick block (after ~line 896, outside the fr
 `if`), call:
 
 ```cpp
-  idleTick();   // idle_engine.ino — dead-man's switch screensaver
+  idleTick();   // idle_engine.ino, dead-man's switch screensaver
 ```
 
-- [ ] **Step 5: Hardware verification (USER FLASHES — multi-part)**
+- [ ] **Step 5: Hardware verification (USER FLASHES, multi-part)**
 
 After **Sketch → Upload**, ask the user to verify each:
-1. **Arm + screensaver:** set a SHORT timeout for testing — `POST /api/settings {"idle_after_secs":10,"idle_rotate_secs":15}` — then `POST /api/idle/arm`. Within ~10s the board should start a random screensaver at dim brightness, and switch to a different one ~every 15s.
+1. **Arm + screensaver:** set a SHORT timeout for testing, `POST /api/settings {"idle_after_secs":10,"idle_rotate_secs":15}`, then `POST /api/idle/arm`. Within ~10s the board should start a random screensaver at dim brightness, and switch to a different one ~every 15s.
 2. **No-hijack:** `POST /api/display/animation {"type":"snow"}` then `POST /api/idle/arm`... then immediately `POST /api/display/animation {"type":"fire"}`. Fire should stay (the real command disarmed idle); no screensaver should start.
 3. **Idle content keeps armed:** `POST /api/idle/arm`, then every ~8s `POST /api/display/frames {"frames":["<one light frame>"],"frame_ms":150,"loop":0,"idle":true}`. Screensaver should NOT start while these arrive; stop them and within `idle_after_secs` it should.
 4. **Auto-resume isn't polluted:** while a screensaver is rotating, **power-cycle the
    board.** It must boot to the *pre-idle* real animation (or boot_animation), NOT the
-   last screensaver pick — proving `idleLaunch` bypasses the auto-resume write path.
+   last screensaver pick, proving `idleLaunch` bypasses the auto-resume write path.
 5. **Brightness restores:** after a screensaver runs (dim), `POST /api/display/animation
-   {"type":"fire"}` — fire must render at the normal brightness, not stuck at idle dim.
+   {"type":"fire"}`, fire must render at the normal brightness, not stuck at idle dim.
 6. Restore sane timeouts via the settings page when done.
 
 - [ ] **Step 6: Commit**
@@ -612,7 +612,7 @@ git commit -m "feat(fw): board-side idle screensaver dead-man's switch"
 
 ---
 
-## Task 5: Host hooks — arm on done, mark goof as idle (Python)
+## Task 5: Host hooks, arm on done, mark goof as idle (Python)
 
 **Files:**
 - Modify: `claude-hooks/matrix_signal.py` AND its live copy `~/.claude/hooks/matrix_signal.py`
@@ -633,7 +633,7 @@ def arm_board_idle():
     try:
         import urllib.request, json as _json
         req = urllib.request.Request(
-            BOARD_URL + "/api/idle/arm", data=b"{}",
+            BOARD_URL + "/api/idle/arm", data=b"{}"
             headers={"Content-Type": "application/json"}, method="POST")
         urllib.request.urlopen(req, timeout=3).read()
     except Exception:
@@ -642,7 +642,7 @@ def arm_board_idle():
 
 In `main()`, in the `if name == "done"` branch. **Order matters:** `main()` has already
 called `send_named("done")` (which posts the checkmark frames with `idle=False`, briefly
-disarming) BEFORE this block — so `arm_board_idle()` MUST come here, AFTER the send, to
+disarming) BEFORE this block, so `arm_board_idle()` MUST come here, AFTER the send, to
 win. Keep this ordering and the comment:
 
 ```python
@@ -652,8 +652,8 @@ win. Keep this ordering and the comment:
         spawn_idle_watcher(token)
 ```
 
-> `BOARD_URL` already exists in `matrix_signal.py` (`os.environ.get("ESP32_URL",
-> "http://esp32matrix.local")`), matching the MCP default — `arm_board_idle()` uses it
+> `BOARD_URL` already exists in `matrix_signal.py` (`os.environ.get("ESP32_URL"
+> "http://esp32matrix.local")`), matching the MCP default, `arm_board_idle()` uses it
 > directly. A customer sets the board address in ONE place (`ESP32_URL`) shared by the
 > MCP and the hooks; no second config.
 
@@ -661,7 +661,7 @@ win. Keep this ordering and the comment:
 
 `matrix_signal.py` currently hardcodes an absolute, machine-specific path
 (`MATRIX_MCP_DIR = r"C:\Users\srfin\...\mcp_server"`), which breaks on any other
-machine — exactly the spec's Part 5 "no machine-specific absolute paths" rule. Replace
+machine, exactly the spec's Part 5 "no machine-specific absolute paths" rule. Replace
 it with a path derived from this file's own location (the hooks live in the repo or are
 installed beside a known layout):
 
@@ -669,8 +669,8 @@ installed beside a known layout):
 # Resolve the MCP server dir relative to this file, with an env override for installs
 # that relocate it. Never hardcode a user-specific absolute path.
 MATRIX_MCP_DIR = os.environ.get(
-    "MATRIX_MCP_DIR",
-    os.path.normpath(os.path.join(HOOK_DIR, "..", "mcp_server")),
+    "MATRIX_MCP_DIR"
+    os.path.normpath(os.path.join(HOOK_DIR, "..", "mcp_server"))
 )
 ```
 
@@ -699,7 +699,7 @@ def play(entry):
 ```
 
 The terminal `REST` (Zz) likewise goes through `play()`, so it's marked idle and the
-board's timer takes over after it — exactly Goof → Zz → Screensaver. No other change
+board's timer takes over after it, exactly Goof → Zz → Screensaver. No other change
 to the watcher's lifecycle is needed.
 
 - [ ] **Step 3: Sync live copies**
@@ -714,7 +714,7 @@ cp claude-hooks/matrix_idle.py ~/.claude/hooks/matrix_idle.py
 - [ ] **Step 4: Manual verification**
 
 With the board flashed (Task 4) and short timeouts set: finish a Claude turn (triggers
-the `Stop` hook → `done`). Confirm via Serial or `GET /api/status` that the board armed,
+the `Stop` hook → `done`). Confirm via Serial or `GET /api/status` that the board armed
 the goof animations play, and after they stop the screensaver rotation begins. Submit a
 new prompt → the `wait` signal disarms and the screensaver stops.
 
@@ -727,7 +727,7 @@ git commit -m "feat(hooks): arm board idle on done; mark goof/Zz as idle content
 
 ---
 
-## Task 6: MCP settings helpers — pure logic with tests (TS, TDD)
+## Task 6: MCP settings helpers, pure logic with tests (TS, TDD)
 
 **Files:**
 - Create: `mcp_server/settings.ts`
@@ -780,18 +780,18 @@ describe("normalizeSettingsPatch", () => {
 - [ ] **Step 2: Run tests, verify they fail**
 
 Run: `cd mcp_server && npx vitest run settings.test.ts`
-Expected: FAIL — `Cannot find module './settings.js'`.
+Expected: FAIL, `Cannot find module './settings.js'`.
 
 - [ ] **Step 3: Implement `settings.ts`**
 
 ```ts
-// settings.ts — pure helpers for the MCP settings tools. The board validates and
+// settings.ts, pure helpers for the MCP settings tools. The board validates and
 // clamps; these just shape a partial patch (drop unknown keys, coerce types) so
 // Claude's free-form args become a clean POST body.
 
 export const KNOWN_SETTING_KEYS = [
-  "idle_enabled", "idle_apps", "idle_after_secs", "idle_rotate_secs",
-  "idle_brightness", "default_brightness", "boot_animation", "timezone",
+  "idle_enabled", "idle_apps", "idle_after_secs", "idle_rotate_secs"
+  "idle_brightness", "default_brightness", "boot_animation", "timezone"
 ] as const;
 
 const NUMERIC = new Set(["idle_after_secs", "idle_rotate_secs", "idle_brightness", "default_brightness"]);
@@ -833,7 +833,7 @@ git commit -m "feat(mcp): settings patch-normalization helpers + tests"
 
 ---
 
-## Task 7: MCP tools — `matrix_get_settings` / `matrix_set_settings`
+## Task 7: MCP tools, `matrix_get_settings` / `matrix_set_settings`
 
 **Files:**
 - Modify: `mcp_server/index.ts` (import helpers; add 2 tool defs in the ListTools array ~line 632; add 2 cases in the CallTool switch ~line 805)
@@ -856,29 +856,29 @@ In the ListTools array (after the last tool def, before the array closes ~line 6
 
 ```ts
     {
-      name: "matrix_get_settings",
+      name: "matrix_get_settings"
       description:
-        "Read the board's current persistent settings — idle screensaver behavior (enabled, which apps rotate, how long before it starts, how often it re-picks, idle brightness), default brightness, default boot animation, and clock timezone. Use this to answer questions like 'what's my idle timeout?' or before changing a setting.",
-      inputSchema: { type: "object", properties: {} },
-    },
+        "Read the board's current persistent settings, idle screensaver behavior (enabled, which apps rotate, how long before it starts, how often it re-picks, idle brightness), default brightness, default boot animation, and clock timezone. Use this to answer questions like 'what's my idle timeout?' or before changing a setting."
+      inputSchema: { type: "object", properties: {} }
+    }
     {
-      name: "matrix_set_settings",
+      name: "matrix_set_settings"
       description:
-        "Change one or more board settings (persisted on the board, survives reflash). Only the fields you provide change. Fields: idle_enabled (bool), idle_apps (comma-separated app names from: fire, matrix_rain, clock, fireworks, frostbite, snow, dancefloor), idle_after_secs (seconds of quiet before the screensaver starts), idle_rotate_secs (seconds between screensaver changes), idle_brightness (1-255, screensaver dimness), default_brightness (0-255 on boot), boot_animation (animation type to show on power-up, or empty to resume last), timezone (POSIX TZ string for the clock). Example: 'start the screensaver after 5 minutes' -> { idle_after_secs: 300 }.",
+        "Change one or more board settings (persisted on the board, survives reflash). Only the fields you provide change. Fields: idle_enabled (bool), idle_apps (comma-separated app names from: fire, matrix_rain, clock, fireworks, frostbite, snow, dancefloor), idle_after_secs (seconds of quiet before the screensaver starts), idle_rotate_secs (seconds between screensaver changes), idle_brightness (1-255, screensaver dimness), default_brightness (0-255 on boot), boot_animation (animation type to show on power-up, or empty to resume last), timezone (POSIX TZ string for the clock). Example: 'start the screensaver after 5 minutes' -> { idle_after_secs: 300 }."
       inputSchema: {
-        type: "object",
+        type: "object"
         properties: {
-          idle_enabled: { type: "boolean" },
-          idle_apps: { type: "string", description: "Comma-separated enabled screensaver apps." },
-          idle_after_secs: { type: "number" },
-          idle_rotate_secs: { type: "number" },
-          idle_brightness: { type: "number" },
-          default_brightness: { type: "number" },
-          boot_animation: { type: "string" },
-          timezone: { type: "string" },
-        },
-      },
-    },
+          idle_enabled: { type: "boolean" }
+          idle_apps: { type: "string", description: "Comma-separated enabled screensaver apps." }
+          idle_after_secs: { type: "number" }
+          idle_rotate_secs: { type: "number" }
+          idle_brightness: { type: "number" }
+          default_brightness: { type: "number" }
+          boot_animation: { type: "string" }
+          timezone: { type: "string" }
+        }
+      }
+    }
 ```
 
 - [ ] **Step 3: Add the CallTool cases**
@@ -928,13 +928,13 @@ git commit -m "feat(mcp): matrix_get_settings + matrix_set_settings tools"
 
 - [ ] **Step 1: Document the feature**
 
-Add to `CLAUDE.md`: a short **Settings** section (NVS-backed, merge-on-boot, `/api/settings`,
+Add to `CLAUDE.md`: a short **Settings** section (NVS-backed, merge-on-boot, `/api/settings`
 settings page, `matrix_get_settings`/`matrix_set_settings`), the new API rows
 (`GET/POST /api/settings`, `POST /api/idle/arm`), and the idle-screensaver behavior
 (Goof → Zz → board screensaver, governed by settings).
 
 Also add a short **Board discovery** note (Part 5 requirement): the board address is
-configured in ONE place — the `ESP32_URL` env var — shared by both the MCP server
+configured in ONE place, the `ESP32_URL` env var, shared by both the MCP server
 (`index.ts` `BOARD_URL`) and the Python hooks (`matrix_signal.py` `BOARD_URL`). Default
 is `http://esp32matrix.local` (mDNS); a customer who needs an IP sets `ESP32_URL` once.
 State this is the single configuration point for a fresh install.
@@ -944,7 +944,7 @@ State this is the single configuration point for a fresh install.
 ```bash
 npm run bump:minor
 ```
-This rewrites `VERSION`, stamps `version.h` / `data/version.json` / `mcp_server/package.json`,
+This rewrites `VERSION`, stamps `version.h` / `data/version.json` / `mcp_server/package.json`
 and commits `chore: bump vX.Y.Z`.
 
 - [ ] **Step 3: Deploy checklist (USER)**
@@ -967,8 +967,8 @@ git commit -m "docs: settings foundation + idle screensaver"
 
 ## Self-Review Notes
 
-- **Spec coverage:** Part 1 → Tasks 1–3; Part 2 (seed settings) → Task 1 model + Task 3 UI; Part 3 (idle engine) → Task 4 + Task 5; Part 4 (MCP) → Tasks 6–7; Part 5 (distribution: graceful defaults via merge-on-boot, `ESP32_URL` reuse in hook + MCP, no per-user setup, conversational-first tool descriptions) → addressed across Tasks 1, 5, 7. Versioning → Task 8.
-- **Deferred spec questions resolved here:** idle-arm = dedicated `/api/idle/arm` (Task 4); `idle_apps` encoding = CSV of type names (Task 1); existing `matrix_idle` tool stays separate from the always-on screensaver (the screensaver reads the firmware CSV; `matrix_idle.ts` keeps its own lineup — noted as conceptual-alignment, not shared code).
+- **Spec coverage:** Part 1 → Tasks 1-3; Part 2 (seed settings) → Task 1 model + Task 3 UI; Part 3 (idle engine) → Task 4 + Task 5; Part 4 (MCP) → Tasks 6-7; Part 5 (distribution: graceful defaults via merge-on-boot, `ESP32_URL` reuse in hook + MCP, no per-user setup, conversational-first tool descriptions) → addressed across Tasks 1, 5, 7. Versioning → Task 8.
+- **Deferred spec questions resolved here:** idle-arm = dedicated `/api/idle/arm` (Task 4); `idle_apps` encoding = CSV of type names (Task 1); existing `matrix_idle` tool stays separate from the always-on screensaver (the screensaver reads the firmware CSV; `matrix_idle.ts` keeps its own lineup, noted as conceptual-alignment, not shared code).
 - **Type consistency:** firmware `applySettingsJson`/`settingsToJson` use the same JSON key names the web page and MCP send (`idle_enabled`, `idle_apps`, `idle_after_secs`, `idle_rotate_secs`, `idle_brightness`, `default_brightness`, `boot_animation`, `timezone`). MCP `normalizeSettingsPatch` whitelists exactly those keys.
 
 ## Review-Round Fixes (applied after critical review)
@@ -976,17 +976,17 @@ git commit -m "docs: settings foundation + idle screensaver"
 - **Compile blocker:** `SETTINGS_VERSION` is now `#define`d in the main ino (visible to
   `handleStatus` in `api_handlers.ino`, which concatenates earlier). The `static`-in-
   `settings.ino` version would not compile.
-- **`default_brightness` is no longer an inert key** — unified with the existing live/
+- **`default_brightness` is no longer an inert key**, unified with the existing live/
   auto-resume `bri` brightness, applied immediately on POST and identical to what boots.
-- **`boot_animation` is now actually applied** — `loadSettings()` runs BEFORE the boot
+- **`boot_animation` is now actually applied**, `loadSettings()` runs BEFORE the boot
   display logic, and a pinned `boot_animation` overrides auto-resume.
-- **`timezone` is now wired** — applied live to the clock on POST and injected into the
+- **`timezone` is now wired**, applied live to the clock on POST and injected into the
   screensaver `clock` launch.
 - **Screensaver restores brightness on disarm** and **bypasses the auto-resume write**
   (verified by the power-cycle test).
-- **Activity-marking** extended to all painting handlers (incl. `grid-test`,
+- **Activity-marking** extended to all painting handlers (incl. `grid-test`
   `temperature`, `weather/mode`); marker kept in handlers, NOT `applyAnimationBody`.
-- **`idle_apps` web data-loss fixed** — the page renders the union of known + stored apps.
+- **`idle_apps` web data-loss fixed**, the page renders the union of known + stored apps.
 - **Distribution:** hardcoded user-specific `MATRIX_MCP_DIR` path replaced with a
   `__file__`-relative path + env override; `ESP32_URL` documented as the single board-
   address config shared by MCP and hooks; index.html card uses the exact existing markup.
@@ -994,7 +994,7 @@ git commit -m "docs: settings foundation + idle screensaver"
 ## Three-list alignment note (accepted, documented)
 
 The screensaver app universe now appears in three places: firmware `IDLE_APPS_DEFAULT`
-CSV + `idleParamsFor` (Task 1/4), `mcp_server/idle.ts` `IDLE_APPS` (the on-demand tool),
+CSV + `idleParamsFor` (Task 1/4), `mcp_server/idle.ts` `IDLE_APPS` (the on-demand tool)
 and `settings.html`'s `APPS` array (the union-render mitigates drift there). `idleParamsFor`
 mirrors `idle.ts` params so the same app looks identical in the rotation and the tool.
 Keep the three aligned by convention; a future refactor could share one source.

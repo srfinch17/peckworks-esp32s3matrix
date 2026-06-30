@@ -1,4 +1,4 @@
-# Web UI Polish — Design Spec
+# Web UI Polish, Design Spec
 **Date:** 2026-05-22
 
 ## Summary
@@ -6,7 +6,7 @@ Three targeted fixes to the ESP32 Matrix web UI. No new pages, no architecture c
 
 ---
 
-## 1. Index Page — Card Grid Centering
+## 1. Index Page, Card Grid Centering
 
 **Problem:** The `.apps` card grid stretches to fill the full browser window, making cards uncomfortably wide at large viewport sizes.
 
@@ -14,7 +14,7 @@ Three targeted fixes to the ESP32 Matrix web UI. No new pages, no architecture c
 
 ---
 
-## 2. Index Page — Brightness Slider Redesign (Option A)
+## 2. Index Page, Brightness Slider Redesign (Option A)
 
 **Problems:**
 - Label jitter: the `<strong>` value display changes character width as value goes 2-digit → 1-digit, causing the flex row to reflow.
@@ -24,7 +24,7 @@ Three targeted fixes to the ESP32 Matrix web UI. No new pages, no architecture c
 **Solution:**
 
 ### Slider
-- Range stays 0–255.
+- Range stays 0-255.
 - Default: 10 (or localStorage value, clamped to 100 if the warning checkbox is unchecked).
 - Fix jitter: give the value display `display: inline-block; min-width: 2.5ch; text-align: right`.
 
@@ -36,16 +36,16 @@ Three targeted fixes to the ESP32 Matrix web UI. No new pages, no architecture c
 ### Lock checkbox
 - A compact warning row below the gradient: checkbox + "⚠ Heat warning: values above 100 risk overheating. Check to unlock."
 - If unchecked: `oninput` clamps the slider value to 100 in real time (no snap animation, just instant correction).
-- If checked: full 0–255 range is available.
+- If checked: full 0-255 range is available.
 - State persists in `localStorage` (brightness value + checkbox state).
 
 ---
 
-## 3. All Sub-Pages — Content Centering
+## 3. All Sub-Pages, Content Centering
 
 **Problem:** Content on sub-pages (fire, liquid, text, IMU, weather, temp, timer, clock, animations, matrix rain, emoji) is left-aligned with no max-width, making it feel unanchored at wide viewports.
 
-**Solution:** On each sub-page, wrap the main content (everything after the back link) in a `<div class="content-wrap">` with `max-width: 760px; margin: 0 auto`. No other style changes — existing layout, colors, and interactions stay identical.
+**Solution:** On each sub-page, wrap the main content (everything after the back link) in a `<div class="content-wrap">` with `max-width: 760px; margin: 0 auto`. No other style changes, existing layout, colors, and interactions stay identical.
 
 Affected files: `fire.html`, `liquid.html`, `text.html`, `imu.html`, `weather.html`, `temp.html`, `timer.html`, `clock.html`, `animations.html`, `matrix_rain.html`, `emoji.html`
 
@@ -54,4 +54,4 @@ Affected files: `fire.html`, `liquid.html`, `text.html`, `imu.html`, `weather.ht
 ## Out of Scope
 - No changes to firmware or MCP server.
 - No new pages.
-- No CSS framework or build tooling introduced — all pages stay self-contained vanilla HTML/CSS/JS.
+- No CSS framework or build tooling introduced, all pages stay self-contained vanilla HTML/CSS/JS.

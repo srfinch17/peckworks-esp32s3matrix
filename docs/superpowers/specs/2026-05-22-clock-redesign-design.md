@@ -12,7 +12,7 @@ Three files change:
 
 | File | Change |
 |------|--------|
-| `esp32_matrix_webserver/data/clock.html` | Full rewrite — 8×8 preview, 3 pickers, 32 presets, updated API call |
+| `esp32_matrix_webserver/data/clock.html` | Full rewrite, 8×8 preview, 3 pickers, 32 presets, updated API call |
 | `esp32_matrix_webserver/clock_timer.ino` | Refactor `drawTimeDisplay()` to accept 3 `CRGB` params; update `stepClockFrame()` to store and use them |
 | `esp32_matrix_webserver/api_handlers.ino` | Parse `colorHours`, `colorColon`, `colorMinutes` from incoming JSON |
 
@@ -26,25 +26,25 @@ The preview and the firmware share the same layout:
 
 ```
      col: 0    1    2    3    4    5    6    7
-row 0:  [H]  [H]  [H]  [H]  [H]  [H]  [H]  [H]   ← hours (3×3 font, rows 0–2)
+row 0:  [H]  [H]  [H]  [H]  [H]  [H]  [H]  [H]   ← hours (3×3 font, rows 0-2)
 row 1:  [H]  [H]  [H]  [H]  [H]  [H]  [H]  [H]
 row 2:  [H]  [H]  [H]  [ ]  [H]  [H]  [H]  [ ]
-row 3:  [ ]  [M]  [M]  [M]  [ ]  [M]  [M]  [M]   ← minutes (MINI_FONT 3×5, rows 3–7)
+row 3:  [ ]  [M]  [M]  [M]  [ ]  [M]  [M]  [M]   ← minutes (MINI_FONT 3×5, rows 3-7)
 row 4:  [ ]  [M]  [M]  [M]  [ ]  [M]  [M]  [M]
 row 5:  [C]  [M]  [M]  [M]  [ ]  [M]  [M]  [M]   ← colon dot at col 0 row 5
 row 6:  [ ]  [M]  [M]  [M]  [ ]  [M]  [M]  [M]
 row 7:  [C]  [M]  [M]  [M]  [ ]  [M]  [M]  [M]   ← colon dot at col 0 row 7
 ```
 
-**Minutes columns:** colon[0] · tens[1–3] · gap[4] · units[5–7]
+**Minutes columns:** colon[0] · tens[1-3] · gap[4] · units[5-7]
 
-**Hours (3×3 font, rows 0–2):**
-- Single digit (1–9): cols 0–2
-- Double digit (10–12): `'1'` at cols 0–2, units digit at cols 4–6, 1-pixel gap at col 3
+**Hours (3×3 font, rows 0-2):**
+- Single digit (1-9): cols 0-2
+- Double digit (10-12): `'1'` at cols 0-2, units digit at cols 4-6, 1-pixel gap at col 3
 
 **Fonts:**
-- Hours: `FONT_3X3` — each entry is `[col0, col1, col2]`, bit 0 = top row, bit 2 = bottom row
-- Minutes: `MINI_FONT` (aka `FONT_3X5`) — each entry is `[col0, col1, col2]`, bit 0 = top row, bit 4 = bottom row
+- Hours: `FONT_3X3`, each entry is `[col0, col1, col2]`, bit 0 = top row, bit 2 = bottom row
+- Minutes: `MINI_FONT` (aka `FONT_3X5`), each entry is `[col0, col1, col2]`, bit 0 = top row, bit 4 = bottom row
 
 **Background:** Always black. No background color picker.
 
@@ -119,10 +119,10 @@ void drawTimeDisplay(int hVal, int mVal, CRGB colorH, CRGB colorC, CRGB colorM);
 
 Internal logic:
 - Colon dots: `matrix[row][0] = colorC` for rows 5 and 7
-- Minutes tens: `MINI_FONT` at cols 1–3, rows 3–7, color `colorM`
-- Minutes units: `MINI_FONT` at cols 5–7, rows 3–7, color `colorM`
-- Hours single digit: `FONT_3X3` at cols 0–2, rows 0–2, color `colorH`
-- Hours double digit: `FONT_3X3` `'1'` at cols 0–2, units at cols 4–6, rows 0–2, color `colorH`
+- Minutes tens: `MINI_FONT` at cols 1-3, rows 3-7, color `colorM`
+- Minutes units: `MINI_FONT` at cols 5-7, rows 3-7, color `colorM`
+- Hours single digit: `FONT_3X3` at cols 0-2, rows 0-2, color `colorH`
+- Hours double digit: `FONT_3X3` `'1'` at cols 0-2, units at cols 4-6, rows 0-2, color `colorH`
 
 **`stepClockFrame()`:** Replace `clockBgColor`/`digitColor` logic with the three static vars above. Fill background black. Call `drawTimeDisplay(h, m, clockColorHours, clockColorColon, clockColorMins)`.
 

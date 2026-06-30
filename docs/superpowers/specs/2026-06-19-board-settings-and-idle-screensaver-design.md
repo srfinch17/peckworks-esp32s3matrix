@@ -1,4 +1,4 @@
-# Board Settings + Idle Screensaver — Design Spec
+# Board Settings + Idle Screensaver, Design Spec
 
 **Date:** 2026-06-19
 **Status:** Approved for planning
@@ -8,12 +8,12 @@
 
 Two stacked features:
 
-1. **Settings Foundation** — a persistent, mergeable, board-owned settings store
-   (NVS) with an HTTP surface (`/api/settings`), a web page (`data/settings.html`),
+1. **Settings Foundation**, a persistent, mergeable, board-owned settings store
+   (NVS) with an HTTP surface (`/api/settings`), a web page (`data/settings.html`)
    and a thin MCP layer so settings can be changed by talking to Claude *or* via the
    web UI. The board is the single source of truth; every editor is just a client.
-2. **Idle Screensaver Engine** — a board-side state machine that, once Claude goes
-   idle, runs **Goof → Zz → rotating screensaver** autonomously and indefinitely,
+2. **Idle Screensaver Engine**, a board-side state machine that, once Claude goes
+   idle, runs **Goof → Zz → rotating screensaver** autonomously and indefinitely
    surviving the host laptop sleeping or disconnecting. Governed entirely by the
    settings from Part 1.
 
@@ -24,28 +24,28 @@ is built to grow.
 
 Today, when Claude finishes a turn the `Stop` hook spawns a detached host process
 (`claude-hooks/matrix_idle.py`) that plays "bored" animations for a while, then
-settles on a sleepy **Zz** face (`REST`) and exits — and the board **sits on that Zz
+settles on a sleepy **Zz** face (`REST`) and exits, and the board **sits on that Zz
 forever**. The user wants the board to instead drift into a screensaver rotation
 (fire / matrix rain / clock / fireworks / …) after the Zz, and to keep cycling all
 night, **without depending on the host machine staying awake**.
 
 Separately, the user wants a real, persistent **settings** system: configurable
 behavior that survives a firmware flash, editable both conversationally (Claude/MCP)
-and via a web page — because this project is intended to eventually ship to
+and via a web page, because this project is intended to eventually ship to
 **end users / customers** who flash the firmware and drive the board through *their*
 Claude plus the web UI.
 
 ## Goals
 
-- Persistent settings that **survive a normal Sketch→Upload and LittleFS upload**,
-  with a non-destructive **merge-on-boot** (new firmware adds keys with defaults,
+- Persistent settings that **survive a normal Sketch→Upload and LittleFS upload**
+  with a non-destructive **merge-on-boot** (new firmware adds keys with defaults
   keeps existing user values).
-- A single board-owned settings store edited by **both** the web page and Claude/MCP,
+- A single board-owned settings store edited by **both** the web page and Claude/MCP
   which therefore can never drift out of sync.
 - Idle flow **Goof → Zz → rotating screensaver**, board-autonomous from the moment
   the host goes quiet (robust against laptop sleep/reboot/disconnect).
 - The user can change settings and timers **by talking to Claude**.
-- Plan for a **painless customer install** — graceful defaults on a fresh flash, no
+- Plan for a **painless customer install**, graceful defaults on a fresh flash, no
   per-user hand-editing on the MCP side, board discovery addressed.
 
 ## Non-Goals
@@ -58,7 +58,7 @@ Claude plus the web UI.
 
 ---
 
-## Part 1 — Settings Foundation
+## Part 1, Settings Foundation
 
 ### Storage: NVS (`Preferences`)
 
@@ -76,13 +76,13 @@ A new translation unit **`settings.ino`** owns:
 
 - A `Settings` struct (typed fields, see v1 seed below) held in RAM as the live config.
 - `const` **defaults** for every field.
-- `loadSettings()` — called in `setup()` after `prefs.begin`. For each key:
+- `loadSettings()`, called in `setup()` after `prefs.begin`. For each key:
   `prefs.isKey(key) ? read it : write the default`. (Use `isKey` to avoid the
   harmless NOT_FOUND log noise, matching the existing auto-resume pattern.) Result:
   a fresh flash gets all defaults; an upgraded flash keeps existing values and only
   fills in newly-added keys.
-- `saveSettings(...)` — persist changed fields.
-- `settingsToJson()` / `applySettingsJson(partialBody)` — serialize current settings;
+- `saveSettings(...)`, persist changed fields.
+- `settingsToJson()` / `applySettingsJson(partialBody)`, serialize current settings;
   apply a partial update (only provided keys change), validate, clamp, persist, and
   apply live (e.g. a brightness change takes effect immediately).
 - A **`settings_version`** int key. On boot, if the stored version is older than the
@@ -96,14 +96,14 @@ A new translation unit **`settings.ino`** owns:
 | `GET`  | `/api/settings` | Returns all current settings as JSON (`settingsToJson`). |
 | `POST` | `/api/settings` | Partial update: only keys present in the body change; validates/clamps, persists, applies live. Returns the new full settings. |
 
-Handlers `handleSettingsGet` / `handleSettingsPost` go in `api_handlers.ino`,
+Handlers `handleSettingsGet` / `handleSettingsPost` go in `api_handlers.ino`
 registered next to the others in `esp32_matrix_webserver.ino` (~line 738). `POST`
 must tolerate partial bodies so both the web page (full form) and Claude
 ("just change the idle timeout") use the same endpoint.
 
 ### Web UI
 
-- New **`data/settings.html`** — a control page reading `GET /api/settings` to populate
+- New **`data/settings.html`**, a control page reading `GET /api/settings` to populate
   the form and `POST`ing changes. Sections: Idle behavior (enable, per-app rotation
   checkboxes, screensaver-after delay, re-pick interval, idle brightness), Display
   (default brightness, default boot animation), Clock (timezone). Sliders follow the
@@ -117,7 +117,7 @@ Add a `settings_version` field to `handleStatus` so drift/version tooling can se
 
 ---
 
-## Part 2 — v1 Settings (the seed set)
+## Part 2, v1 Settings (the seed set)
 
 | Setting | Key (≤15 ch) | Type | Default | Notes |
 |---|---|---|---|---|
@@ -136,15 +136,15 @@ existing `IDLE_APPS` in `mcp_server/idle.ts`; keep the two lists conceptually al
 
 ---
 
-## Part 3 — Idle Screensaver Engine (board-side)
+## Part 3, Idle Screensaver Engine (board-side)
 
 ### Dead-man's switch
 
 New state in the main `.ino`:
 
-- `uint32_t lastActivityMs` — updated whenever the board receives a **non-idle**
+- `uint32_t lastActivityMs`, updated whenever the board receives a **non-idle**
   display command (a real user/Claude action).
-- `bool idleEligible` — armed when Claude signals idle; cleared by any non-idle
+- `bool idleEligible`, armed when Claude signals idle; cleared by any non-idle
   command. A deliberately-set animation (e.g. the user setting snow via the web) is
   *not* idle-eligible, so the screensaver never hijacks it.
 - `bool screensaverActive`, `uint32_t nextPickMs`, `String idleLastType`.
@@ -172,13 +172,13 @@ own internal launches must **not** update `lastActivityMs` or clear `idleEligibl
 - **Arm:** Claude going idle. The existing `Stop` hook (`matrix_signal.py done`) also
   pings a lightweight board signal that sets `idleEligible = true`. (Implementation
   detail in the plan: a small `/api/idle/arm` POST, or fold an `idle` flag into the
-  presence path — chosen during planning.)
+  presence path, chosen during planning.)
 - **Disarm + reset timer:** any **non-idle** command (a user web action, Claude firing
   `working`/`wait`, an MCP animation) sets `idleEligible = false`, `screensaverActive
   = false`, updates `lastActivityMs`, and runs the command. The `UserPromptSubmit`
   hook's existing `wait` signal naturally disarms (Claude is active again).
 - **Keep armed:** the host goof-watcher's frame pushes are marked as idle content so
-  they reset `lastActivityMs` *without* disarming — the board stays out of the way
+  they reset `lastActivityMs` *without* disarming, the board stays out of the way
   while the host actively goofs, then takes over when the host falls silent.
 
 ### Emergent sequence
@@ -192,24 +192,24 @@ no explicit hand-off command and no goof frames baked into firmware.
 ### Host change
 
 `claude-hooks/matrix_idle.py`: today its terminal `play(REST)` shows the Zz then
-exits, leaving the board stuck. Under this design it can keep showing the Zz (good —
+exits, leaving the board stuck. Under this design it can keep showing the Zz (good
 that's the intended Zz phase) and simply exit; the board's idle timer then takes over.
 The watcher's goof/Zz pushes should carry the idle marker so they don't disarm.
 (Exact REST/cap tuning handled in the plan.) Remember the live-copy sync: hooks have
-installed copies at `~/.claude/hooks/` — edit both. [[hook_live_copy_sync]]
+installed copies at `~/.claude/hooks/`, edit both. [[hook_live_copy_sync]]
 
 ---
 
-## Part 4 — MCP Settings Layer
+## Part 4, MCP Settings Layer
 
 Both the web page and Claude edit the **same** `/api/settings`, so the MCP tools are
 thin HTTP shims with all validation living once on the board.
 
 New tools in `mcp_server/index.ts` (wrappers over `BOARD_URL`):
 
-- **`matrix_get_settings`** — `GET /api/settings`; returns current settings + timers so
+- **`matrix_get_settings`**, `GET /api/settings`; returns current settings + timers so
   Claude can answer "what's my idle timeout?" / "which screensavers are on?".
-- **`matrix_set_settings`** — `POST /api/settings` with a partial body; lets Claude
+- **`matrix_set_settings`**, `POST /api/settings` with a partial body; lets Claude
   change any setting/timer conversationally ("make the screensaver kick in after 5
   minutes" → `{ idle_after: 300 }`; "turn off the clock in the rotation" → toggle in
   `idle_apps`). Tool description must map natural phrasing → keys clearly.
@@ -219,9 +219,9 @@ tools. No new board logic.
 
 ---
 
-## Part 5 — Distribution / Customer-Install Requirements
+## Part 5, Distribution / Customer-Install Requirements
 
-This feature is on the path to a **user-flashes-it, their-Claude-controls-it** product,
+This feature is on the path to a **user-flashes-it, their-Claude-controls-it** product
 so the plan must treat these as first-class, not afterthoughts: [[project_distribution]]
 
 - **Graceful fresh-flash defaults:** a board with empty NVS must boot to sane settings
@@ -242,25 +242,25 @@ so the plan must treat these as first-class, not afterthoughts: [[project_distri
 ## Touch List
 
 **Firmware (`esp32_matrix_webserver/`):**
-- `settings.ino` *(new)* — `Settings` struct, defaults, `loadSettings`/`saveSettings`,
+- `settings.ino` *(new)*, `Settings` struct, defaults, `loadSettings`/`saveSettings`
   JSON (de)serialize, `settings_version`/migration, idle-engine helpers.
-- `esp32_matrix_webserver.ino` — call `loadSettings()` in `setup()`; idle state globals;
+- `esp32_matrix_webserver.ino`, call `loadSettings()` in `setup()`; idle state globals;
   loop tick for the dead-man's switch + rotation; route registration for `/api/settings`
   (+ idle arm); `settings_version` plumbed into status.
-- `api_handlers.ino` — `handleSettingsGet`/`handleSettingsPost` (+ idle-arm handler);
+- `api_handlers.ino`, `handleSettingsGet`/`handleSettingsPost` (+ idle-arm handler);
   ensure non-idle commands update `lastActivityMs`/clear `idleEligible`.
 
 **Host hooks (`claude-hooks/` + installed copies in `~/.claude/hooks/`):**
-- `matrix_idle.py` — terminal change (Zz then exit, let the board take over); mark
+- `matrix_idle.py`, terminal change (Zz then exit, let the board take over); mark
   goof/Zz pushes as idle content.
-- `matrix_signal.py` / `Stop` hook — fire the board idle-arm signal.
+- `matrix_signal.py` / `Stop` hook, fire the board idle-arm signal.
 
 **Web (`data/`):**
-- `settings.html` *(new)* — full settings form against `/api/settings`.
-- `index.html` — Settings card/link.
+- `settings.html` *(new)*, full settings form against `/api/settings`.
+- `index.html`, Settings card/link.
 
 **MCP (`mcp_server/`):**
-- `index.ts` — `matrix_get_settings` + `matrix_set_settings` tools.
+- `index.ts`, `matrix_get_settings` + `matrix_set_settings` tools.
 - (Optional) keep `idle.ts`'s `IDLE_APPS` conceptually aligned with the firmware
   rotation universe; note the two-source duplication.
 
@@ -276,7 +276,7 @@ artifacts (flash / LittleFS / MCP rebuild+reconnect). [[versioning_system]]
   get/set round-trip; the full Goof → Zz → Screensaver sequence including the
   laptop-sleep case (screensaver still starts); a deliberately-set animation is **not**
   hijacked. [[feedback_dev_workflow]]
-- Watch the **frames heap** caution — keep any idle/goof frame payloads light; never
+- Watch the **frames heap** caution, keep any idle/goof frame payloads light; never
   fire heavy full-panel frame bursts. [[bug_frames_heap_crash]]
 
 ## Open Questions (resolve during planning)

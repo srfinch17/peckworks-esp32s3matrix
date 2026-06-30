@@ -4,13 +4,13 @@
 
 **Goal:** Fix three issues in the ESP32 Matrix web UI: center and constrain the index page card grid, redesign the brightness slider with a heat warning, and center content on all sub-pages.
 
-**Architecture:** All changes are self-contained edits to HTML files in `esp32_matrix_webserver/data/`. No new files, no shared assets, no build step — each file is vanilla HTML/CSS/JS served directly from the ESP32 filesystem.
+**Architecture:** All changes are self-contained edits to HTML files in `esp32_matrix_webserver/data/`. No new files, no shared assets, no build step, each file is vanilla HTML/CSS/JS served directly from the ESP32 filesystem.
 
 **Tech Stack:** Vanilla HTML, CSS, JavaScript. `localStorage` for brightness persistence across page loads.
 
 ---
 
-## Task 1: Index page — center and constrain the card grid
+## Task 1: Index page, center and constrain the card grid
 
 **Files:**
 - Modify: `esp32_matrix_webserver/data/index.html`
@@ -32,7 +32,7 @@ Replace the current body structure (everything inside `<body>`) so it reads:
   <div class="wrap">
     <header>
       <h1>ESP32-S3 Matrix</h1>
-      <p class="subtitle">Web control panel — served directly from the board</p>
+      <p class="subtitle">Web control panel, served directly from the board</p>
     </header>
 
     <div class="apps">
@@ -67,7 +67,7 @@ git commit -m "fix: center and constrain card grid on index page"
 
 ---
 
-## Task 2: Index page — brightness slider redesign
+## Task 2: Index page, brightness slider redesign
 
 **Files:**
 - Modify: `esp32_matrix_webserver/data/index.html`
@@ -132,8 +132,8 @@ function setStatus(msg, isErr) {
 async function post(url, data) {
   try {
     const r = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST'
+      headers: { 'Content-Type': 'application/json' }
       body: JSON.stringify(data)
     });
     return r.ok;
@@ -142,7 +142,7 @@ async function post(url, data) {
 
 async function clearDisplay() {
   const ok = await post('/api/display/clear', {});
-  setStatus(ok ? 'Display cleared.' : 'Error — is the board reachable?', !ok);
+  setStatus(ok ? 'Display cleared.' : 'Error, is the board reachable?', !ok);
 }
 
 // ── Brightness ────────────────────────────────────────────────────────────────
@@ -198,11 +198,11 @@ function updateBrightness(rawVal) {
 
 Open `index.html` in a browser:
 1. Slider should start at 10. Value display should not jitter as you drag left (the `min-width:2.5ch` keeps it stable).
-2. Drag slider right past 100 — it should snap back to 100 while checkbox is unchecked.
-3. Check the warning checkbox — now drag past 100. Should go all the way to 255.
-4. Uncheck the checkbox while slider is at e.g. 150 — should immediately snap to 100 and send to board.
-5. Reload the page — slider should restore from `localStorage`.
-6. Set slider to 150, reload — should clamp to 100 (checkbox unchecked resets on reload too).
+2. Drag slider right past 100, it should snap back to 100 while checkbox is unchecked.
+3. Check the warning checkbox, now drag past 100. Should go all the way to 255.
+4. Uncheck the checkbox while slider is at e.g. 150, should immediately snap to 100 and send to board.
+5. Reload the page, slider should restore from `localStorage`.
+6. Set slider to 150, reload, should clamp to 100 (checkbox unchecked resets on reload too).
 
 - [ ] **Step 5: Commit**
 
@@ -213,9 +213,9 @@ git commit -m "feat: redesign brightness slider with heat warning and safe-range
 
 ---
 
-## Task 3: Sub-pages — center all content
+## Task 3: Sub-pages, center all content
 
-**Files — all modified the same way:**
+**Files, all modified the same way:**
 - `esp32_matrix_webserver/data/fire.html`
 - `esp32_matrix_webserver/data/liquid.html`
 - `esp32_matrix_webserver/data/text.html`
@@ -228,7 +228,7 @@ git commit -m "feat: redesign brightness slider with heat warning and safe-range
 - `esp32_matrix_webserver/data/matrix_rain.html`
 - `esp32_matrix_webserver/data/emoji.html`
 
-The change is identical for every file — apply it to each one in sequence.
+The change is identical for every file, apply it to each one in sequence.
 
 - [ ] **Step 1: Add `.wrap` CSS to each file**
 
@@ -262,7 +262,7 @@ After:
 </body>
 ```
 
-**Note for `clock.html`:** Its back link is inside a `<header>` element rather than a standalone `<a>`. Same treatment — the `<div class="wrap">` wraps the `<header>` and everything after it.
+**Note for `clock.html`:** Its back link is inside a `<header>` element rather than a standalone `<a>`. Same treatment, the `<div class="wrap">` wraps the `<header>` and everything after it.
 
 - [ ] **Step 3: Verify two representative pages**
 
