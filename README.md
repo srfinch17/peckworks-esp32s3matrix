@@ -47,3 +47,8 @@ turn the panel into Claude's ambient expression channel. It lives in a separate 
 **[claude-expression-studio](https://github.com/srfinch17/claude-expression-studio)**. That
 project talks to this board only over the HTTP API in [`docs/API.md`](docs/API.md), and the
 board is optional for it (it has a board-free browser mode).
+
+**This firmware repo contains no MCP server, and the board itself needs none**; the board
+just answers HTTP. The one MCP server in the system is the studio's (it registers as
+`expression-studio`). To drive the board from Claude, install that repo (`npm run setup`)
+and point it here (`--board http://<board-ip>`).

@@ -153,7 +153,8 @@ Full history of these in `docs/PITFALLS.md` (WiFi-drop + credential-loss entries
 ## 7. Cutting an end-user RELEASE (distribution, NOT the dev loop)
 End users never do the two-step upload above, they flash ONE merged binary and
 double-click a `.mcpb`. Maintainer-side, produce those artifacts:
-- **`npm run build:mcpb`** → `release/esp32-matrix.mcpb` (the Claude Desktop extension
+- **`npm run build:mcpb`** (in the `claude-expression-studio` repo) → its
+  `release/expression-studio.mcpb` (the Claude Desktop extension
   double-click install, no JSON/Node). After a TS edit, **`/mcp` reconnect FIRST** so the
   live server releases the old native binary (a Windows file lock otherwise leaves
   `@napi-rs/canvas` in the bundle).
