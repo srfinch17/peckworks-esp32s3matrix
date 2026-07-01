@@ -11,7 +11,10 @@ selector, weather/clock, a calibration lab, and an HTTP API. It exposes that API
 > **The Claude integration lives elsewhere.** The MCP server, the Expression Studio
 > the trigger manifest, and the Claude Code hooks are in the separate
 > **`claude-expression-studio`** repo. They drive this board ONLY via `docs/API.md`;
-> no code is shared. See `docs/PITFALLS.md` before debugging hardware.
+> no code is shared. There is NO MCP server in this repo (and no `.mcp.json`; a stale
+> one pointing at the pre-split `mcp_server/` path was removed 2026-07-01). The one
+> MCP server in the system is the studio's, registered as **`expression-studio`**.
+> See `docs/PITFALLS.md` before debugging hardware.
 
 > **Cross-device memory (laptop ↔ desktop).** Developed on two machines. Claude Code's
 > per-project auto-memory (`~/.claude/projects/.../memory/`) is redirected by a directory

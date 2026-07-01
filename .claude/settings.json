@@ -8,9 +8,9 @@
       "mcp__playwright__browser_console_messages",
       "mcp__playwright__browser_snapshot",
       "mcp__playwright__browser_network_requests",
-      "mcp__esp32-matrix__matrix_status",
-      "mcp__esp32-matrix__matrix_version",
-      "mcp__esp32-matrix__matrix_studio"
+      "mcp__expression-studio__matrix_status",
+      "mcp__expression-studio__matrix_version",
+      "mcp__expression-studio__matrix_studio"
     ]
   }
 }
