@@ -125,4 +125,10 @@ reports `fw_version`/`fw_built`/`web_version`. `npm run check` flags drift. Boar
 `ESP32_URL` env (default `http://esp32matrix.local`). (The MCP server is versioned
 separately in the `claude-expression-studio` repo.)
 
+**Public Pages site:** `site/index.html` (self-contained landing page, no build step) deploys
+automatically via `.github/workflows/pages.yml` on any master push touching `site/**`, to
+https://srfinch17.github.io/peckworks-esp32s3matrix/. It cross-links the `peckworks-plantfloor`
+pipeline (the MQTT publisher's consumer) and the expression studio; keep those links live and
+keep the site's topic/payload table in sync with `docs/API.md`.
+
 Deeper material: `docs/PITFALLS.md`, `docs/superpowers/specs/`, `docs/superpowers/plans/`.
