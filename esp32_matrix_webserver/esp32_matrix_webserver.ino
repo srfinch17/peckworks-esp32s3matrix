@@ -181,6 +181,12 @@ struct Settings {
   String   bootAnim;      // pinned boot animation type ("" = auto-resume)
   String   tz;            // POSIX TZ for the clock ("" = none)
   bool     calibCorrection; // apply the measured LED calibration correction (default true)
+  // Plant floor MQTT publisher (off by default; logic in mqtt_publisher.ino). When off,
+  // or with no host set, the board behaves exactly as before.
+  bool     mqttOn;          // publish sensor readings to an MQTT broker
+  String   mqttHost;        // broker LAN address, e.g. "192.168.1.20" ("" = not configured)
+  uint16_t mqttPort;        // broker TCP port (default 1883)
+  uint32_t mqttEveryS;      // seconds between publishes (default 3, matches the old bridge)
 };
 Settings settings;
 
@@ -261,6 +267,10 @@ CRGB     clockColorMins  = CRGB(  0, 204, 255);  // minutes digit color  (#00CCF
 int      clockTimezone   = -7;                   // UTC offset in hours (e.g. -7 = Arizona MST)
 String   clockTZ         = "";                    // POSIX TZ string (DST-aware, e.g. "MST7MDT,M3.2.0,M11.1.0"); empty = use offset
 bool     ntpSynced       = false;
+// True once ANY feature (clock/calendar handler, timezone live-apply, or the MQTT publisher)
+// has started SNTP. Gates the MQTT publisher's own NTP kick so it can't restart SNTP and force
+// the global timezone to UTC underneath a running clock/calendar. See mqtt_publisher.ino.
+bool     ntpStarted      = false;
 int      clockPrevHour   = -1;                   // used to skip redraws when nothing changed
 int      clockPrevMin    = -1;
 
@@ -999,4 +1009,5 @@ void loop() {
   }
 
   idleTick();   // idle_engine.ino — dead-man's switch screensaver
+  mqttTick();   // mqtt_publisher.ino: publish sensor readings when MQTT is enabled
 }

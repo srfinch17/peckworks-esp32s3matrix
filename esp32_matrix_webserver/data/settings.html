@@ -60,6 +60,27 @@
         </div>
       </div>
 
+      <div class="panel">
+        <div class="panel-title">Plant floor (MQTT)</div>
+        <div class="subcard">
+          <div class="row"><label>Publish sensor readings</label><input type="checkbox" id="mqtt_enabled"></div>
+          <p class="hint">Off by default. When on, the board publishes its chip temperature and accelerometer to an MQTT broker on your network. Leave off if you are not running one.</p>
+        </div>
+        <div class="subcard">
+          <div class="subhead">Broker address (LAN IP)</div>
+          <div class="row"><input type="text" id="mqtt_host" placeholder="e.g. 192.168.1.20"></div>
+          <p class="hint">The PC running the broker. Use its network IP, not "localhost" (that would mean the board itself).</p>
+        </div>
+        <div class="subcard">
+          <div class="subhead">Broker port</div>
+          <div class="row"><input type="text" id="mqtt_port" inputmode="numeric" placeholder="1883"></div>
+        </div>
+        <div class="subcard">
+          <div class="row"><label>Publish every <output id="mqtt_o"></output> s</label></div>
+          <div class="row"><input type="range" id="mqtt_every_secs" min="1" max="60" step="1"></div>
+        </div>
+      </div>
+
       <div class="actions">
         <button type="submit" class="btn-primary">Save</button>
         <span class="status" id="status"></span>
@@ -97,9 +118,14 @@ async function load(){
   $("boot_animation").value=s.boot_animation||"";
   $("timezone").value=s.timezone||"";
   $("calibration_correction").checked=s.calibration_correction!==false;
+  $("mqtt_enabled").checked=!!s.mqtt_enabled;
+  $("mqtt_host").value=s.mqtt_host||"";
+  $("mqtt_port").value=s.mqtt_port||1883;
+  $("mqtt_every_secs").value=s.mqtt_every_secs||3;
   renderApps(s.idle_apps);
   bindOut("idle_after_secs","after_o");bindOut("idle_rotate_secs","rot_o");
   bindOut("idle_brightness","ibri_o");bindOut("default_brightness","dbri_o");
+  bindOut("mqtt_every_secs","mqtt_o");
 }
 $("f").addEventListener("submit",async e=>{
   e.preventDefault();
@@ -109,7 +135,9 @@ $("f").addEventListener("submit",async e=>{
     idle_after_secs:+$("idle_after_secs").value, idle_rotate_secs:+$("idle_rotate_secs").value,
     idle_brightness:+$("idle_brightness").value, default_brightness:+$("default_brightness").value,
     boot_animation:$("boot_animation").value.trim(), timezone:$("timezone").value.trim(),
-    calibration_correction:$("calibration_correction").checked
+    calibration_correction:$("calibration_correction").checked,
+    mqtt_enabled:$("mqtt_enabled").checked, mqtt_host:$("mqtt_host").value.trim(),
+    mqtt_port:+$("mqtt_port").value||1883, mqtt_every_secs:+$("mqtt_every_secs").value
   };
   await fetch("/api/settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
   $("status").textContent="Saved ✓"; setTimeout(()=>$("status").textContent="",1500);
