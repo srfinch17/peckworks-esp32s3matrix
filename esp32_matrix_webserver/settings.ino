@@ -30,6 +30,10 @@ void loadSettings() {
   settings.bootAnim   = prefs.isKey("boot_anim") ? prefs.getString("boot_anim", "")          : (prefs.putString("boot_anim", ""), String(""));
   settings.tz         = prefs.isKey("tz")        ? prefs.getString("tz", "")                 : (prefs.putString("tz", ""), String(""));
   settings.calibCorrection = prefs.isKey("calib_corr") ? prefs.getBool("calib_corr", true)   : (prefs.putBool("calib_corr", true), true);
+  settings.mqttOn     = prefs.isKey("mqtt_on")   ? prefs.getBool("mqtt_on", false)           : (prefs.putBool("mqtt_on", false), false);
+  settings.mqttHost   = prefs.isKey("mqtt_host") ? prefs.getString("mqtt_host", "")          : (prefs.putString("mqtt_host", ""), String(""));
+  settings.mqttPort   = prefs.isKey("mqtt_port") ? prefs.getUShort("mqtt_port", 1883)        : (prefs.putUShort("mqtt_port", 1883), (uint16_t)1883);
+  settings.mqttEveryS = prefs.isKey("mqtt_every")? prefs.getUInt("mqtt_every", 3)            : (prefs.putUInt("mqtt_every", 3), (uint32_t)3);
 
   uint16_t stored = prefs.getUShort("set_ver", 0);
   if (stored != SETTINGS_VERSION) {
@@ -50,6 +54,10 @@ void saveSettings() {
   prefs.putString("boot_anim", settings.bootAnim);
   prefs.putString("tz", settings.tz);
   prefs.putBool("calib_corr", settings.calibCorrection);
+  prefs.putBool("mqtt_on", settings.mqttOn);
+  prefs.putString("mqtt_host", settings.mqttHost);
+  prefs.putUShort("mqtt_port", settings.mqttPort);
+  prefs.putUInt("mqtt_every", settings.mqttEveryS);
 }
 
 String settingsToJson() {
@@ -67,6 +75,10 @@ String settingsToJson() {
   j += ",\"boot_animation\":\"" + escapeJson(settings.bootAnim) + "\"";
   j += ",\"timezone\":\""      + escapeJson(settings.tz) + "\"";
   j += ",\"calibration_correction\":" + String(settings.calibCorrection ? "true" : "false");
+  j += ",\"mqtt_enabled\":"    + String(settings.mqttOn ? "true" : "false");
+  j += ",\"mqtt_host\":\""     + escapeJson(settings.mqttHost) + "\"";
+  j += ",\"mqtt_port\":"       + String(settings.mqttPort);
+  j += ",\"mqtt_every_secs\":" + String(settings.mqttEveryS);
   j += "}";
   return j;
 }
@@ -88,10 +100,16 @@ bool applySettingsJson(const String& body) {
     if (settings.tz.length()) {
       clockTZ = settings.tz;
       configTzTime(clockTZ.c_str(), "pool.ntp.org", "time.nist.gov");
+      ntpStarted = true;   // SNTP started here; keep the MQTT publisher from kicking UTC over it
     }
   }
   if (!doc["calibration_correction"].isNull()) settings.calibCorrection = doc["calibration_correction"].as<bool>();
+  if (!doc["mqtt_enabled"].isNull())    settings.mqttOn     = doc["mqtt_enabled"].as<bool>();
+  if (!doc["mqtt_host"].isNull())       settings.mqttHost   = String((const char*)(doc["mqtt_host"] | settings.mqttHost.c_str()));
+  if (!doc["mqtt_port"].isNull())       settings.mqttPort   = (uint16_t)constrain((long)(doc["mqtt_port"] | (long)settings.mqttPort), 1L, 65535L);
+  if (!doc["mqtt_every_secs"].isNull()) settings.mqttEveryS = (uint32_t)constrain((long)(doc["mqtt_every_secs"] | (long)settings.mqttEveryS), 1L, 3600L);
   saveSettings();
+  mqttApplySettings();   // mqtt_publisher.ino: re-point / reconnect if the broker config changed
   // default_brightness: unified with the live brightness. Apply immediately AND
   // persist via the existing auto-resume "bri" key, so it is identical to the
   // value the board restores on boot — never an inert parallel setting.

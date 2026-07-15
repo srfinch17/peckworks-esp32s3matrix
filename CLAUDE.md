@@ -60,7 +60,8 @@ x→right, y→down. Out-of-bounds returns `-1`. Always draw via `setPixel(x, y,
 
 ## Arduino IDE setup
 
-**Libraries:** FastLED · ArduinoJson · PNGdec · **WiFiManager *by tzapu***.
+**Libraries:** FastLED · ArduinoJson · PNGdec · **WiFiManager *by tzapu*** · **PubSubClient
+*by Nick O'Leary* (v2.8+; the MQTT publisher uses `setBufferSize`/`setSocketTimeout`, added in 2.7)**.
 **Board settings:** Board `Waveshare ESP32-S3-Matrix`; **PSRAM `Enabled`** (the board
 has 2MB, leaving it off starved the heap and caused WiFi/web instability); USB Mode
 `Hardware CDC and JTAG`; USB CDC On Boot `Enabled`; Upload Speed `921600`; Flash Size
@@ -82,7 +83,8 @@ built WITHOUT it** (`build-release.mjs` refuses if present; `--allow-secrets` = 
 `esp32_matrix_webserver.ino` (globals, setup/loop, `XY`/`setPixel`, dispatch) ·
 `api_handlers.ino` (HTTP routes) · `anim_*.ino` (one animation each) · `scroll_text.ino`
 · `fonts.ino` · `weather.ino` · `clock_timer.ino` · `anim_presence.ino` (native presence
-render) · `data/*.html` + the shared web design system (`app.css`, `backnav.js`
+render) · `mqtt_publisher.ino` (optional MQTT telemetry publisher, off by default) ·
+`data/*.html` + the shared web design system (`app.css`, `backnav.js`
 `header.js`, `bright.js`, `previews.js`, `palettes.js`, all `data-auto` self-injecting).
 
 ### Adding an animation (recipe)
@@ -98,9 +100,19 @@ in `data/animations.html` (the hub, NOT index). See the `add-animation` skill.
 - **Auto-resume (NVS):** persists last animation + brightness (`Preferences`, namespace
   `matrix`); restores on boot. `transient:true` on an animation POST skips NVS write.
 - **Settings (NVS):** `POST/GET /api/settings` (partial merge). Keys: `idle_*`
-  `default_brightness`, `boot_animation`, `timezone`, `calibration_correction`.
+  `default_brightness`, `boot_animation`, `timezone`, `calibration_correction`,
+  `mqtt_enabled`/`mqtt_host`/`mqtt_port`/`mqtt_every_secs`.
 - **Idle screensaver:** armed by `POST /api/idle/arm`; rotates `idle_apps` at
   `idle_brightness` after `idle_after_secs`.
+- **MQTT publisher (`mqtt_publisher.ino`, off by default):** when `mqtt_enabled` + a
+  `mqtt_host` are set, the board publishes chip temp + accelerometer to the broker every
+  `mqtt_every_secs` (retained, QoS 0), matching the plantfloor bridge's topics/keys/types (not
+  byte-identical: seconds-precision `ts`, fixed decimals; both parse the same), plus
+  a birth/last-will pair on `plantfloor/status/matrix` (kept OFF the `plantfloor/matrix/#`
+  subtree so the historian/OPC UA subscribers never ingest it). Needs the **PubSubClient**
+  library. Publishing waits for NTP so no reading is stamped pre-sync. Full topic/payload
+  contract in `docs/API.md`; this is the firmware half of the separate `peckworks-plantfloor`
+  pipeline.
 - **Calibration:** the Lab (`data/calibrate.html`) measures into `data/calibration.json`
   (`GET/POST /api/calibration`, live-reload). Correction runs at the `matrixShow()`
   chokepoint (save→correct-in-place→restore). White-balance green gain **0.863**; gamma

@@ -118,6 +118,7 @@ static void startNtp(JsonDocument& doc) {
   String cfg = (strlen(tz) > 0) ? String("tz:") + tz : String("off:") + String(offset);
   if (cfg == ntpActiveCfg) return;   // same config — let the in-flight/periodic sync run
   ntpActiveCfg = cfg;
+  ntpStarted = true;   // tell the MQTT publisher SNTP is owned here; don't let it kick UTC
   if (strlen(tz) > 0) {
     clockTZ = String(tz);
     configTzTime(clockTZ.c_str(), "pool.ntp.org", "time.nist.gov");
@@ -727,6 +728,18 @@ void handleStatus() {
   json += ",\"web_version\":\"" + escapeJson(webVersion) + "\"";
   json += ",\"settings_version\":" + String(SETTINGS_VERSION);
   json += ",\"brightness\":" + String(brightness);
+
+  // MQTT publisher state (see mqtt_publisher.ino). Surfaced here so an enabled-but-not-
+  // working broker is diagnosable without the Serial Monitor: connected? why not (state code +
+  // bad-host)? and is data actually flowing (seconds since the last publish; -1 = never, which
+  // flags "connected but not publishing", e.g. NTP not synced yet).
+  json += ",\"mqtt_enabled\":" + String(settings.mqttOn ? "true" : "false");
+  if (settings.mqttOn) {
+    json += ",\"mqtt_connected\":"          + String(mqttIsConnected() ? "true" : "false");
+    json += ",\"mqtt_state\":"              + String(mqttState());
+    json += ",\"mqtt_bad_host\":"           + String(mqttHostInvalid() ? "true" : "false");
+    json += ",\"mqtt_secs_since_publish\":" + String(mqttSecsSincePublish());
+  }
 
   // Heap telemetry — the scarce pool is internal DMA-capable DRAM (WiFi/WebServer/
   // ArduinoJson churn it; PSRAM can't back it). free_heap is what the loop's
