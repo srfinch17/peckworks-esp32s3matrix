@@ -212,7 +212,7 @@
     </span>
     <nav class="navcodes" aria-label="Jump to section">
       <a href="#what">WHAT</a><a href="#ui">WEB UI</a><a href="#api">API</a>
-      <a href="#render">RENDER</a><a href="#claude">CLAUDE</a><a href="#flash">FLASH</a>
+      <a href="#render">RENDER</a><a href="#claude">CLAUDE</a><a href="#mqtt">MQTT</a><a href="#flash">FLASH</a>
       <a class="gh" href="https://github.com/srfinch17/peckworks-esp32s3matrix">GITHUB ↗</a>
     </nav>
   </div>
@@ -245,7 +245,8 @@
         <a href="#api"><span class="n">03</span><span><span class="t">The HTTP API</span><span class="d">the contract anything can drive</span></span></a>
         <a href="#render"><span class="n">04</span><span><span class="t">How it renders</span><span class="d">XY, setPixel &amp; calibration</span></span></a>
         <a href="#claude"><span class="n">05</span><span><span class="t">Drive it with Claude</span><span class="d">the board as an expression channel</span></span></a>
-        <a href="#flash"><span class="n">06</span><span><span class="t">Flash one yourself</span><span class="d">~$15 board, one-click flash</span></span></a>
+        <a href="#mqtt"><span class="n">06</span><span><span class="t">Publish telemetry (MQTT)</span><span class="d">the board as a sensor node</span></span></a>
+        <a href="#flash"><span class="n">07</span><span><span class="t">Flash one yourself</span><span class="d">~$15 board, one-click flash</span></span></a>
       </div>
     </nav>
   </div>
@@ -497,8 +498,38 @@ curl -X POST http://esp32matrix.local<span class="u">/api/display/frames</span> 
     </div>
   </section>
 
-  <!-- ============ 06 FLASH ============ -->
-  <div class="phase" id="flash"><span class="ph-code">PART&nbsp;06</span><h3>Flash one yourself: a ~$15 board and one binary</h3><span class="rule"></span></div>
+  <!-- ============ 06 MQTT ============ -->
+  <div class="phase" id="mqtt"><span class="ph-code">PART&nbsp;06</span><h3>Publish its own telemetry: the board as a sensor node</h3><span class="rule"></span></div>
+
+  <section class="teach amber">
+    <p class="kicker">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20v-8"/><circle cx="12" cy="11" r="1"/><path d="M8.5 15.5a5 5 0 0 1 0-7M15.5 8.5a5 5 0 0 1 0 7"/><path d="M5.6 18.4a9 9 0 0 1 0-12.8M18.4 5.6a9 9 0 0 1 0 12.8"/></svg>
+      The same board, pushing data out
+    </p>
+    <h3 class="tt">Part 05 was software driving the panel. This is the panel driving a pipeline.</h3>
+    <p class="lead">Flip one switch on the settings page and the board publishes its own sensor readings to any MQTT broker on your LAN: chip temperature and the IMU's accelerometer, retained, every few seconds, no PC in the loop. It's <strong>off by default</strong>; with no broker configured, the firmware behaves exactly as if the feature didn't exist. Setup is all in the web UI: broker address (a numeric LAN IP), port, publish frequency.</p>
+    <ul>
+      <li><strong>Honest telemetry.</strong> <span class="m">celsius</span> is the ESP32's own silicon temperature, not the room's. The board has no ambient sensor, and the labels never pretend otherwise.</li>
+      <li><strong>A built-in liveness story.</strong> On connect the board publishes a retained <span class="m">{"online":true}</span> birth message and deposits a <em>last will</em> with the broker. If the board drops off without a goodbye (power cut, WiFi loss), the broker itself publishes the retained <span class="m">{"online":false}</span> after ~45 seconds of keepalive silence. Consumers learn the board died without ever polling it.</li>
+      <li><strong>Status lives off the data topics.</strong> The birth/will topic sits outside the <span class="m">plantfloor/matrix/#</span> wildcard on purpose, so a subscriber storing readings never ingests a status message as if it were data.</li>
+    </ul>
+
+    <table class="tooltable">
+      <tr><th>Topic</th><th>Payload · all retained, QoS 0</th></tr>
+      <tr><td class="nm">plantfloor/matrix/temperature</td><td><code>{"celsius":&lt;n&gt;,"ts":"&lt;ISO8601 UTC&gt;"}</code></td></tr>
+      <tr><td class="nm">plantfloor/matrix/accelerometer</td><td><code>{"ax":&lt;n&gt;,"ay":&lt;n&gt;,"az":&lt;n&gt;,"ts":"&lt;ISO8601 UTC&gt;"}</code></td></tr>
+      <tr><td class="nm">plantfloor/status/matrix</td><td><code>{"online":true|false}</code> · birth on connect, last will on a drop</td></tr>
+    </table>
+
+    <p>This isn't hypothetical: the publisher feeds a real, working industrial-style pipeline. A companion project (<strong>peckworks-plantfloor</strong>) runs a Mosquitto broker, a C#/.NET historian that stores every reading, and an OPC UA server that re-exposes the live values to industrial clients, all fed by this firmware publishing for itself. Its site tells the consuming side of the same story, including the dead-man's-switch demo: unplug the board, and an <span class="m">Online</span> node flips to false in a real OPC UA client with nobody polling anything.</p>
+    <div class="herobtns">
+      <a class="btn primary" href="https://srfinch17.github.io/peckworks-plantfloor/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>See the plantfloor pipeline ↗</a>
+      <a class="btn" href="https://github.com/srfinch17/peckworks-plantfloor">Plantfloor repo ↗</a>
+    </div>
+  </section>
+
+  <!-- ============ 07 FLASH ============ -->
+  <div class="phase" id="flash"><span class="ph-code">PART&nbsp;07</span><h3>Flash one yourself: a ~$15 board and one binary</h3><span class="rule"></span></div>
 
   <section class="teach">
     <p class="kicker">
@@ -521,7 +552,8 @@ curl -X POST http://esp32matrix.local<span class="u">/api/display/frames</span> 
   <p>
     <a href="https://github.com/srfinch17/peckworks-esp32s3matrix">GitHub</a> ·
     <a href="https://github.com/srfinch17/peckworks-esp32s3matrix/blob/master/docs/API.md">API docs</a> ·
-    <a href="https://srfinch17.github.io/claude-expression-studio/">Claude Expression Studio</a>
+    <a href="https://srfinch17.github.io/claude-expression-studio/">Claude Expression Studio</a> ·
+    <a href="https://srfinch17.github.io/peckworks-plantfloor/">Plantfloor pipeline</a>
   </p>
   <p class="meta-line">// Board photo: Waveshare. The Claude integration lives in the separate claude-expression-studio repo and drives this board only over the documented HTTP API. No code is shared.</p>
 </div></footer>
