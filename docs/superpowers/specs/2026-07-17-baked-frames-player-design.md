@@ -59,7 +59,7 @@ logical RGB with the same semantics as `POST /api/display/frames`. Sidecar
 The 86 `.cfr` files plus `index.json` are COMMITTED to this repo under
 `esp32_matrix_webserver/data/frames/` (171 KB including index.json). They ride the normal LittleFS
 upload and the merged release binary automatically. LittleFS holds ~500 KB of logical data, but
-files cost 4 KB blocks: the built image uses 223 of the 896 KB partition's 224 blocks (measured
+files cost 4 KB blocks: the built image uses all 224 blocks of the 896 KB partition, 0 free (measured
 with mklittlefs). A packing or trimming decision is pending; scripts/check-fs.mjs guards
 headroom.
 

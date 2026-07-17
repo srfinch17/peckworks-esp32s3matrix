@@ -99,7 +99,8 @@ The board ships the studio's animation library as static assets in `/frames/`
   resumes the baked animation after a power cycle.
 - Names are `[a-z0-9_-]` only; a bad name or corrupt file returns 400 and the
   display is untouched (exception: a physical flash read fault mid-load blanks
-  the frames buffer rather than leaving mixed pixels). Play-once files (loop
+  the frames buffer, stopping any frames playback in progress, rather than
+  leaving mixed pixels). Play-once files (loop
   count N in the file) hold their last frame, matching the frames wire channel.
 - `GET /api/status` includes `"baked":"<name>"` while a baked animation is
   active.
