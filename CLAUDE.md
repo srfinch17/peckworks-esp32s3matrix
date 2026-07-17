@@ -85,7 +85,8 @@ built WITHOUT it** (`build-release.mjs` refuses if present; `--allow-secrets` = 
 · `fonts.ino` · `weather.ino` · `clock_timer.ino` · `anim_presence.ino` (native presence
 render) · `mqtt_publisher.ino` (optional MQTT telemetry publisher, off by default) ·
 `data/*.html` + the shared web design system (`app.css`, `backnav.js`
-`header.js`, `bright.js`, `previews.js`, `palettes.js`, all `data-auto` self-injecting).
+`header.js`, `bright.js`, `previews.js`, `palettes.js`, all `data-auto` self-injecting) ·
+`data/frames/` (86 baked `.cfr` studio expressions + `index.json`; gallery at `data/gallery.html`).
 
 ### Adding an animation (recipe)
 1. `anim_<name>.ino`, state + `run<Name>Frame()`. 2. Dispatch branch in the main `.ino`
@@ -97,6 +98,9 @@ in `data/animations.html` (the hub, NOT index). See the `add-animation` skill.
 
 - **API:** full HTTP surface in `docs/API.md` (the contract `claude-expression-studio`
   depends on).
+- **Baked frames:** the studio animation library ships on the board (`data/frames/`,
+  .cfr v1): `POST /api/animation {"type":"baked","name":...,"hue":0-255}`, gallery
+  page `gallery.html`. Contract + refresh workflow in `docs/API.md`.
 - **Auto-resume (NVS):** persists last animation + brightness (`Preferences`, namespace
   `matrix`); restores on boot. `transient:true` on an animation POST skips NVS write.
 - **Settings (NVS):** `POST/GET /api/settings` (partial merge). Keys: `idle_*`

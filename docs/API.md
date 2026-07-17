@@ -84,3 +84,24 @@ board stamps `ts` at seconds precision and formats numbers with fixed decimals (
 bridge's JS `25`). Both parse the same and neither subscriber is affected. The broker connection
 is **unauthenticated and unencrypted** (a trusted LAN Mosquitto, matching the Night 1 setup);
 broker username/password and TLS are a later hardening step, not implemented here.
+
+## Baked frames (.cfr)
+
+The board ships the studio's animation library as static assets in `/frames/`
+(86 `.cfr` files + `index.json`, ~146 KB), baked by the studio repo's
+`npm run export:frames`. The canonical format contract is the studio's
+`docs/frames-file-format.md` (.cfr v1).
+
+- `POST /api/display/animation` `{"type":"baked","name":"aurora"}` plays one.
+  Optional `hue` (0-255) rotates every palette entry around the color wheel at
+  load time. `transient:true` skips auto-resume as usual; otherwise the board
+  resumes the baked animation after a power cycle.
+- Names are `[a-z0-9_-]` only; a bad name or corrupt file returns 400 and the
+  display is untouched. Play-once files (loop count N in the file) hold their
+  last frame, matching the frames wire channel.
+- `GET /api/status` includes `"baked":"<name>"` while a baked animation is
+  active.
+- The gallery page (`/gallery.html`) lists the library from `/frames/index.json`.
+- Refreshing the assets: in the studio repo run `npm run export:frames`, copy
+  `frames-out/` into this repo's `esp32_matrix_webserver/data/frames/`, then do
+  a LittleFS upload.
