@@ -113,8 +113,10 @@ static String idleRandomParamsFor(const String& type) {
   }
   if (type == "wave") {
     // Crest + dim same-hue trough so it still reads as water, not two colors.
+    // Trough val 90 (not lower): at screensaver brightness 6-8 a channel needs
+    // ~37+ to light at all, and val 40 goes black for many hues.
     return ",\"color1\":\"" + idleHueHex(h1, 255) + "\""
-           ",\"color2\":\"" + idleHueHex(h1, 40) + "\"";
+           ",\"color2\":\"" + idleHueHex(h1, 90) + "\"";
   }
   if (type == "starfield") {
     String p = ",\"color1\":\"" + idleHueHex(h1, 255) + "\""
@@ -174,7 +176,7 @@ void idleNoteActivity(bool isIdleContent) {
   idleArmed = false;
   if (screensaverOn) {
     screensaverOn = false;             // a real command takes over...
-    FastLED.setBrightness(brightness); // ...restore live brightness (screensaver had dimmed to idleBri)
+    FastLED.setBrightness(brightness); // ...restore live brightness (screensaver had dimmed to idleBri or a rolled 6-8)
   }
 }
 

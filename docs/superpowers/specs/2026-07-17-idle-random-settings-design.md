@@ -105,7 +105,7 @@ the new list rather than hand-clicking checkboxes.
 Color helper: pick a random base hue and convert `CHSV(hue, 255, 255)` to
 a `#rrggbb` string. Multi-color apps do not roll independently: the first
 color gets the base hue and the rest are offset around the wheel (roughly
-thirds for 3-color apps, roughly opposite for 2-color apps, with a little
+thirds for 3-color apps, roughly a triad apart for 2-color apps, with a little
 jitter) so rolls are always mutually distinguishable. ESP32 `random()` is
 hardware-backed, no seeding needed.
 
@@ -121,7 +121,7 @@ Per-app rolls:
 | frostbite | 1 hue (color); sparkle 5-40; mist 2-8; brightness 7-8 |
 | dancefloor | palette 0-63; hold 4-12 |
 | spiral | 2 spread hues |
-| wave | 1 hue: crest at full value, trough same hue dimmed (value about 40) so it still reads as water |
+| wave | 1 hue: crest at full value, trough same hue dimmed (value about 90; 40 went sub-threshold at brightness 6-8) so it still reads as water |
 | starfield | 2 spread hues; density 4-12; inward coin-flip |
 | rainbow | coin-flip: classic wheel, or `usePalette` with 4 spread hues |
 | clock | 3 spread hues (hours/minutes/colon); timezone handling unchanged |
