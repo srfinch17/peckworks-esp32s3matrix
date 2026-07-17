@@ -518,7 +518,9 @@ static uint8_t framesHexNib(char c) {
   return 0;
 }
 void handleFrames() {
-  // This is our largest payload (up to MAX_PLAY_FRAMES × 384 hex chars ≈ 9KB),
+  if (!framesBuf) { sendJson(503, "{\"error\":\"frames buffer unavailable\"}"); return; }
+
+  // This is our largest payload (up to MAX_WIRE_FRAMES × 384 hex chars ≈ 9KB),
   // and parsing it briefly allocates a copy of the body plus the JSON document.
   // On a tight heap that transient spike can trip loop()'s low-heap auto-restart
   // (< 14000) and freeze/reboot the board. Bail out gracefully instead. With
@@ -539,8 +541,8 @@ void handleFrames() {
     return;
   }
   JsonArray arr = doc["frames"];
-  if (arr.isNull() || arr.size() < 1 || arr.size() > MAX_PLAY_FRAMES) {
-    sendJson(400, "{\"error\":\"frames must be an array of 1-" + String(MAX_PLAY_FRAMES) + " strings\"}");
+  if (arr.isNull() || arr.size() < 1 || arr.size() > MAX_WIRE_FRAMES) {
+    sendJson(400, "{\"error\":\"frames must be an array of 1-" + String(MAX_WIRE_FRAMES) + " strings\"}");
     return;
   }
   bool idleContent = doc["idle"] | false;   // host goof/Zz pushes set this true

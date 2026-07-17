@@ -325,12 +325,14 @@ bool    calendarScrollMono = false;            // scroll: true = whole date in c
 // Plays a short uploaded frame sequence — the transport for the MCP server's
 // expression tools (canned glyphs, Claude-drawn animations). See
 // docs/superpowers/specs/2026-06-11-claude-expression-display.md.
-#define MAX_PLAY_FRAMES 24
-CRGB     framesBuf[MAX_PLAY_FRAMES * 64];   // 24 frames × 64 px ≈ 4.6KB static
+#define MAX_PLAY_FRAMES 96    // buffer capacity: covers the largest .cfr bake (84) with headroom
+#define MAX_WIRE_FRAMES 24    // POST /api/display/frames request cap (public contract, unchanged)
+CRGB*    framesBuf = nullptr; // 96 frames × 64 px ≈ 18KB, allocated from PSRAM in setup()
 uint8_t  framesCount  = 0;    // frames loaded
 uint16_t framesLoops  = 0;    // 0 = loop forever; N = play N passes then HOLD the last frame
 uint16_t framesPlayed = 0;    // completed passes
 uint8_t  framesIdx    = 0;    // next frame to show
+String   bakedName    = "";   // name of the active baked .cfr ("" = none); reported by /api/status
 
 // ── Sound (vibration) visualizer state ────────────────────────
 // No microphone — the IMU feels low-frequency vibration (bass through a surface).
@@ -772,6 +774,15 @@ void setup() {
   } else {
     Serial.println("LittleFS mounted. Web UI will be ready once WiFi connects.");
   }
+
+  // Frames playback buffer lives in PSRAM (2MB, mostly idle) instead of the
+  // contended internal DRAM. Fallback keeps a misconfigured build booting.
+  framesBuf = (CRGB*)ps_malloc(sizeof(CRGB) * MAX_PLAY_FRAMES * 64);
+  if (!framesBuf) {
+    framesBuf = (CRGB*)malloc(sizeof(CRGB) * MAX_PLAY_FRAMES * 64);
+    Serial.println("WARNING: PSRAM alloc failed for framesBuf; using internal heap.");
+  }
+  if (!framesBuf) Serial.println("ERROR: framesBuf alloc failed; frames/baked playback disabled.");
 
   // Read the web bundle's stamped version once at boot (web files never change
   // at runtime). /api/status reports this as web_version so a single status
