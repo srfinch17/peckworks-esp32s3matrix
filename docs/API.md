@@ -46,7 +46,10 @@ POST /api/grid-test/set     { mode, brightness, ... }   # Calibration Lab patter
   slow under load (multi-second), so size client timeouts accordingly.
 - Auto-resume, settings, and the idle screensaver are all NVS-backed and survive reflashes.
 - **`/api/settings` keys** (partial-merge; only sent keys change): `idle_enabled`, `idle_apps`,
-  `idle_after_secs`, `idle_rotate_secs`, `idle_brightness`, `default_brightness`,
+  `idle_after_secs`, `idle_rotate_secs`, `idle_brightness`, `idle_random` (bool, default true:
+  each screensaver launch rolls random params and a random brightness 6-8, frostbite 7-8, and
+  the `idle_brightness` value is ignored; false restores tuned params at `idle_brightness`),
+  `default_brightness`,
   `boot_animation`, `timezone`, `calibration_correction`, and the MQTT publisher keys
   `mqtt_enabled` (bool, default false), `mqtt_host` (broker LAN IP string, "" = unconfigured),
   `mqtt_port` (int, default 1883), `mqtt_every_secs` (int 1-3600, default 3).
