@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Expression Gallery</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230d0d0d'/%3E%3Ccircle cx='4' cy='4' r='1.5' fill='%2300ff88'/%3E%3Ccircle cx='12' cy='4' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='8' cy='8' r='1.5' fill='%2322ddff'/%3E%3Ccircle cx='4' cy='12' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='12' cy='12' r='1.5' fill='%2300ff88'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="app.css">
+  <style>
+    #tiles { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px; }
+    .tile { text-align:left; padding:10px 12px; cursor:pointer; }
+    .tile .nm { font-weight:600; }
+    .tile .meta { font-size:0.75rem; color:var(--text-dim); }
+    .tile.playing { outline:2px solid var(--accent-page); }
+  </style>
+</head>
+<body>
+  <div class="wrap" style="--accent-page:#c98bff">
+  <h1>🖼️ Expression Gallery</h1>
+
+  <div class="panel">
+    <div class="panel-title">Expression Gallery</div>
+    <div class="subcard">
+      <div class="row"><label>Hue shift <output id="hue_o">0</output></label></div>
+      <div class="row"><input type="range" id="hue" min="0" max="255" value="0"></div>
+    </div>
+    <div class="subcard">
+      <div class="row"><span id="status_line">Loading library...</span></div>
+      <div id="tiles"></div>
+    </div>
+  </div>
+
+  <script>
+const $=id=>document.getElementById(id);
+function bindOut(id,oid){const e=$(id),o=$(oid);const u=()=>o.value=e.value;e.addEventListener("input",u);u();}
+async function load(){
+  try{
+    const idx=await (await fetch("/frames/index.json")).json();
+    const anims=idx.animations||[];
+    if(!anims.length) throw new Error("empty index");
+    $("status_line").textContent=anims.length+" baked animations ("+Math.round(idx.totalBytes/1024)+" KB)";
+    $("tiles").innerHTML=anims.map(a=>
+      `<button type="button" class="tile" data-name="${a.name}"><div class="nm">${a.name}</div>`+
+      `<div class="meta">${a.frames}f${a.loop?" / plays "+a.loop+"x":""}</div></button>`).join("");
+    $("tiles").addEventListener("click",async ev=>{
+      const t=ev.target.closest(".tile"); if(!t) return;
+      const name=t.dataset.name;
+      const r=await fetch("/api/display/animation",{method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({type:"baked",name:name,hue:+$("hue").value})});
+      document.querySelectorAll(".tile.playing").forEach(x=>x.classList.remove("playing"));
+      if(r.ok){ t.classList.add("playing"); $("status_line").textContent="Playing: "+name; }
+      else    { $("status_line").textContent="Failed to play "+name; }
+    });
+  }catch(e){
+    $("status_line").textContent="No baked animations installed (missing /frames/index.json).";
+  }
+}
+bindOut("hue","hue_o");
+load();
+  </script>
+  </div>
+  <script src="backnav.js" data-auto data-parent="/animations.html" data-label="Animations"></script>
+  <script src="header.js" data-auto></script>
+</body>
+</html>
