@@ -30,7 +30,7 @@ logical RGB with the same semantics as `POST /api/display/frames`. Sidecar
 
 ## Goals
 
-- Every baked animation playable on demand: `POST /api/animation`
+- Every baked animation playable on demand: `POST /api/display/animation`
   `{"type":"baked","name":"aurora"}`, plus an optional `hue` shift (0-255).
 - A gallery page listing all 86 from `index.json`, tap to play, on the animations
   hub as ONE new card.
@@ -57,8 +57,8 @@ logical RGB with the same semantics as `POST /api/display/frames`. Sidecar
 ### 1. Assets: `data/frames/`
 
 The 86 `.cfr` files plus `index.json` are COMMITTED to this repo under
-`esp32_matrix_webserver/data/frames/` (146 KB). They ride the normal LittleFS
-upload and the merged release binary automatically. LittleFS totals ~470 KB of the
+`esp32_matrix_webserver/data/frames/` (171 KB including index.json). They ride the normal LittleFS
+upload and the merged release binary automatically. LittleFS totals ~500 KB of the
 1 MB region after this change.
 
 Refresh workflow is manual and documented (README): run `npm run export:frames` in

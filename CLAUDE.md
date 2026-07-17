@@ -99,7 +99,7 @@ in `data/animations.html` (the hub, NOT index). See the `add-animation` skill.
 - **API:** full HTTP surface in `docs/API.md` (the contract `claude-expression-studio`
   depends on).
 - **Baked frames:** the studio animation library ships on the board (`data/frames/`,
-  .cfr v1): `POST /api/animation {"type":"baked","name":...,"hue":0-255}`, gallery
+  .cfr v1): `POST /api/display/animation {"type":"baked","name":...,"hue":0-255}`, gallery
   page `gallery.html`. Contract + refresh workflow in `docs/API.md`.
 - **Auto-resume (NVS):** persists last animation + brightness (`Preferences`, namespace
   `matrix`); restores on boot. `transient:true` on an animation POST skips NVS write.

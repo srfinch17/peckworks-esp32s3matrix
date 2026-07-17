@@ -88,7 +88,7 @@ broker username/password and TLS are a later hardening step, not implemented her
 ## Baked frames (.cfr)
 
 The board ships the studio's animation library as static assets in `/frames/`
-(86 `.cfr` files + `index.json`, ~146 KB), baked by the studio repo's
+(86 `.cfr` files + `index.json`, ~171 KB), baked by the studio repo's
 `npm run export:frames`. The canonical format contract is the studio's
 `docs/frames-file-format.md` (.cfr v1).
 
