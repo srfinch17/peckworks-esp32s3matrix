@@ -122,7 +122,9 @@ async function load(){
   $("idle_after_secs").value=s.idle_after_secs;
   $("idle_rotate_secs").value=s.idle_rotate_secs;
   $("idle_brightness").value=s.idle_brightness;
-  $("idle_random").checked=s.idle_random!==false;
+  const hasRandom="idle_random" in s;
+  $("idle_random").checked=hasRandom&&s.idle_random!==false;
+  $("idle_random").disabled=!hasRandom;
   $("default_brightness").value=s.default_brightness;
   $("boot_animation").value=s.boot_animation||"";
   $("timezone").value=s.timezone||"";

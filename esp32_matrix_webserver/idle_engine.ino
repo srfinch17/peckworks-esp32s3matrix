@@ -36,10 +36,10 @@ static String idlePickType() {
   return pick;
 }
 
-// RANDOM-OFF launch params mirroring mcp_server/idle.ts IDLE_APPS, so an app looks
-// the SAME in the screensaver as via the on-demand matrix_idle tool. Keep aligned
-// with idle.ts (random-ON uses idleRandomParamsFor below and intentionally diverges).
-// Returns the params object body (without the leading "{" / type).
+// RANDOM-OFF launch params: the historical hand-tuned per-app values. (These once
+// mirrored the studio's matrix_idle tool; that tool now resolves via the studio's
+// trigger manifest, so these values are firmware-local.) Random-ON uses
+// idleRandomParamsFor below. Returns the params object body (without the "{" / type).
 static String idleParamsFor(const String& type) {
   if (type == "fire")        return ",\"speed\":50,\"intensity\":70";
   if (type == "dancefloor")  return ",\"palette\":0,\"hold\":6";
@@ -47,9 +47,10 @@ static String idleParamsFor(const String& type) {
   if (type == "frostbite")   return ",\"color\":\"#66ccff\",\"sparkle\":5,\"mist\":4";
   if (type == "matrix_rain") return ",\"theme\":\"classic\",\"speed\":60";
   if (type == "snow")        return ",\"speed\":110";
+  if (type == "wave")        return ",\"color1\":\"#0000FF\",\"color2\":\"#000060\"";  // API-default trough #000028 is sub-threshold at idleBri 5
   if (type == "clock") {
     String p = ",\"color1\":\"#00ff88\",\"color2\":\"#0088ff\",\"color3\":\"#ff4040\"";
-    if (settings.tz.length()) p += ",\"tz\":\"" + settings.tz + "\"";  // honor the tz setting
+    if (settings.tz.length()) p += ",\"tz\":\"" + escapeJson(settings.tz) + "\"";  // honor the tz setting
     return p;
   }
   return "";
@@ -101,7 +102,7 @@ static String idleRandomParamsFor(const String& type) {
   if (type == "frostbite") {
     return ",\"color\":\""  + idleHueHex(h1, 255) + "\""
            ",\"sparkle\":"  + String(5 + random(36)) +    // 5-40
-           ",\"mist\":"     + String(2 + random(7));      // 2-8 (subtle, idle character)
+           ",\"mist\":"     + String(24 + random(25));    // 24-48 -> mistMax 48-96; below ~32 the wash rounds to black at bri 7-8
   }
   if (type == "dancefloor") {
     return ",\"palette\":" + String(random(64)) +         // 0-63
@@ -138,7 +139,7 @@ static String idleRandomParamsFor(const String& type) {
     String p = ",\"color1\":\"" + idleHueHex(h1, 255) + "\""    // hours
                ",\"color2\":\"" + idleHueHex(h2, 255) + "\""    // minutes
                ",\"color3\":\"" + idleHueHex(h3, 255) + "\"";   // colon
-    if (settings.tz.length()) p += ",\"tz\":\"" + settings.tz + "\"";
+    if (settings.tz.length()) p += ",\"tz\":\"" + escapeJson(settings.tz) + "\"";
     return p;
   }
   if (type == "claudesweep") {
@@ -151,14 +152,21 @@ static String idleRandomParamsFor(const String& type) {
 static void idleLaunch(const String& type) {
   idleLastPick = type;
   // Launch via the shared animation path (does NOT set brightness or touch auto-resume).
+  // Brightness is applied only AFTER a successful launch: a stale or unknown name in
+  // idle_apps must not re-dim whatever is currently showing (visible strobe otherwise).
+  String body = "{\"type\":\"" + escapeJson(type) + "\"";
+  body += settings.idleRandom ? idleRandomParamsFor(type) : idleParamsFor(type);
+  body += "}";
+  if (!applyAnimationBody(body)) {
+    Serial.printf("Idle: launch failed for '%s' (unknown type or bad params)\n", type.c_str());
+    return;
+  }
   if (settings.idleRandom) {
-    // Roll brightness 6-8; frostbite 7-8 (its mist wash needs the extra step to read).
+    // Roll brightness 6-8; frostbite 7-8 (user rule: frostbite reads better above 6).
     uint8_t bri = (type == "frostbite") ? (uint8_t)(7 + random(2)) : (uint8_t)(6 + random(3));
     FastLED.setBrightness(bri);
-    applyAnimationBody("{\"type\":\"" + type + "\"" + idleRandomParamsFor(type) + "}");
   } else {
     FastLED.setBrightness(settings.idleBri);
-    applyAnimationBody("{\"type\":\"" + type + "\"" + idleParamsFor(type) + "}");
   }
 }
 

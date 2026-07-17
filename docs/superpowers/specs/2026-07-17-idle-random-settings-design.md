@@ -52,8 +52,9 @@ different, and wants a richer default pool.
 - No `"random":true` flag on the public animation API (Approach B). Can be
   layered later if random-on-demand is ever wanted.
 - No changes to the studio repo. This intentionally breaks the informal
-  "screensaver looks the same as `matrix_idle`" alignment with
-  `mcp_server/idle.ts`: the screensaver becomes random, the on-demand tool
+  "screensaver looks the same as `matrix_idle`" alignment with the studio's
+  matrix_idle tool (which now resolves via its trigger manifest; the old
+  idle.ts is gone): the screensaver becomes random, the on-demand tool
   stays tuned. The `Keep aligned` comments in `idle_engine.ino` and
   `settings.ino` are updated to say so.
 - No per-app enable/disable of randomization. One global switch.
@@ -118,7 +119,7 @@ Per-app rolls:
 | snow | confetti coin-flip; speed 80-140 (non-confetti already rolls its own hue in `anim_snow`) |
 | fireworks | 3 spread hues (color1/2/3) |
 | fireworks2 | 3 spread hues (color1/2/3) |
-| frostbite | 1 hue (color); sparkle 5-40; mist 2-8; brightness 7-8 |
+| frostbite | 1 hue (color); sparkle 5-40; mist 24-48 (lower bands render black at brightness 7-8); brightness 7-8 |
 | dancefloor | palette 0-63; hold 4-12 |
 | spiral | 2 spread hues |
 | wave | 1 hue: crest at full value, trough same hue dimmed (value about 90; 40 went sub-threshold at brightness 6-8) so it still reads as water |
@@ -146,10 +147,12 @@ on-hardware look.
 - Idle launches already skip auto-resume persistence and the brightness
   NVS write; the random path inherits that by using the same
   `applyAnimationBody()` call.
-- A user's stored `idle_apps` CSV may contain apps with no random entry
-  (e.g. a future app). `idleRandomParamsFor()` returns an empty string for
-  unknown types: the app launches with API defaults at the rolled
-  brightness. Fail-safe, never fail-closed.
+- A user's stored `idle_apps` CSV may contain stale or unknown names. Names the
+  firmware knows but the random builder does not get API defaults at the rolled
+  brightness. Names the firmware does not know at all are rejected by
+  `applyAnimationBody` before anything stops: the previous app keeps running, and
+  brightness is applied only after a successful launch, so a bad entry costs one
+  skipped rotation slot and a serial log line, nothing more.
 
 ## Verification
 

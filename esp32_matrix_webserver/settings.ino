@@ -15,8 +15,8 @@
 // This file holds only the logic. "default brightness" is unified with the existing
 // live/auto-resume brightness (NVS "bri" key) — see settingsToJson/applySettingsJson.
 
-// The rotation universe. Random-OFF mode still mirrors mcp_server/idle.ts
-// IDLE_APPS tuned params; random-ON intentionally diverges (rolled params).
+// The rotation universe. Random-OFF mode keeps the historical tuned params in
+// idleParamsFor (idle_engine.ino); random-ON rolls params per launch.
 static const char* IDLE_APPS_DEFAULT =
   "fire,matrix_rain,clock,fireworks,fireworks2,frostbite,snow,dancefloor,spiral,wave,starfield,rainbow";
 
@@ -92,7 +92,10 @@ bool applySettingsJson(const String& body) {
   JsonDocument doc;
   if (deserializeJson(doc, body) != DeserializationError::Ok) return false;
   if (!doc["idle_enabled"].isNull())     settings.idleOn     = doc["idle_enabled"].as<bool>();
-  if (!doc["idle_apps"].isNull())        settings.idleApps   = String((const char*)(doc["idle_apps"] | settings.idleApps.c_str()));
+  if (!doc["idle_apps"].isNull()) {
+    String v = String((const char*)(doc["idle_apps"] | settings.idleApps.c_str()));
+    if (v.length() <= 512) settings.idleApps = v;   // cap: NVS entry limit; keeps idlePickType cheap
+  }
   if (!doc["idle_after_secs"].isNull())  settings.idleAfterS = constrain((long)(doc["idle_after_secs"] | (long)settings.idleAfterS), 5L, 3600L);
   if (!doc["idle_rotate_secs"].isNull()) settings.idleRotS   = constrain((long)(doc["idle_rotate_secs"] | (long)settings.idleRotS), 10L, 3600L);
   if (!doc["idle_brightness"].isNull())  settings.idleBri    = constrain((int)(doc["idle_brightness"] | settings.idleBri), 1, 255);
