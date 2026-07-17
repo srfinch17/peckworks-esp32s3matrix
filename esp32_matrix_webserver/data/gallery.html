@@ -100,24 +100,55 @@ function hueRotate([r,g,b],deg){
   return [Math.round(hue2rgb(p,q,h+1/3)*255),Math.round(hue2rgb(p,q,h)*255),Math.round(hue2rgb(p,q,h-1/3)*255)];
 }
 
+// Display-only gamma lift (never sent in the POST, which only ever carries the raw hue 0-255).
+// Applied after hue rotation so LED-channel data reads like a real panel instead of muddy raw values.
+const gc=v=>Math.round(255*Math.pow(v/255,1/2.2));
+const gammaLift=([r,g,b])=>[gc(r),gc(g),gc(b)];
+
+// Representative still frame = the one with the most total light (frame 0 is often a dark warmup).
+function pickStaticFrame(blob){
+  let best=0, bestSum=-1;
+  for(let f=0;f<blob.frameCount;f++){
+    let sum=0;
+    for(const px of blob.frames[f]){ const c=blob.palette[px]; sum+=c[0]+c[1]+c[2]; }
+    if(sum>bestSum){ bestSum=sum; best=f; }
+  }
+  return best;
+}
+
 const CELL=11, PITCH=12; // 8*12-1 = 95px, fits the 96x96 canvas
-let animTiles=[];
+let animTiles=[], animTilesByName=new Map(), activeTiles=new Set();
 
 function drawTile(t){
   const ctx=t.ctx;
   ctx.fillStyle="#0a0a0a";
   ctx.fillRect(0,0,96,96);
-  const idx=t.frames[t.frameIdx], pal=t.palette;
+  const idx=t.frames[t.frameIdx], pal=t.displayPalette;
+  const r=CELL/2;
   for(let y=0;y<8;y++) for(let x=0;x<8;x++){
-    const c=pal[idx[y*8+x]]; if(!c) continue;
-    ctx.fillStyle="rgb("+c[0]+","+c[1]+","+c[2]+")";
+    const c=pal[idx[y*8+x]];
+    const off=c[0]===0&&c[1]===0&&c[2]===0;
+    const rgb=off?"38,38,38":c[0]+","+c[1]+","+c[2];
+    const cx=x*PITCH+r, cy=y*PITCH+r;
+    const grad=ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+    grad.addColorStop(0,"rgba("+rgb+","+(off?0.4:1)+")");
+    grad.addColorStop(1,"rgba("+rgb+",0)");
+    ctx.fillStyle=grad;
     ctx.fillRect(x*PITCH,y*PITCH,CELL,CELL);
   }
 }
+function tileActive(t){ return t.hovering||t.playing||t.touchActive; }
+function activate(t){ t.lastAdvance=performance.now(); activeTiles.add(t); }
+function deactivateIfIdle(t){
+  if(tileActive(t)) return;
+  activeTiles.delete(t);
+  t.frameIdx=t.staticFrameIdx;
+  drawTile(t);
+}
 function tick(now){
   requestAnimationFrame(tick);
-  if(document.hidden) return;
-  for(const t of animTiles){
+  if(document.hidden||activeTiles.size===0) return;
+  for(const t of activeTiles){
     if(now-t.lastAdvance>=t.frameMs){
       t.frameIdx=(t.frameIdx+1)%t.frameCount;
       t.lastAdvance=now;
@@ -144,19 +175,30 @@ function renderAnimatedTiles(anims,pack){
     `<button type="button" class="tile" data-name="${a.name}"><canvas class="prev" width="96" height="96"></canvas>`+
     `<div class="nm">${a.name}</div><div class="meta">${durationText(a)}</div></button>`).join("");
   const canvases=$("tiles").querySelectorAll("canvas.prev");
-  animTiles=[];
+  const buttons=$("tiles").querySelectorAll(".tile");
+  animTiles=[]; animTilesByName=new Map(); activeTiles=new Set();
   anims.forEach((a,i)=>{
     const blob=pack.get(a.name);
     if(!blob) return; // listed in index but missing from pack; tile shows name/duration, canvas stays blank
-    const t={ctx:canvases[i].getContext("2d"),origPalette:blob.palette,palette:blob.palette,
-      frames:blob.frames,frameCount:blob.frameCount,frameMs:blob.frameMs,frameIdx:0,lastAdvance:performance.now()};
+    const staticFrameIdx=pickStaticFrame(blob);
+    const t={ctx:canvases[i].getContext("2d"),el:buttons[i],origPalette:blob.palette,palette:blob.palette,
+      displayPalette:blob.palette.map(gammaLift),frames:blob.frames,frameCount:blob.frameCount,frameMs:blob.frameMs,
+      frameIdx:staticFrameIdx,staticFrameIdx,lastAdvance:performance.now(),
+      hovering:false,playing:false,touchActive:false,touchTimer:null};
     animTiles.push(t);
+    animTilesByName.set(a.name,t);
+    t.el.addEventListener("mouseenter",()=>{ t.hovering=true; activate(t); });
+    t.el.addEventListener("mouseleave",()=>{ t.hovering=false; deactivateIfIdle(t); });
     drawTile(t);
   });
 }
 function applyHue(){
   const deg=(+$("hue").value)/255*360;
-  for(const t of animTiles) t.palette = deg===0 ? t.origPalette : t.origPalette.map(c=>hueRotate(c,deg));
+  for(const t of animTiles){
+    t.palette = deg===0 ? t.origPalette : t.origPalette.map(c=>hueRotate(c,deg));
+    t.displayPalette = t.palette.map(gammaLift);
+    drawTile(t); // recolor the still frame too, not just the (usually idle) animated ones
+  }
 }
 let hueTimer=null;
 $("hue").addEventListener("input",()=>{ clearTimeout(hueTimer); hueTimer=setTimeout(applyHue,100); });
@@ -176,16 +218,29 @@ async function load(){
       renderTextTiles(anims);
       $("status_line").textContent=anims.length+" baked animations ("+Math.round(idx.totalBytes/1024)+" KB). Previews unavailable (pack parse failed).";
     }
+    $("tiles").addEventListener("pointerdown",ev=>{
+      // Touch has no hover: animate briefly right away so the tap gets visible feedback.
+      const btn=ev.target.closest(".tile"); if(!btn) return;
+      const t=animTilesByName.get(btn.dataset.name); if(!t) return;
+      t.touchActive=true; activate(t);
+      clearTimeout(t.touchTimer);
+      t.touchTimer=setTimeout(()=>{ t.touchActive=false; deactivateIfIdle(t); },2000);
+    });
     $("tiles").addEventListener("click",async ev=>{
       const t=ev.target.closest(".tile"); if(!t) return;
       const name=t.dataset.name;
       document.querySelectorAll(".tile.playing").forEach(x=>x.classList.remove("playing"));
+      for(const at of animTiles){ if(at.playing){ at.playing=false; deactivateIfIdle(at); } }
       try{
         const r=await fetch("/api/display/animation",{method:"POST",
           headers:{"Content-Type":"application/json"},
           body:JSON.stringify({type:"baked",name:name,hue:+$("hue").value})});
-        if(r.ok){ t.classList.add("playing"); $("status_line").textContent="Playing: "+name; }
-        else    { $("status_line").textContent="Failed to play "+name; }
+        if(r.ok){
+          t.classList.add("playing");
+          const at=animTilesByName.get(name);
+          if(at){ at.playing=true; activate(at); }
+          $("status_line").textContent="Playing: "+name;
+        } else { $("status_line").textContent="Failed to play "+name; }
       }catch(e){
         $("status_line").textContent="Cannot reach board (check WiFi): "+name;
       }
