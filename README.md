@@ -42,7 +42,7 @@ LittleFS upload), see [`CLAUDE.md`](CLAUDE.md) and [`docs/PITFALLS.md`](docs/PIT
 
 ### Refreshing the baked expression library
 
-The 86 `.cfr` files in `esp32_matrix_webserver/data/frames/` are exported from the
+The animation library (71 animations, packed into `library.cfrpack` plus `index.json`) in `esp32_matrix_webserver/data/frames/` is exported from the
 `claude-expression-studio` repo. To refresh after the studio library changes:
 
     cd ../claude-expression-studio && npm run export:frames

@@ -45,9 +45,9 @@ One file, little-endian:
 
 Table entry (40 bytes): `name` 32 bytes, ASCII `[a-z0-9_-]`, zero-padded (spec cap
 31 chars + NUL; longest shipped name is 14); `offset` u32 from file start; `length`
-u32. Entries sorted by name. Offsets must be ascending, non-overlapping, in-bounds,
-and each payload must itself validate as .cfr v1 (the firmware re-uses the existing
-per-blob validation).
+u32. Entries sorted by byte order (plain code-unit comparison). Offsets must be
+ascending, non-overlapping, in-bounds, and each payload must itself validate as
+.cfr v1 (the firmware re-uses the existing per-blob validation).
 
 ## Studio changes (local branch, user merges)
 
@@ -91,8 +91,11 @@ per-blob validation).
 - index.json and pack table disagree (partial copy): check-fs catches it at
   refresh time; at runtime the pack table is the authority (a tile listed in
   index but absent from the pack 400s cleanly).
-- Duplicate names in the table, zero-length payloads, table overrunning file:
-  all rejected at open (count/offset/length validation).
+- Duplicate names in the table, non-ascending order, zero-length payloads, table
+  overrunning file: all rejected by the reference decoder (`decodePack()`) at
+  decode time. The firmware has no equivalent global pass: it only validates the
+  looked-up entry's offset/length bounds, for the one name requested, at lookup
+  time.
 
 ## Non-Goals
 

@@ -138,7 +138,24 @@ async function main() {
       }
 
       const packNames = new Set(entries.map((e) => e.name));
+      assert(packNames.size === entries.length,
+        `library.cfrpack table has no duplicate names (${entries.length} entries, ${packNames.size} unique)`);
+
+      let tableSorted = true;
+      let sortBadDetail = "";
+      for (let i = 1; i < entries.length; i++) {
+        if (!(entries[i - 1].name < entries[i].name)) {
+          tableSorted = false;
+          sortBadDetail = `"${entries[i - 1].name}" then "${entries[i].name}" at index ${i}`;
+          break;
+        }
+      }
+      assert(tableSorted,
+        `library.cfrpack table names are strictly ascending by code-unit order (${entries.length} entries checked` +
+        (sortBadDetail ? `, bad: ${sortBadDetail}` : "") + ")");
+
       const indexNames = new Set(index.animations.map((a) => a.name));
+      const indexByName = new Map(index.animations.map((a) => [a.name, a]));
       const orphans = [...packNames].filter((n) => !indexNames.has(n));
       const missing = [...indexNames].filter((n) => !packNames.has(n));
       assert(orphans.length === 0 && missing.length === 0,
@@ -149,6 +166,8 @@ async function main() {
       const sorted = [...entries].sort((a, b) => a.offset - b.offset);
       let boundsOk = true;
       let badDetail = "";
+      let headersOk = true;
+      let headerBadDetail = "";
       for (let i = 0; i < sorted.length && boundsOk; i++) {
         const e = sorted[i];
         if (e.offset < 8 + tableBytes || e.length < 12 || e.offset + e.length > packBuf.length) {
@@ -157,11 +176,39 @@ async function main() {
         } else if (i > 0 && e.offset < sorted[i - 1].offset + sorted[i - 1].length) {
           boundsOk = false;
           badDetail = `"${sorted[i - 1].name}" and "${e.name}" overlap`;
+        } else {
+          // This entry's [offset, offset+length) is validated in-bounds, so the
+          // 12-byte .cfr blob header at offset is safe to read.
+          const hdr = packBuf.subarray(e.offset, e.offset + 12);
+          const magic = hdr.toString("ascii", 0, 4);
+          const version = hdr.readUInt8(4);
+          const frameCount = hdr.readUInt16LE(6);
+          const frameMs = hdr.readUInt16LE(8);
+          const paletteSize = hdr.readUInt16LE(10);
+          const expectedLen = 12 + 3 * paletteSize + 64 * frameCount;
+          const idxEntry = indexByName.get(e.name);
+          if (magic !== "CFRM" || version !== 1) {
+            headersOk = false;
+            headerBadDetail = `"${e.name}" bad blob header (magic=${JSON.stringify(magic)} version=${version})`;
+          } else if (expectedLen !== e.length) {
+            headersOk = false;
+            headerBadDetail = `"${e.name}" blob length mismatch (12 + 3*palette_size + 64*frames = ${expectedLen}, table length = ${e.length})`;
+          } else if (!idxEntry) {
+            headersOk = false;
+            headerBadDetail = `"${e.name}" not found in index.json`;
+          } else if (idxEntry.frames !== frameCount || idxEntry.frame_ms !== frameMs || idxEntry.palette_size !== paletteSize) {
+            headersOk = false;
+            headerBadDetail = `"${e.name}" blob/index.json mismatch (blob frames=${frameCount} frame_ms=${frameMs} palette_size=${paletteSize}, ` +
+              `index frames=${idxEntry.frames} frame_ms=${idxEntry.frame_ms} palette_size=${idxEntry.palette_size})`;
+          }
         }
       }
       assert(boundsOk,
         `library.cfrpack entries are in-bounds and non-overlapping (${entries.length} entries checked` +
         (badDetail ? `, bad: ${badDetail}` : "") + ")");
+      assert(headersOk,
+        `library.cfrpack blob headers valid (magic CFRM, version 1, length formula, frames/frame_ms/palette_size match index.json; ` +
+        `${entries.length} entries checked` + (headerBadDetail ? `, bad: ${headerBadDetail}` : "") + ")");
     }
   }
 
