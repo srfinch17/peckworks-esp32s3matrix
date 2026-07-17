@@ -102,8 +102,9 @@ in `data/animations.html` (the hub, NOT index). See the `add-animation` skill.
 - **Settings (NVS):** `POST/GET /api/settings` (partial merge). Keys: `idle_*`
   `default_brightness`, `boot_animation`, `timezone`, `calibration_correction`,
   `mqtt_enabled`/`mqtt_host`/`mqtt_port`/`mqtt_every_secs`.
-- **Idle screensaver:** armed by `POST /api/idle/arm`; rotates `idle_apps` at
-  `idle_brightness` after `idle_after_secs`.
+- **Idle screensaver:** armed by `POST /api/idle/arm`; rotates `idle_apps` after
+  `idle_after_secs`. `idle_random` on (default) rolls random params + brightness 6-8
+  (frostbite 7-8) per launch; off runs tuned params at `idle_brightness`.
 - **MQTT publisher (`mqtt_publisher.ino`, off by default):** when `mqtt_enabled` + a
   `mqtt_host` are set, the board publishes chip temp + accelerometer to the broker every
   `mqtt_every_secs` (retained, QoS 0), matching the plantfloor bridge's topics/keys/types (not

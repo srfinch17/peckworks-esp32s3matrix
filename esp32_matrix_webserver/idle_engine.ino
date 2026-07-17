@@ -36,9 +36,10 @@ static String idlePickType() {
   return pick;
 }
 
-// Per-type launch params mirroring mcp_server/idle.ts IDLE_APPS, so an app looks
-// the SAME in the screensaver as via the on-demand matrix_idle tool. Keep aligned
-// with idle.ts. Returns the params object body (without the leading "{" / type).
+// RANDOM-OFF launch params: the historical hand-tuned per-app values. (These once
+// mirrored the studio's matrix_idle tool; that tool now resolves via the studio's
+// trigger manifest, so these values are firmware-local.) Random-ON uses
+// idleRandomParamsFor below. Returns the params object body (without the "{" / type).
 static String idleParamsFor(const String& type) {
   if (type == "fire")        return ",\"speed\":50,\"intensity\":70";
   if (type == "dancefloor")  return ",\"palette\":0,\"hold\":6";
@@ -46,20 +47,127 @@ static String idleParamsFor(const String& type) {
   if (type == "frostbite")   return ",\"color\":\"#66ccff\",\"sparkle\":5,\"mist\":4";
   if (type == "matrix_rain") return ",\"theme\":\"classic\",\"speed\":60";
   if (type == "snow")        return ",\"speed\":110";
+  if (type == "wave")        return ",\"color1\":\"#0000FF\",\"color2\":\"#000060\"";  // API-default trough #000028 is sub-threshold at idleBri 5
   if (type == "clock") {
     String p = ",\"color1\":\"#00ff88\",\"color2\":\"#0088ff\",\"color3\":\"#ff4040\"";
-    if (settings.tz.length()) p += ",\"tz\":\"" + settings.tz + "\"";  // honor the tz setting
+    if (settings.tz.length()) p += ",\"tz\":\"" + escapeJson(settings.tz) + "\"";  // honor the tz setting
     return p;
   }
   return "";
 }
 
+// Format a hue as "#RRGGBB" at full saturation. val=255 for full brightness;
+// lower val for a deliberately dim variant (wave trough). Full-sat/full-val
+// hues stay visible at screensaver brightness 6-8; dim or pastel rolls
+// would round to black there. (No default arg: .ino auto-prototypes choke.)
+static String idleHueHex(uint8_t hue, uint8_t val) {
+  CRGB c = CHSV(hue, 255, val);
+  char buf[8];
+  snprintf(buf, sizeof(buf), "#%02X%02X%02X", c.r, c.g, c.b);
+  return String(buf);
+}
+
+// Random launch params, one fresh roll per launch (settings.idleRandom on).
+// Multi-color apps do NOT roll hues independently: h1 is a random base and
+// h2/h3 are spread around the wheel with jitter, so rolls never smear into
+// one hue. uint8_t arithmetic wraps the color wheel naturally.
+static String idleRandomParamsFor(const String& type) {
+  uint8_t h1 = (uint8_t)random(256);
+  uint8_t h2 = (uint8_t)(h1 + 70 + random(31));    // roughly a third around
+  uint8_t h3 = (uint8_t)(h1 + 155 + random(31));   // roughly two thirds around
+  if (type == "fire") {
+    static const char* FIRE_PALETTES[4] = {"classic", "blue", "green", "purple"};
+    return ",\"palette\":\"" + String(FIRE_PALETTES[random(4)]) + "\""
+           ",\"intensity\":" + String(4 + random(7)) +    // 4-10
+           ",\"sparks\":"    + String(random(11)) +       // 0-10
+           ",\"tendrils\":"  + String(random(11)) +       // 0-10
+           ",\"speed\":"     + String(30 + random(61));   // 30-90 ms/frame
+  }
+  if (type == "matrix_rain") {
+    static const char* RAIN_THEMES[4] = {"classic", "blue", "red", "purple"};
+    return ",\"theme\":\"" + String(RAIN_THEMES[random(4)]) + "\""
+           ",\"speed\":"   + String(40 + random(51));     // 40-90
+  }
+  if (type == "snow") {
+    // Non-confetti already rolls its own flake hue in anim_snow's launch code.
+    String p = ",\"speed\":" + String(80 + random(61));   // 80-140
+    if (random(2)) p += ",\"confetti\":true";
+    return p;
+  }
+  if (type == "fireworks" || type == "fireworks2") {
+    return ",\"color1\":\"" + idleHueHex(h1, 255) + "\""
+           ",\"color2\":\"" + idleHueHex(h2, 255) + "\""
+           ",\"color3\":\"" + idleHueHex(h3, 255) + "\"";
+  }
+  if (type == "frostbite") {
+    return ",\"color\":\""  + idleHueHex(h1, 255) + "\""
+           ",\"sparkle\":"  + String(5 + random(36)) +    // 5-40
+           ",\"mist\":"     + String(24 + random(25));    // 24-48 -> mistMax 48-96; below ~32 the wash rounds to black at bri 7-8
+  }
+  if (type == "dancefloor") {
+    return ",\"palette\":" + String(random(64)) +         // 0-63
+           ",\"hold\":"    + String(4 + random(9));       // 4-12
+  }
+  if (type == "spiral") {
+    return ",\"color1\":\"" + idleHueHex(h1, 255) + "\""
+           ",\"color2\":\"" + idleHueHex(h3, 255) + "\"";
+  }
+  if (type == "wave") {
+    // Crest + dim same-hue trough so it still reads as water, not two colors.
+    // Trough val 90 (not lower): at screensaver brightness 6-8 a channel needs
+    // ~37+ to light at all, and val 40 goes black for many hues.
+    return ",\"color1\":\"" + idleHueHex(h1, 255) + "\""
+           ",\"color2\":\"" + idleHueHex(h1, 90) + "\"";
+  }
+  if (type == "starfield") {
+    String p = ",\"color1\":\"" + idleHueHex(h1, 255) + "\""
+               ",\"color2\":\"" + idleHueHex(h3, 255) + "\""
+               ",\"density\":"  + String(4 + random(9));  // 4-12
+    if (random(2)) p += ",\"inward\":true";
+    return p;
+  }
+  if (type == "rainbow") {
+    // Coin-flip: classic wheel, or a 4-color palette on exact wheel quarters.
+    if (random(2) == 0) return "";
+    return ",\"usePalette\":true"
+           ",\"color1\":\"" + idleHueHex(h1, 255) + "\""
+           ",\"color2\":\"" + idleHueHex((uint8_t)(h1 + 64), 255) + "\""
+           ",\"color3\":\"" + idleHueHex((uint8_t)(h1 + 128), 255) + "\""
+           ",\"color4\":\"" + idleHueHex((uint8_t)(h1 + 192), 255) + "\"";
+  }
+  if (type == "clock") {
+    String p = ",\"color1\":\"" + idleHueHex(h1, 255) + "\""    // hours
+               ",\"color2\":\"" + idleHueHex(h2, 255) + "\""    // minutes
+               ",\"color3\":\"" + idleHueHex(h3, 255) + "\"";   // colon
+    if (settings.tz.length()) p += ",\"tz\":\"" + escapeJson(settings.tz) + "\"";
+    return p;
+  }
+  if (type == "claudesweep") {
+    return ",\"color\":\"" + idleHueHex(h1, 255) + "\"";
+  }
+  // Unknown app in a stored CSV: launch with API defaults (fail-safe).
+  return "";
+}
+
 static void idleLaunch(const String& type) {
   idleLastPick = type;
-  FastLED.setBrightness(settings.idleBri);
-  // Launch via the shared animation path with the app's tuned params.
-  String body = "{\"type\":\"" + type + "\"" + idleParamsFor(type) + "}";
-  applyAnimationBody(body);   // sets animationName, animationActive, etc. (does NOT set brightness or touch auto-resume)
+  // Launch via the shared animation path (does NOT set brightness or touch auto-resume).
+  // Brightness is applied only AFTER a successful launch: a stale or unknown name in
+  // idle_apps must not re-dim whatever is currently showing (visible strobe otherwise).
+  String body = "{\"type\":\"" + escapeJson(type) + "\"";
+  body += settings.idleRandom ? idleRandomParamsFor(type) : idleParamsFor(type);
+  body += "}";
+  if (!applyAnimationBody(body)) {
+    Serial.printf("Idle: launch failed for '%s' (unknown type or bad params)\n", type.c_str());
+    return;
+  }
+  if (settings.idleRandom) {
+    // Roll brightness 6-8; frostbite 7-8 (user rule: frostbite reads better above 6).
+    uint8_t bri = (type == "frostbite") ? (uint8_t)(7 + random(2)) : (uint8_t)(6 + random(3));
+    FastLED.setBrightness(bri);
+  } else {
+    FastLED.setBrightness(settings.idleBri);
+  }
 }
 
 void idleArm() {
@@ -76,7 +184,7 @@ void idleNoteActivity(bool isIdleContent) {
   idleArmed = false;
   if (screensaverOn) {
     screensaverOn = false;             // a real command takes over...
-    FastLED.setBrightness(brightness); // ...restore live brightness (screensaver had dimmed to idleBri)
+    FastLED.setBrightness(brightness); // ...restore live brightness (screensaver had dimmed to idleBri or a rolled 6-8)
   }
 }
 
