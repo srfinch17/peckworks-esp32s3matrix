@@ -19,7 +19,6 @@
   <h1>🖼️ Expression Gallery</h1>
 
   <div class="panel">
-    <div class="panel-title">Expression Gallery</div>
     <div class="subcard">
       <div class="row"><label>Hue shift <output id="hue_o">0</output></label></div>
       <div class="row"><input type="range" id="hue" min="0" max="255" value="0"></div>
@@ -39,18 +38,24 @@ async function load(){
     const anims=idx.animations||[];
     if(!anims.length) throw new Error("empty index");
     $("status_line").textContent=anims.length+" baked animations ("+Math.round(idx.totalBytes/1024)+" KB)";
+    // Names are firmware-shipped and exporter-constrained to [a-z0-9_-]; if this
+    // pattern is copied for runtime-user input, escape it first.
     $("tiles").innerHTML=anims.map(a=>
       `<button type="button" class="tile" data-name="${a.name}"><div class="nm">${a.name}</div>`+
       `<div class="meta">${a.frames}f${a.loop?" / plays "+a.loop+"x":""}</div></button>`).join("");
     $("tiles").addEventListener("click",async ev=>{
       const t=ev.target.closest(".tile"); if(!t) return;
       const name=t.dataset.name;
-      const r=await fetch("/api/display/animation",{method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({type:"baked",name:name,hue:+$("hue").value})});
       document.querySelectorAll(".tile.playing").forEach(x=>x.classList.remove("playing"));
-      if(r.ok){ t.classList.add("playing"); $("status_line").textContent="Playing: "+name; }
-      else    { $("status_line").textContent="Failed to play "+name; }
+      try{
+        const r=await fetch("/api/display/animation",{method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({type:"baked",name:name,hue:+$("hue").value})});
+        if(r.ok){ t.classList.add("playing"); $("status_line").textContent="Playing: "+name; }
+        else    { $("status_line").textContent="Failed to play "+name; }
+      }catch(e){
+        $("status_line").textContent="Cannot reach board (check WiFi): "+name;
+      }
     });
   }catch(e){
     $("status_line").textContent="No baked animations installed (missing /frames/index.json).";
@@ -60,6 +65,7 @@ bindOut("hue","hue_o");
 load();
   </script>
   </div>
+  <script src="bright.js" data-auto></script>
   <script src="backnav.js" data-auto data-parent="/animations.html" data-label="Animations"></script>
   <script src="header.js" data-auto></script>
 </body>
