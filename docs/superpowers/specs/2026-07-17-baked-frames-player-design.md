@@ -68,7 +68,10 @@ incantation in the README), then LittleFS upload. No build automation.
 ### 2. Playback buffer: grow and move to PSRAM
 
 `framesBuf` (main ino, currently `CRGB framesBuf[24 * 64]`, 4.6 KB of internal
-DRAM) becomes `EXT_RAM_ATTR CRGB framesBuf[96 * 64]` (18.4 KB of PSRAM):
+DRAM) becomes a pointer allocated once in `setup()` via `ps_malloc` (18.4 KB of
+PSRAM; `ps_malloc` rather than `EXT_RAM_ATTR` because the Arduino core does not
+reliably enable the PSRAM-BSS segment, and a failed alloc can fall back to
+internal heap with a logged warning instead of failing to link or boot):
 `MAX_PLAY_FRAMES` 24 -> 96, covering the largest bake (claudesweep, 84 frames)
 with headroom. This FREES 4.6 KB of the contended internal DRAM. PSRAM Enabled is
 already a hard requirement of this firmware (CLAUDE.md board settings). The wire
