@@ -9,6 +9,7 @@
   <style>
     #tiles { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px; }
     .tile { text-align:left; padding:10px 12px; cursor:pointer; }
+    .tile canvas.prev { display:block; background:#0a0a0a; border-radius:4px; margin-bottom:6px; }
     .tile .nm { font-weight:600; }
     .tile .meta { font-size:0.75rem; color:var(--text-dim); }
     .tile.playing { outline:2px solid var(--accent-page); }
@@ -32,17 +33,149 @@
   <script>
 const $=id=>document.getElementById(id);
 function bindOut(id,oid){const e=$(id),o=$(oid);const u=()=>o.value=e.value;e.addEventListener("input",u);u();}
+
+// ---- .cfrpack / .cfr decode (mirrors docs/superpowers/specs/2026-07-18-cfrpack-curation-design.md, little-endian) ----
+function magicOk(dv,off,str){for(let i=0;i<str.length;i++) if(dv.getUint8(off+i)!==str.charCodeAt(i)) return false; return true;}
+function nameAt(dv,off){let s="";for(let i=0;i<32;i++){const c=dv.getUint8(off+i); if(c===0) break; s+=String.fromCharCode(c);} return s;}
+function decodeBlob(dv,offset,length){
+  if(length<12||offset+length>dv.byteLength) throw new Error("blob out of bounds");
+  if(!magicOk(dv,offset,"CFRM")) throw new Error("bad blob magic");
+  if(dv.getUint8(offset+4)!==1) throw new Error("bad blob version");
+  const loop=dv.getUint8(offset+5);
+  const frameCount=dv.getUint16(offset+6,true);
+  const frameMs=dv.getUint16(offset+8,true);
+  const paletteSize=dv.getUint16(offset+10,true);
+  let p=offset+12;
+  const palette=[];
+  for(let i=0;i<paletteSize;i++){ palette.push([dv.getUint8(p),dv.getUint8(p+1),dv.getUint8(p+2)]); p+=3; }
+  const frames=[];
+  for(let f=0;f<frameCount;f++){
+    const idx=new Uint8Array(64);
+    for(let px=0;px<64;px++){
+      const v=dv.getUint8(p+px);
+      if(v>=paletteSize) throw new Error("palette index out of range");
+      idx[px]=v;
+    }
+    frames.push(idx); p+=64;
+  }
+  if(p>offset+length) throw new Error("blob overruns declared length");
+  return {loop,frameMs,frameCount,palette,frames};
+}
+function decodePack(buf){
+  const dv=new DataView(buf);
+  if(dv.byteLength<8) throw new Error("pack too short");
+  if(!magicOk(dv,0,"CFRP")) throw new Error("bad pack magic");
+  if(dv.getUint8(4)!==1) throw new Error("bad pack version");
+  const count=dv.getUint16(6,true);
+  const map=new Map();
+  for(let i=0;i<count;i++){
+    const eoff=8+40*i;
+    if(eoff+40>dv.byteLength) throw new Error("table overruns file");
+    const name=nameAt(dv,eoff);
+    const offset=dv.getUint32(eoff+32,true);
+    const length=dv.getUint32(eoff+36,true);
+    map.set(name,decodeBlob(dv,offset,length));
+  }
+  return map;
+}
+
+// rgb -> hue-rotate -> rgb. Uses standard HSL hue rotation; the firmware rotates hue via
+// FastLED's HSV approximation, so this preview is close but not bit-identical to the board.
+function hueRotate([r,g,b],deg){
+  r/=255; g/=255; b/=255;
+  const max=Math.max(r,g,b), min=Math.min(r,g,b), l=(max+min)/2;
+  let h=0,s=0;
+  if(max!==min){
+    const d=max-min;
+    s=l>0.5 ? d/(2-max-min) : d/(max+min);
+    if(max===r) h=(g-b)/d+(g<b?6:0);
+    else if(max===g) h=(b-r)/d+2;
+    else h=(r-g)/d+4;
+    h/=6;
+  }
+  h=(h+deg/360)%1; if(h<0) h+=1;
+  if(s===0) return [Math.round(l*255),Math.round(l*255),Math.round(l*255)];
+  const q=l<0.5 ? l*(1+s) : l+s-l*s, p=2*l-q;
+  const hue2rgb=(p,q,t)=>{ if(t<0)t+=1; if(t>1)t-=1; if(t<1/6) return p+(q-p)*6*t; if(t<1/2) return q; if(t<2/3) return p+(q-p)*(2/3-t)*6; return p; };
+  return [Math.round(hue2rgb(p,q,h+1/3)*255),Math.round(hue2rgb(p,q,h)*255),Math.round(hue2rgb(p,q,h-1/3)*255)];
+}
+
+const CELL=11, PITCH=12; // 8*12-1 = 95px, fits the 96x96 canvas
+let animTiles=[];
+
+function drawTile(t){
+  const ctx=t.ctx;
+  ctx.fillStyle="#0a0a0a";
+  ctx.fillRect(0,0,96,96);
+  const idx=t.frames[t.frameIdx], pal=t.palette;
+  for(let y=0;y<8;y++) for(let x=0;x<8;x++){
+    const c=pal[idx[y*8+x]]; if(!c) continue;
+    ctx.fillStyle="rgb("+c[0]+","+c[1]+","+c[2]+")";
+    ctx.fillRect(x*PITCH,y*PITCH,CELL,CELL);
+  }
+}
+function tick(now){
+  requestAnimationFrame(tick);
+  if(document.hidden) return;
+  for(const t of animTiles){
+    if(now-t.lastAdvance>=t.frameMs){
+      t.frameIdx=(t.frameIdx+1)%t.frameCount;
+      t.lastAdvance=now;
+      drawTile(t);
+    }
+  }
+}
+requestAnimationFrame(tick);
+
+function durationText(a){
+  const secs=(a.frames*a.frame_ms/1000).toFixed(1);
+  return secs+"s loop"+(a.loop?" / plays "+a.loop+"x":"");
+}
+
+// Names are firmware-shipped and firmware-validated to lowercase [a-z0-9_-] (exporter check is looser); if this
+// pattern is copied for runtime-user input, escape it first.
+function renderTextTiles(anims){
+  $("tiles").innerHTML=anims.map(a=>
+    `<button type="button" class="tile" data-name="${a.name}"><div class="nm">${a.name}</div>`+
+    `<div class="meta">${durationText(a)}</div></button>`).join("");
+}
+function renderAnimatedTiles(anims,pack){
+  $("tiles").innerHTML=anims.map(a=>
+    `<button type="button" class="tile" data-name="${a.name}"><canvas class="prev" width="96" height="96"></canvas>`+
+    `<div class="nm">${a.name}</div><div class="meta">${durationText(a)}</div></button>`).join("");
+  const canvases=$("tiles").querySelectorAll("canvas.prev");
+  animTiles=[];
+  anims.forEach((a,i)=>{
+    const blob=pack.get(a.name);
+    if(!blob) return; // listed in index but missing from pack; tile shows name/duration, canvas stays blank
+    const t={ctx:canvases[i].getContext("2d"),origPalette:blob.palette,palette:blob.palette,
+      frames:blob.frames,frameCount:blob.frameCount,frameMs:blob.frameMs,frameIdx:0,lastAdvance:performance.now()};
+    animTiles.push(t);
+    drawTile(t);
+  });
+}
+function applyHue(){
+  const deg=(+$("hue").value)/255*360;
+  for(const t of animTiles) t.palette = deg===0 ? t.origPalette : t.origPalette.map(c=>hueRotate(c,deg));
+}
+let hueTimer=null;
+$("hue").addEventListener("input",()=>{ clearTimeout(hueTimer); hueTimer=setTimeout(applyHue,100); });
+
 async function load(){
   try{
     const idx=await (await fetch("/frames/index.json")).json();
     const anims=idx.animations||[];
     if(!anims.length) throw new Error("empty index");
     $("status_line").textContent=anims.length+" baked animations ("+Math.round(idx.totalBytes/1024)+" KB)";
-    // Names are firmware-shipped and firmware-validated to lowercase [a-z0-9_-] (exporter check is looser); if this
-    // pattern is copied for runtime-user input, escape it first.
-    $("tiles").innerHTML=anims.map(a=>
-      `<button type="button" class="tile" data-name="${a.name}"><div class="nm">${a.name}</div>`+
-      `<div class="meta">${a.frames}f${a.loop?" / plays "+a.loop+"x":""}</div></button>`).join("");
+    try{
+      const packRes=await fetch("/frames/library.cfrpack");
+      if(!packRes.ok) throw new Error("pack fetch failed");
+      const pack=decodePack(await packRes.arrayBuffer());
+      renderAnimatedTiles(anims,pack);
+    }catch(e){
+      renderTextTiles(anims);
+      $("status_line").textContent=anims.length+" baked animations ("+Math.round(idx.totalBytes/1024)+" KB). Previews unavailable (pack parse failed).";
+    }
     $("tiles").addEventListener("click",async ev=>{
       const t=ev.target.closest(".tile"); if(!t) return;
       const name=t.dataset.name;
