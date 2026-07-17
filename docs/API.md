@@ -87,11 +87,10 @@ broker username/password and TLS are a later hardening step, not implemented her
 
 ## Baked frames (.cfr)
 
-The board ships the studio's animation library as static assets in `/frames/`
-(86 `.cfr` files + `index.json`, ~171 KB of data; note LittleFS stores files in
-4 KB blocks so the on-flash cost is larger), baked by the studio repo's
-`npm run export:frames`. The canonical format contract is the studio's
-`docs/frames-file-format.md` (.cfr v1).
+The board ships the studio's animation library as `/frames/library.cfrpack`
+(all animations in one archive; 4 KB-block friendly) plus `/frames/index.json`,
+baked by the studio repo's `npm run export:frames`. The canonical format
+contract is the studio's `docs/frames-file-format.md` (.cfr v1).
 
 - `POST /api/display/animation` `{"type":"baked","name":"aurora"}` plays one.
   Optional `hue` (0-255) rotates every palette entry around the color wheel at
