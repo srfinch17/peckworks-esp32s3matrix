@@ -325,9 +325,9 @@ bool    calendarScrollMono = false;            // scroll: true = whole date in c
 // Plays a short uploaded frame sequence — the transport for the MCP server's
 // expression tools (canned glyphs, Claude-drawn animations). See
 // docs/superpowers/specs/2026-06-11-claude-expression-display.md.
-#define MAX_PLAY_FRAMES 96    // buffer capacity: covers the largest .cfr bake (84) with headroom
+#define MAX_PLAY_FRAMES 160   // buffer capacity: covers the largest .cfr bake (fire, 150 frames) with headroom
 #define MAX_WIRE_FRAMES 24    // POST /api/display/frames request cap (public contract, unchanged)
-CRGB*    framesBuf = nullptr; // 96 frames × 64 px ≈ 18KB, allocated from PSRAM in setup()
+CRGB*    framesBuf = nullptr; // 160 frames × 64 px ≈ 30KB, allocated from PSRAM in setup()
 uint8_t  framesCount  = 0;    // frames loaded
 uint16_t framesLoops  = 0;    // 0 = loop forever; N = play N passes then HOLD the last frame
 uint16_t framesPlayed = 0;    // completed passes

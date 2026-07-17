@@ -68,15 +68,15 @@ incantation in the README), then LittleFS upload. No build automation.
 ### 2. Playback buffer: grow and move to PSRAM
 
 `framesBuf` (main ino, currently `CRGB framesBuf[24 * 64]`, 4.6 KB of internal
-DRAM) becomes a pointer allocated once in `setup()` via `ps_malloc` (18.4 KB of
+DRAM) becomes a pointer allocated once in `setup()` via `ps_malloc` (30.7 KB of
 PSRAM; `ps_malloc` rather than `EXT_RAM_ATTR` because the Arduino core does not
 reliably enable the PSRAM-BSS segment, and a failed alloc can fall back to
 internal heap with a logged warning instead of failing to link or boot):
-`MAX_PLAY_FRAMES` 24 -> 96, covering the largest bake (claudesweep, 84 frames)
-with headroom. This FREES 4.6 KB of the contended internal DRAM. PSRAM Enabled is
+`MAX_PLAY_FRAMES` 24 -> 160, covering the largest bake (fire, a 150-frame
+6-second RNG window capture) with headroom. This FREES 4.6 KB of the contended internal DRAM. PSRAM Enabled is
 already a hard requirement of this firmware (CLAUDE.md board settings). The wire
 channel `POST /api/display/frames` keeps its existing 24-frame REQUEST cap: its
-public contract does not change; 96 is buffer capacity, not a new wire limit.
+public contract does not change; 160 is buffer capacity, not a new wire limit.
 
 ### 3. Loader: `type:"baked"` in `applyAnimationBody`
 
@@ -86,7 +86,7 @@ New branch parsed like every other animation type:
   standard `transient` flag.
 - Name is sanitized to `[a-z0-9_-]` only and rejected otherwise (path traversal
   guard); file path is `/frames/<name>.cfr`.
-- Load sequence: open file, validate magic `CFRM`, version 1, frame_count 1..96,
+- Load sequence: open file, validate magic `CFRM`, version 1, frame_count 1..160,
   palette_size 1..256, and exact expected file length; read palette into a local
   `CRGB[256]`; if `hue` is nonzero, rotate each palette entry's hue by that amount
   (FastLED `rgb2hsv_approximate` -> add -> `CHSV` back; approximation is fine at
@@ -128,8 +128,8 @@ page dumb). The animations hub (`data/animations.html`) gets ONE new card,
 
 ## Edge cases
 
-- `frame_count` > 96 or file length mismatch: reject before touching the display.
-  (No current bake exceeds 84; the exporter would have to change for this to
+- `frame_count` > 160 or file length mismatch: reject before touching the display.
+  (No current bake exceeds 150; the exporter would have to change for this to
   trigger, and rejection is the correct response to a stale/foreign file.)
 - `frame_ms` extremes: clamped by the existing `animationSpeed` constrain
   (10..10000 ms).

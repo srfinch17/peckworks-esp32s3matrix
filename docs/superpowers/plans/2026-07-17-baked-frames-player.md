@@ -4,7 +4,7 @@
 
 **Goal:** Play the studio's 86 baked `.cfr` animations from LittleFS via `POST /api/display/animation {"type":"baked","name":...}` plus a gallery web page, reusing the existing frames playback engine.
 
-**Architecture:** The board's `stepFramesFrame()` already plays a CRGB buffer with .cfr's exact loop semantics. New code is a validating file decoder (`loadCfr` in `anim_frames.ino`) that fills that buffer, a `baked` branch in `applyAnimationBody()`, and one static gallery page. The frame buffer grows 24 to 96 frames and moves to PSRAM (freeing 4.6 KB internal DRAM); the wire channel keeps its 24-frame request cap via a new separate define.
+**Architecture:** The board's `stepFramesFrame()` already plays a CRGB buffer with .cfr's exact loop semantics. New code is a validating file decoder (`loadCfr` in `anim_frames.ino`) that fills that buffer, a `baked` branch in `applyAnimationBody()`, and one static gallery page. The frame buffer grows 24 to 160 frames and moves to PSRAM (freeing 4.6 KB internal DRAM); the wire channel keeps its 24-frame request cap via a new separate define.
 
 **Tech Stack:** Arduino C++ (single translation unit), LittleFS, FastLED (`rgb2hsv_approximate`), vanilla JS page on the shared design system.
 
@@ -21,7 +21,7 @@
 - **Name guard:** `[a-z0-9_-]` only, length 1-48; anything else rejected (path traversal).
 - **Wire contract unchanged:** `POST /api/display/frames` keeps its 24-frame request cap.
 - **Privacy:** never the maintainer's real name.
-- Largest current bake is 84 frames (claudesweep); buffer capacity is 96.
+- Largest current bake is 150 frames (fire, a 6-second RNG window); buffer capacity is 160.
 
 ---
 
@@ -33,7 +33,7 @@
 - Modify: `esp32_matrix_webserver/api_handlers.ino:521,542-543` (wire cap uses new define)
 
 **Interfaces:**
-- Produces: `MAX_PLAY_FRAMES` = 96 (buffer capacity), `MAX_WIRE_FRAMES` = 24 (wire request cap), `CRGB* framesBuf` (PSRAM-allocated in setup, may be null only if both allocs fail), `String bakedName` global. Task 2 writes `framesBuf`/`bakedName`; Task 3 fetches `/frames/index.json`.
+- Produces: `MAX_PLAY_FRAMES` = 160 (buffer capacity), `MAX_WIRE_FRAMES` = 24 (wire request cap), `CRGB* framesBuf` (PSRAM-allocated in setup, may be null only if both allocs fail), `String bakedName` global. Task 2 writes `framesBuf`/`bakedName`; Task 3 fetches `/frames/index.json`.
 
 - [ ] **Step 1: Export and copy the assets**
 
@@ -63,9 +63,9 @@ uint8_t  framesIdx    = 0;    // next frame to show
 with:
 
 ```cpp
-#define MAX_PLAY_FRAMES 96    // buffer capacity: covers the largest .cfr bake (84) with headroom
+#define MAX_PLAY_FRAMES 160   // buffer capacity: covers the largest .cfr bake (fire, 150 frames) with headroom
 #define MAX_WIRE_FRAMES 24    // POST /api/display/frames request cap (public contract, unchanged)
-CRGB*    framesBuf = nullptr; // 96 frames × 64 px ≈ 18KB, allocated from PSRAM in setup()
+CRGB*    framesBuf = nullptr; // 160 frames × 64 px ≈ 30KB, allocated from PSRAM in setup()
 uint8_t  framesCount  = 0;    // frames loaded
 uint16_t framesLoops  = 0;    // 0 = loop forever; N = play N passes then HOLD the last frame
 uint16_t framesPlayed = 0;    // completed passes
@@ -106,7 +106,7 @@ Check: every `framesBuf` use still compiles as pointer indexing (grep `framesBuf
 
 ```bash
 git add esp32_matrix_webserver/data/frames esp32_matrix_webserver/esp32_matrix_webserver.ino esp32_matrix_webserver/api_handlers.ino
-git commit -m "feat(frames): ship 86 baked .cfr assets; framesBuf to PSRAM at 96-frame capacity"
+git commit -m "feat(frames): ship 86 baked .cfr assets; framesBuf to PSRAM at 160-frame capacity"
 ```
 
 ---
@@ -236,7 +236,7 @@ add:
 
 - [ ] **Step 6: Self-review the diff**
 
-Check: `loadCfr` defined in `anim_frames.ino` (alphabetically before its caller, no prototype needed); reference params match the call site exactly (`uint16_t&, uint16_t&, uint8_t&`); every early return closes the file; header offsets match the Global Constraints table byte for byte; little-endian assembly is `low | (high << 8)`; `framesCount` cast to `uint8_t` is safe because `fcount <= 96`; `bakedName` is set only after a successful load; no em-dashes.
+Check: `loadCfr` defined in `anim_frames.ino` (alphabetically before its caller, no prototype needed); reference params match the call site exactly (`uint16_t&, uint16_t&, uint8_t&`); every early return closes the file; header offsets match the Global Constraints table byte for byte; little-endian assembly is `low | (high << 8)`; `framesCount` cast to `uint8_t` is safe because `fcount <= 160 < 256`; `bakedName` is set only after a successful load; no em-dashes.
 
 - [ ] **Step 7: Commit**
 
