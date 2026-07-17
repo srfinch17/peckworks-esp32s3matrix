@@ -31,6 +31,9 @@
           <div class="row"><input type="range" id="idle_rotate_secs" min="10" max="900" step="5"></div>
         </div>
         <div class="subcard">
+          <div class="row"><label>Randomize settings</label><input type="checkbox" id="idle_random"></div>
+        </div>
+        <div class="subcard" id="ibri_card">
           <div class="row"><label>Idle brightness <output id="ibri_o"></output></label></div>
           <div class="row"><input type="range" id="idle_brightness" min="1" max="60"></div>
         </div>
@@ -96,7 +99,7 @@
     #apps label { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-dim); }
   </style>
   <script>
-const APPS=["fire","matrix_rain","clock","fireworks","frostbite","snow","dancefloor","claudesweep"];
+const APPS=["fire","matrix_rain","clock","fireworks","fireworks2","frostbite","snow","dancefloor","spiral","wave","starfield","rainbow","claudesweep"];
 const $=id=>document.getElementById(id);
 function renderApps(csv){
   // Render the UNION of the known apps and whatever the board returned, so an app
@@ -108,12 +111,18 @@ function renderApps(csv){
   $("apps").innerHTML=all.map(a=>`<label><input type="checkbox" class="app" value="${a}" ${on.has(a)?"checked":""}>${a}</label>`).join("");
 }
 function bindOut(id,oid){const e=$(id),o=$(oid);const u=()=>o.value=e.value;e.addEventListener("input",u);u();}
+function syncRandomUI(){
+  const r=$("idle_random").checked;
+  $("idle_brightness").disabled=r;
+  $("ibri_card").style.opacity=r?0.45:"";
+}
 async function load(){
   const s=await (await fetch("/api/settings")).json();
   $("idle_enabled").checked=s.idle_enabled;
   $("idle_after_secs").value=s.idle_after_secs;
   $("idle_rotate_secs").value=s.idle_rotate_secs;
   $("idle_brightness").value=s.idle_brightness;
+  $("idle_random").checked=s.idle_random!==false;
   $("default_brightness").value=s.default_brightness;
   $("boot_animation").value=s.boot_animation||"";
   $("timezone").value=s.timezone||"";
@@ -126,12 +135,13 @@ async function load(){
   bindOut("idle_after_secs","after_o");bindOut("idle_rotate_secs","rot_o");
   bindOut("idle_brightness","ibri_o");bindOut("default_brightness","dbri_o");
   bindOut("mqtt_every_secs","mqtt_o");
+  $("idle_random").addEventListener("change",syncRandomUI);syncRandomUI();
 }
 $("f").addEventListener("submit",async e=>{
   e.preventDefault();
   const apps=[...document.querySelectorAll(".app:checked")].map(c=>c.value).join(",");
   const body={
-    idle_enabled:$("idle_enabled").checked, idle_apps:apps,
+    idle_enabled:$("idle_enabled").checked, idle_apps:apps, idle_random:$("idle_random").checked,
     idle_after_secs:+$("idle_after_secs").value, idle_rotate_secs:+$("idle_rotate_secs").value,
     idle_brightness:+$("idle_brightness").value, default_brightness:+$("default_brightness").value,
     boot_animation:$("boot_animation").value.trim(), timezone:$("timezone").value.trim(),
