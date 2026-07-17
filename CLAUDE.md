@@ -50,7 +50,7 @@ End users instead flash one pre-merged binary (`install/`, produced by
 | `LED_TYPE` | `WS2812B` |
 | **`COLOR_ORDER`** | **`RGB`** ⚠️ not the usual GRB, `CRGB(r,g,b)` maps straight through |
 | IMU | QMI8658C 6-axis, I2C **SDA=11 SCL=12**, addr **0x6B** |
-| Flash / PSRAM | **4MB** flash + 2MB PSRAM. LittleFS in the 1MB SPIFFS region of `huge_app`. |
+| Flash / PSRAM | **4MB** flash + 2MB PSRAM. LittleFS in the 896KB (0xE0000) SPIFFS region of `huge_app`. |
 | Default brightness | 40 / 255 |
 
 ### Coordinate system

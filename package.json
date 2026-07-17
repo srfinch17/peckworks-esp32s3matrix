@@ -9,7 +9,7 @@
     "bump:minor": "node scripts/version-bump.js minor",
     "bump:major": "node scripts/version-bump.js major",
     "stamp": "node scripts/version-stamp.js",
-    "check": "node scripts/version-check.js",
+    "check": "node scripts/version-check.js && node scripts/check-fs.mjs",
     "test": "node --test \"scripts/**/*.test.js\"",
     "build:release": "node scripts/build-release.mjs"
   }

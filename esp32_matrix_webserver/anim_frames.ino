@@ -72,7 +72,13 @@ bool loadCfr(const String& name, uint8_t hueShift,
   }
   uint8_t idx[64];
   for (uint16_t fr = 0; fr < fcount; fr++) {
-    if (f.read(idx, 64) != 64) { f.close(); return false; }
+    if (f.read(idx, 64) != 64) {
+      // Physical FS fault mid-expand: frames already written are stale-new mixed.
+      // Blank beats corrupt: zero the buffer and stop any current frames playback.
+      memset(framesBuf, 0, sizeof(CRGB) * MAX_PLAY_FRAMES * 64);
+      framesCount = 0;
+      f.close(); return false;
+    }
     for (int p = 0; p < 64; p++) {
       framesBuf[fr * 64 + p] = (idx[p] < palSize) ? pal[idx[p]] : CRGB::Black;
     }

@@ -46,9 +46,12 @@ The 86 `.cfr` files in `esp32_matrix_webserver/data/frames/` are exported from t
 `claude-expression-studio` repo. To refresh after the studio library changes:
 
     cd ../claude-expression-studio && npm run export:frames
+    rm ../peckworks-esp32s3matrix/esp32_matrix_webserver/data/frames/*.cfr
     cp frames-out/*.cfr frames-out/index.json ../peckworks-esp32s3matrix/esp32_matrix_webserver/data/frames/
 
-Then do a LittleFS upload. Commit the changed assets.
+Then do a LittleFS upload. Commit the changed assets. `npm run check` now verifies the frames
+directory matches index.json and that the LittleFS image has block headroom; run it after every
+refresh.
 
 ## Drive it with Claude
 

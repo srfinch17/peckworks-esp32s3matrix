@@ -88,7 +88,8 @@ broker username/password and TLS are a later hardening step, not implemented her
 ## Baked frames (.cfr)
 
 The board ships the studio's animation library as static assets in `/frames/`
-(86 `.cfr` files + `index.json`, ~171 KB), baked by the studio repo's
+(86 `.cfr` files + `index.json`, ~171 KB of data; note LittleFS stores files in
+4 KB blocks so the on-flash cost is larger), baked by the studio repo's
 `npm run export:frames`. The canonical format contract is the studio's
 `docs/frames-file-format.md` (.cfr v1).
 
@@ -97,11 +98,15 @@ The board ships the studio's animation library as static assets in `/frames/`
   load time. `transient:true` skips auto-resume as usual; otherwise the board
   resumes the baked animation after a power cycle.
 - Names are `[a-z0-9_-]` only; a bad name or corrupt file returns 400 and the
-  display is untouched. Play-once files (loop count N in the file) hold their
-  last frame, matching the frames wire channel.
+  display is untouched (exception: a physical flash read fault mid-load blanks
+  the frames buffer rather than leaving mixed pixels). Play-once files (loop
+  count N in the file) hold their last frame, matching the frames wire channel.
 - `GET /api/status` includes `"baked":"<name>"` while a baked animation is
   active.
 - The gallery page (`/gallery.html`) lists the library from `/frames/index.json`.
 - Refreshing the assets: in the studio repo run `npm run export:frames`, copy
   `frames-out/` into this repo's `esp32_matrix_webserver/data/frames/`, then do
   a LittleFS upload.
+- The board setting boot_animation cannot name a baked animation (it has no
+  name field); to pin a baked animation across power cycles, play it once
+  without transient:true and auto-resume will restore it on boot.

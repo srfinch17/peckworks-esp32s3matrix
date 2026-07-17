@@ -38,7 +38,7 @@ async function load(){
     const anims=idx.animations||[];
     if(!anims.length) throw new Error("empty index");
     $("status_line").textContent=anims.length+" baked animations ("+Math.round(idx.totalBytes/1024)+" KB)";
-    // Names are firmware-shipped and exporter-constrained to [a-z0-9_-]; if this
+    // Names are firmware-shipped and firmware-validated to lowercase [a-z0-9_-] (exporter check is looser); if this
     // pattern is copied for runtime-user input, escape it first.
     $("tiles").innerHTML=anims.map(a=>
       `<button type="button" class="tile" data-name="${a.name}"><div class="nm">${a.name}</div>`+
