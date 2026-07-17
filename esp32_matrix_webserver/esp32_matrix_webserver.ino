@@ -178,6 +178,7 @@ struct Settings {
   uint32_t idleAfterS;    // seconds of board silence before screensaver starts
   uint32_t idleRotS;      // seconds between screensaver re-picks
   uint8_t  idleBri;       // brightness during the screensaver
+  bool     idleRandom;    // roll random params + brightness 6-8 per screensaver launch
   String   bootAnim;      // pinned boot animation type ("" = auto-resume)
   String   tz;            // POSIX TZ for the clock ("" = none)
   bool     calibCorrection; // apply the measured LED calibration correction (default true)

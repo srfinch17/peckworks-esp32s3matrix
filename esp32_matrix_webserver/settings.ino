@@ -15,9 +15,10 @@
 // This file holds only the logic. "default brightness" is unified with the existing
 // live/auto-resume brightness (NVS "bri" key) — see settingsToJson/applySettingsJson.
 
-// The rotation universe (mirrors mcp_server/idle.ts IDLE_APPS). Keep aligned.
+// The rotation universe. Random-OFF mode still mirrors mcp_server/idle.ts
+// IDLE_APPS tuned params; random-ON intentionally diverges (rolled params).
 static const char* IDLE_APPS_DEFAULT =
-  "fire,matrix_rain,clock,fireworks,frostbite,snow,dancefloor,claudesweep";
+  "fire,matrix_rain,clock,fireworks,fireworks2,frostbite,snow,dancefloor,spiral,wave,starfield,rainbow";
 
 void loadSettings() {
   // Per-key defaulting: read if present, else write the default. isKey() avoids
@@ -27,6 +28,7 @@ void loadSettings() {
   settings.idleAfterS = prefs.isKey("idle_after")? prefs.getUInt("idle_after", 120)          : (prefs.putUInt("idle_after", 120), 120);
   settings.idleRotS   = prefs.isKey("idle_rot")  ? prefs.getUInt("idle_rot", 240)            : (prefs.putUInt("idle_rot", 240), 240);
   settings.idleBri    = prefs.isKey("idle_bri")  ? prefs.getUChar("idle_bri", 5)             : (prefs.putUChar("idle_bri", 5), 5);
+  settings.idleRandom = prefs.isKey("idle_rand") ? prefs.getBool("idle_rand", true)          : (prefs.putBool("idle_rand", true), true);
   settings.bootAnim   = prefs.isKey("boot_anim") ? prefs.getString("boot_anim", "")          : (prefs.putString("boot_anim", ""), String(""));
   settings.tz         = prefs.isKey("tz")        ? prefs.getString("tz", "")                 : (prefs.putString("tz", ""), String(""));
   settings.calibCorrection = prefs.isKey("calib_corr") ? prefs.getBool("calib_corr", true)   : (prefs.putBool("calib_corr", true), true);
@@ -40,9 +42,9 @@ void loadSettings() {
     // v1: no migration needed — just stamp. Future breaking changes branch here.
     prefs.putUShort("set_ver", SETTINGS_VERSION);
   }
-  Serial.printf("Settings loaded: idleOn=%d after=%us rot=%us idleBri=%u apps=%s\n",
+  Serial.printf("Settings loaded: idleOn=%d after=%us rot=%us idleBri=%u random=%d apps=%s\n",
                 settings.idleOn, settings.idleAfterS, settings.idleRotS,
-                settings.idleBri, settings.idleApps.c_str());
+                settings.idleBri, settings.idleRandom, settings.idleApps.c_str());
 }
 
 void saveSettings() {
@@ -51,6 +53,7 @@ void saveSettings() {
   prefs.putUInt("idle_after", settings.idleAfterS);
   prefs.putUInt("idle_rot", settings.idleRotS);
   prefs.putUChar("idle_bri", settings.idleBri);
+  prefs.putBool("idle_rand", settings.idleRandom);
   prefs.putString("boot_anim", settings.bootAnim);
   prefs.putString("tz", settings.tz);
   prefs.putBool("calib_corr", settings.calibCorrection);
@@ -68,6 +71,7 @@ String settingsToJson() {
   j += ",\"idle_after_secs\":" + String(settings.idleAfterS);
   j += ",\"idle_rotate_secs\":" + String(settings.idleRotS);
   j += ",\"idle_brightness\":"  + String(settings.idleBri);
+  j += ",\"idle_random\":"      + String(settings.idleRandom ? "true" : "false");
   // default_brightness is the SAME value as the live/auto-resume brightness — no
   // separate stored key, so it can never go inert. (resumeBri is the last
   // user-committed brightness, which is what auto-resume restores on boot.)
@@ -92,6 +96,7 @@ bool applySettingsJson(const String& body) {
   if (!doc["idle_after_secs"].isNull())  settings.idleAfterS = constrain((long)(doc["idle_after_secs"] | (long)settings.idleAfterS), 5L, 3600L);
   if (!doc["idle_rotate_secs"].isNull()) settings.idleRotS   = constrain((long)(doc["idle_rotate_secs"] | (long)settings.idleRotS), 10L, 3600L);
   if (!doc["idle_brightness"].isNull())  settings.idleBri    = constrain((int)(doc["idle_brightness"] | settings.idleBri), 1, 255);
+  if (!doc["idle_random"].isNull())      settings.idleRandom = doc["idle_random"].as<bool>();
   if (!doc["boot_animation"].isNull())   settings.bootAnim   = String((const char*)(doc["boot_animation"] | settings.bootAnim.c_str()));
   if (!doc["timezone"].isNull()) {
     settings.tz = String((const char*)(doc["timezone"] | settings.tz.c_str()));
