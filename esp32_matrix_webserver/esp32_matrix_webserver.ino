@@ -325,12 +325,14 @@ bool    calendarScrollMono = false;            // scroll: true = whole date in c
 // Plays a short uploaded frame sequence — the transport for the MCP server's
 // expression tools (canned glyphs, Claude-drawn animations). See
 // docs/superpowers/specs/2026-06-11-claude-expression-display.md.
-#define MAX_PLAY_FRAMES 24
-CRGB     framesBuf[MAX_PLAY_FRAMES * 64];   // 24 frames × 64 px ≈ 4.6KB static
+#define MAX_PLAY_FRAMES 160   // buffer capacity: covers the largest .cfr bake (fire, 150 frames) with headroom (framesCount is uint8_t: raising this past 255 requires widening it)
+#define MAX_WIRE_FRAMES 24    // POST /api/display/frames request cap (public contract, unchanged)
+CRGB*    framesBuf = nullptr; // 160 frames × 64 px ≈ 30KB, allocated from PSRAM in setup()
 uint8_t  framesCount  = 0;    // frames loaded
 uint16_t framesLoops  = 0;    // 0 = loop forever; N = play N passes then HOLD the last frame
 uint16_t framesPlayed = 0;    // completed passes
 uint8_t  framesIdx    = 0;    // next frame to show
+String   bakedName    = "";   // name of the active baked .cfr ("" = none); reported by /api/status
 
 // ── Sound (vibration) visualizer state ────────────────────────
 // No microphone — the IMU feels low-frequency vibration (bass through a surface).
@@ -773,6 +775,15 @@ void setup() {
     Serial.println("LittleFS mounted. Web UI will be ready once WiFi connects.");
   }
 
+  // Frames playback buffer lives in PSRAM (2MB, mostly idle) instead of the
+  // contended internal DRAM. Fallback keeps a misconfigured build booting.
+  framesBuf = (CRGB*)ps_malloc(sizeof(CRGB) * MAX_PLAY_FRAMES * 64);
+  if (!framesBuf) {
+    framesBuf = (CRGB*)malloc(sizeof(CRGB) * MAX_PLAY_FRAMES * 64);
+    Serial.println("WARNING: PSRAM alloc failed for framesBuf; using internal heap.");
+  }
+  if (!framesBuf) Serial.println("ERROR: framesBuf alloc failed; frames/baked playback disabled.");
+
   // Read the web bundle's stamped version once at boot (web files never change
   // at runtime). /api/status reports this as web_version so a single status
   // call reveals whether the flash and the LittleFS upload are in sync.
@@ -813,7 +824,7 @@ void setup() {
     String path = server.uri();
     if (LittleFS.exists(path)) {
       File file = LittleFS.open(path, "r");
-      // Static assets (.js/.css/.png/.ico) are served with `no-cache` so the browser
+      // Static assets (.js/.css/.png/.ico/.json) are served with `no-cache` so the browser
       // REVALIDATES every load and re-uploaded CSS/JS shows up WITHOUT a manual
       // hard-refresh. We previously cached these for 24h (max-age=86400) for speed,
       // but that meant every UI change required a Ctrl+F5 — and a stale app.css
@@ -821,7 +832,7 @@ void setup() {
       // emits no 304s, so `no-cache` re-fetches each small file per page load; that's
       // cheap on a LAN single-client board. If serving load ever becomes a concern,
       // switch to version-query cache-busting (e.g. app.css?v=<web_version>).
-      if (path.endsWith(".js") || path.endsWith(".css") || path.endsWith(".png") || path.endsWith(".ico"))
+      if (path.endsWith(".js") || path.endsWith(".css") || path.endsWith(".png") || path.endsWith(".ico") || path.endsWith(".json"))
         server.sendHeader("Cache-Control", "no-cache");
       server.streamFile(file, getContentType(path));
       file.close();
@@ -856,12 +867,18 @@ void setup() {
   // Boot display: a pinned boot_animation wins; otherwise fall back to auto-resume.
   if (settings.bootAnim.length()) {
     Serial.println("Boot: applying pinned boot animation: " + settings.bootAnim);
-    applyAnimationBody("{\"type\":\"" + settings.bootAnim + "\"}");
+    if (!applyAnimationBody("{\"type\":\"" + settings.bootAnim + "\"}")) {
+      Serial.println("Boot animation failed to launch; falling back to rainbow.");
+      applyAnimationBody("{\"type\":\"rainbow\"}");   // a bad boot pick must not boot black
+    }
   } else if (prefs.isKey("kind") && prefs.getString("kind", "") == "anim") {
     String body = prefs.isKey("animbody") ? prefs.getString("animbody", "") : "";
     if (body.length()) {
       Serial.println("Auto-resume: restoring last animation.");
-      applyAnimationBody(body);   // defined in api_handlers.ino
+      if (!applyAnimationBody(body)) {   // defined in api_handlers.ino
+        Serial.println("Auto-resume failed to launch (missing baked asset?); falling back to rainbow.");
+        applyAnimationBody("{\"type\":\"rainbow\"}");
+      }
     }
   }
 }

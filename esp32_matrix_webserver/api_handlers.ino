@@ -137,7 +137,7 @@ static const char* const KNOWN_ANIMS[] = {
   "weather", "weather2", "timer_fill", "timer_snow", "timer_text", "clock",
   "matrix_rain", "dancefloor", "spiral", "starfield", "fireworks", "fireworks2",
   "comet", "sun", "frostbite", "calendar", "sound", "presence", "snow",
-  "claudesweep"
+  "claudesweep", "baked"
 };
 
 // Applies an animation command from a JSON body. Shared by the HTTP handler
@@ -157,6 +157,15 @@ bool applyAnimationBody(const String& body) {
   bool known = false;
   for (auto n : KNOWN_ANIMS) if (reqType == n) { known = true; break; }
   if (!known) return false;
+
+  // Baked frames (.cfr): validate + decode BEFORE stopAll so a bad name or a
+  // corrupt/stale file 400s and leaves the board showing what it was.
+  uint16_t bakedCount = 0, bakedMs = 0; uint8_t bakedLoops = 0;
+  if (reqType == "baked") {
+    if (!loadCfr(String(doc["name"] | ""),
+                 (uint8_t)constrain((int)(doc["hue"] | 0), 0, 255),
+                 bakedCount, bakedMs, bakedLoops)) return false;
+  }
 
   stopAll();   // stop any currently running animation or text scroll
   animationName  = reqType;
@@ -184,6 +193,19 @@ bool applyAnimationBody(const String& body) {
   memset(columnDrift, 0, sizeof(columnDrift));
   memset(columnActive, 1, sizeof(columnActive));   // all columns active by default
   initSparks();
+
+  // Baked frames: hand the decoded file to the existing frames playback engine.
+  if (animationName == "baked") {
+    bakedName      = String(doc["name"] | "");
+    animationName  = "frames";        // dispatches to stepFramesFrame()
+    framesCount    = (uint8_t)bakedCount;
+    framesLoops    = bakedLoops;
+    framesIdx      = 0;
+    framesPlayed   = 0;
+    animationSpeed = (uint32_t)constrain((int)bakedMs, 10, 10000);
+  } else {
+    bakedName = "";   // any other launch ends the "which baked file" answer
+  }
 
   if (animationName == "liquid") {
     // viscosity param: 0 = thin/sloshy, 10 = thick/sluggish
@@ -518,7 +540,9 @@ static uint8_t framesHexNib(char c) {
   return 0;
 }
 void handleFrames() {
-  // This is our largest payload (up to MAX_PLAY_FRAMES × 384 hex chars ≈ 9KB),
+  if (!framesBuf) { sendJson(503, "{\"error\":\"frames buffer unavailable\"}"); return; }
+
+  // This is our largest payload (up to MAX_WIRE_FRAMES × 384 hex chars ≈ 9KB),
   // and parsing it briefly allocates a copy of the body plus the JSON document.
   // On a tight heap that transient spike can trip loop()'s low-heap auto-restart
   // (< 14000) and freeze/reboot the board. Bail out gracefully instead. With
@@ -539,8 +563,8 @@ void handleFrames() {
     return;
   }
   JsonArray arr = doc["frames"];
-  if (arr.isNull() || arr.size() < 1 || arr.size() > MAX_PLAY_FRAMES) {
-    sendJson(400, "{\"error\":\"frames must be an array of 1-" + String(MAX_PLAY_FRAMES) + " strings\"}");
+  if (arr.isNull() || arr.size() < 1 || arr.size() > MAX_WIRE_FRAMES) {
+    sendJson(400, "{\"error\":\"frames must be an array of 1-" + String(MAX_WIRE_FRAMES) + " strings\"}");
     return;
   }
   bool idleContent = doc["idle"] | false;   // host goof/Zz pushes set this true
@@ -575,6 +599,8 @@ void handleFrames() {
   animationName  = "frames";
   animationSpeed = (uint32_t)constrain((int)(doc["frame_ms"] | 150), 30, 5000);
   animationActive = true;
+
+  bakedName = "";   // wire-pushed frames replace whatever baked file was playing
 
   stepFramesFrame();   // show the first frame immediately
   matrixShow();
@@ -760,6 +786,7 @@ void handleStatus() {
   } else if (animationActive) {
     json += ",\"state\":\"animation\"";
     json += ",\"animation\":\"" + animationName + "\"";
+    if (bakedName.length()) json += ",\"baked\":\"" + escapeJson(bakedName) + "\"";
 
     if (animationName == "timer_fill" || animationName == "timer_snow" || animationName == "timer_text") {
       long remaining = (long)(timerEndMs - millis());

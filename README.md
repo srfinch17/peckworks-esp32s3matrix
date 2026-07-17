@@ -40,6 +40,19 @@ while `secrets.h` is present, so a shipped `.bin` never carries WiFi credentials
 [`RELEASING.md`](RELEASING.md)). For the Arduino IDE setup (board settings, libraries,
 LittleFS upload), see [`CLAUDE.md`](CLAUDE.md) and [`docs/PITFALLS.md`](docs/PITFALLS.md).
 
+### Refreshing the baked expression library
+
+The animation library (71 animations, packed into `library.cfrpack` plus `index.json`) in `esp32_matrix_webserver/data/frames/` is exported from the
+`claude-expression-studio` repo. To refresh after the studio library changes:
+
+    cd ../claude-expression-studio && npm run export:frames
+    rm ../peckworks-esp32s3matrix/esp32_matrix_webserver/data/frames/*
+    cp frames-out/library.cfrpack frames-out/index.json ../peckworks-esp32s3matrix/esp32_matrix_webserver/data/frames/
+
+Then do a LittleFS upload. Commit the changed assets. `npm run check` now verifies the frames
+directory matches index.json and that the LittleFS image has block headroom; run it after every
+refresh.
+
 ## Drive it with Claude
 
 The Claude integration is an MCP server, the Expression Studio, and Claude Code hooks that
