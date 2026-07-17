@@ -84,10 +84,13 @@ the new list rather than hand-clicking checkboxes.
 - `APPS` array: the 12 new defaults plus `claudesweep` (13 checkboxes
   total), so claudesweep stays selectable.
 - New row in the Idle panel: `Randomize settings` checkbox, id
-  `idle_random`, loaded/saved with the other idle keys.
+  `idle_random`, loaded/saved with the other idle keys. Checked by default
+  (the setting defaults on, and the page reflects board state).
 - When checked, the Idle brightness slider (and its label/output) is
-  disabled and visually dimmed. Toggling updates the disabled state live,
-  not just on save.
+  disabled and visually dimmed. Unchecking re-enables (unlocks) the slider
+  live, not just on save.
+- Claudesweep's checkbox is unchecked by default (it is not in the default
+  `idle_apps` CSV; the page checks only apps present in the stored list).
 
 ### 3. Idle engine (`idle_engine.ino`)
 
