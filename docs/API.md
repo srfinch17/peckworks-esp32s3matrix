@@ -23,8 +23,9 @@ POST /api/display/text      { text, color, color2, gradient, small, tiny, scroll
 POST /api/display/animation { type, transient? ...mode-specific }   # transient:true skips NVS auto-resume;
                             #   clock/calendar accept tz (POSIX TZ, DST) or timezone (int offset);
                             #   fluid2 returns achieved_fill (int 0-100, % seeded after row snapping);
-                            #   under sustained overload, fluid2 auto-reduces iters then K (logged to Serial),
-                            #   persisting both to status and NVS auto-resume until the next fluid2 POST
+                            #   under sustained overload, fluid2 automatically reduces its iters and then
+                            #   its K (announced on Serial); the reduction lasts until the next fluid2 POST
+                            #   or reboot and is not reported by /api/status.
 POST /api/display/matrix    { matrix: [[8×8 hex]] }
 POST /api/display/frames    { frames: ["384-hex RRGGBB×64", …≤24], frame_ms, loop }   # loop 0=forever, N=passes then hold last
 POST /api/weather/mode      { mode: temp|humidity|uv|pressure|cycle }

@@ -241,7 +241,8 @@ bool applyAnimationBody(const String& body) {
 
     // Fill / grid / solve params, mirrored 1:1 from the page (fluid2.html).
     f2Fill     = constrain((int)(doc["fill"]     | 50), 0, 100);
-    f2K        = constrain((int)(doc["K"]        | 2),  1, 2);   // anim_fluid2's F2_K_MAX clamps further on large panels
+    f2K        = constrain((int)(doc["K"]        | 2),  1, 2);   // anim_fluid2's F2_K_MAX clamps further on large panels.
+                                                                    // On panels with F2_K_MAX=1, a POST carrying K=2 stores 2 here while seedFluid2() clamps to 1, so prevK never matches and reseeds every time (harmless on this 8x8).
     f2Iters    = constrain((int)(doc["iters"]    | 30), 5, 60);
     f2Substeps = constrain((int)(doc["substeps"] | 2),  1, 2);
     f2GravityScale = constrain((float)(doc["gravity_scale"] | 1.0f), 0.0f, 2.0f);
@@ -252,7 +253,7 @@ bool applyAnimationBody(const String& body) {
     // FLIP/PIC blend, descending: flipRatio 1.0 keeps all particle energy (splashy),
     // lower resamples more from the grid (syrupy). Below ~0.6 it washes into mush,
     // so viscosity is not exposed past 10.
-    float vis01 = constrain((float)(int)(doc["viscosity"] | 2), 0.0f, 10.0f) * 0.1f;
+    float vis01 = constrain((float)(doc["viscosity"] | 2.0f), 0.0f, 10.0f) * 0.1f;
     f2FlipRatio = 1.0f - 0.35f * vis01;
 
     // Color: color1/color2 are the MCP-facing deep/surface aliases (its schema has
