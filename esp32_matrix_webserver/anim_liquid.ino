@@ -63,7 +63,7 @@ void initIMU() {
 // per 4g full scale)
 //
 // NOTE: Burst reads (requesting multiple bytes in one transaction)
-// fail on this particular chip revision — the register pointer
+// fail on this particular chip revision. The register pointer
 // doesn't auto-increment correctly. So each byte is fetched
 // with an explicit register address. Not pretty, but it works.
 void readAccelXY(float &ax, float &ay) {
@@ -74,18 +74,9 @@ void readAccelXY(float &ax, float &ay) {
 }
 
 // ── readAccel ─────────────────────────────────────────────────
-// Reads raw 16-bit accelerometer values for all three axes and
-// converts them to g-force (gravitational units, ±4g range here).
-//
-// Each axis is two bytes: low byte then high byte, addresses
-// 0x35-0x3A. They're combined into a signed 16-bit int with
-// (xL | (xH << 8)), then divided by 8192.0f to convert to g.
-// (8192 = 2^13 = half the 16-bit range / 4g full scale)
-//
-// NOTE: Burst reads (requesting multiple bytes in one transaction)
-// fail on this particular chip revision — the register pointer
-// doesn't auto-increment correctly. So each byte is fetched
-// with an explicit register address. Not pretty, but it works.
+// Reads raw 16-bit accelerometer values for all three axes.
+// Calls readAccelXY() for X and Y, then reads Z (0x39-0x3A).
+// (Burst-read caveat: see the NOTE on readAccelXY above.)
 void readAccel(float &ax, float &ay, float &az) {
   readAccelXY(ax, ay);
   uint8_t zL = qmiRead(0x39), zH = qmiRead(0x3A);
