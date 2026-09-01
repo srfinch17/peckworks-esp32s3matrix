@@ -242,7 +242,7 @@ bool applyAnimationBody(const String& body) {
     f2Iters    = constrain((int)(doc["iters"]    | 30), 5, 60);
     f2Substeps = constrain((int)(doc["substeps"] | 2),  1, 2);
     f2GravityScale = constrain((float)(doc["gravity_scale"] | 1.0f), 0.0f, 2.0f);
-    f2FoamGain     = constrain((float)(doc["foam"]          | 5),    0.0f, 10.0f);
+    f2FoamGain     = constrain((float)(doc["foam"]          | 5.0f), 0.0f, 10.0f);
 
     // viscosity: same name and direction as liquid's (0 = thin, 10 = thick), but a
     // different quantity underneath. liquid maps it to damping; here it maps to the
@@ -282,7 +282,6 @@ bool applyAnimationBody(const String& body) {
     animationSpeed = min(animationSpeed, (uint32_t)33);
 
     seedFluid2();
-    animationName = "fluid2";   // already set above; explicit here so a future reorder of this block can't drift it
   }
 
   if (animationName == "chiptemp") {
