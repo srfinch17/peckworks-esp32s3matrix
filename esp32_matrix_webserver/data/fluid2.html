@@ -163,6 +163,7 @@
     // Board preview: poll the firmware's actual framebuffer, same pattern as
     // calendar.html. Mirrors real leds[] so it's exact for this sim too.
     let lastFrame = null;
+    let fbBusy = false;
     function paintPreview() {
       const grid = document.getElementById('f2Preview');
       if (!grid || !lastFrame) return;
@@ -178,12 +179,15 @@
     }
     async function pollFramebuffer() {
       if (document.hidden) return;   // don't hammer the single-client ESP32 server for a preview nobody's viewing
+      if (fbBusy) return;
+      fbBusy = true;
       try {
         const r = await fetch('/api/display/framebuffer');
         if (r.ok) { const d = await r.json(); lastFrame = d.px; paintPreview(); }
       } catch { /* board momentarily unreachable, keep the last frame */ }
+      finally { fbBusy = false; }
     }
-    setInterval(pollFramebuffer, 333);   // ~3 fps
+    setInterval(pollFramebuffer, 500);   // ~2 fps
     pollFramebuffer();
     if (window.LedSim) LedSim.onChange(paintPreview);
 

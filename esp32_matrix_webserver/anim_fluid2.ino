@@ -1056,12 +1056,21 @@ static void f2Render() {
 
   // Per-LED coloring pass.
   float foamGain = f2FoamGain * 0.1f;   // the 0..10 "Splash" knob -> 0..1
+  // Density -> brightness ramp, simulation-tuned at K=2 (full at density 10,
+  // cutoff 1.0) and scaled by K*K because particles-per-LED scales with cell
+  // area: without the K*K term, K=1 panels would render everything dim.
+  // These two are the calibration knobs if the look needs tuning on hardware.
+  float full    = 2.5f * (float)(f2K * f2K);
+  float cut     = 0.25f * (float)(f2K * f2K);
+  float invFull = 1.0f / full;
   for (int y = 0; y < MATRIX_H; y++) {
     for (int x = 0; x < MATRIX_W; x++) {
       int k = y * MATRIX_W + x;
       // Explicit empty branch instead of dividing: 0/0 is a NaN the frame
-      // diagnostic does not watch for.
-      if (f2Density[k] < 1e-4f) { setPixel(x, y, CRGB::Black); continue; }
+      // diagnostic does not watch for. A barely-touched pixel must stay dark,
+      // not just a strictly-empty one; full-brightness-on-any-touch was the
+      // whole-panel-lights-up bug.
+      if (f2Density[k] < cut) { setPixel(x, y, CRGB::Black); continue; }
 
       float inv     = 1.0f / f2Density[k];
       float depth01 = f2DepthAcc[k] * inv;               // 0 = surface, 1 = deep
@@ -1090,6 +1099,11 @@ static void f2Render() {
       col.r = qadd8(col.r, f);
       col.g = qadd8(col.g, f);
       col.b = qadd8(col.b, f);
+
+      // Scale the whole colour by how much fluid is actually here. A pixel a
+      // splash grazes renders as a dim droplet, not a solid block of water.
+      float bri01 = min(f2Density[k] * invFull, 1.0f);
+      col.nscale8((uint8_t)(bri01 * 255.0f));
 
       // Near-black floors to true off: a WS2812B renders 1-2/255 as flickery
       // noise-colored specks, and the calibration layer lifts any nonzero
