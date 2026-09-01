@@ -65,3 +65,8 @@ board is optional for it (it has a board-free browser mode).
 just answers HTTP. The one MCP server in the system is the studio's (it registers as
 `expression-studio`). To drive the board from Claude, install that repo (`npm run setup`)
 and point it here (`--board http://<board-ip>`).
+
+## Licenses and attribution
+
+The Fluid 2 animation is a port of the FLIP particle fluid solver from Ten Minute Physics #18
+by Matthias Muller (MIT licensed). Full attribution in the `LICENSE` file and at the top of `esp32_matrix_webserver/anim_fluid2.ino`.
