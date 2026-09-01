@@ -949,6 +949,7 @@ void stepFluid2Frame() {
   if (frameUs > worstUs) worstUs = frameUs;
 
   uint32_t nowMs = millis();
+  if (lastReportMs == 0) lastReportMs = nowMs;   // first frame: start the 5 s window HERE, not at boot, so one cold frame never triggers the ladder
   if (nowMs - lastReportMs >= 5000 && frames > 0) {
     uint32_t meanUs = accumUs / frames;
     // SCAFFOLDING: remove before PR (this report print only; the O10 ladder
