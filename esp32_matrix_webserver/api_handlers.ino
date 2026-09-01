@@ -236,6 +236,9 @@ bool applyAnimationBody(const String& body) {
   }
 
   if (animationName == "fluid2") {
+    int prevFill = f2Fill;
+    int prevK    = f2K;
+
     // Fill / grid / solve params, mirrored 1:1 from the page (fluid2.html).
     f2Fill     = constrain((int)(doc["fill"]     | 50), 0, 100);
     f2K        = constrain((int)(doc["K"]        | 2),  1, 2);   // anim_fluid2's F2_K_MAX clamps further on large panels
@@ -281,7 +284,13 @@ bool applyAnimationBody(const String& body) {
     // this into slow motion (mirrors the frostbite clamp above).
     animationSpeed = min(animationSpeed, (uint32_t)33);
 
-    seedFluid2();
+    // Only geometry-changing params reseed the tank. Everything else (viscosity/
+    // flipRatio, gravity_scale, foam, iters, substeps, the gradient colours) is
+    // read per-frame by the solver/render, so a live-apply of those morphs the
+    // running fluid instead of resetting it. f2NumParticles == 0 covers first
+    // launch and the empty-tank recovery states, which have nothing to morph.
+    bool needSeed = (f2NumParticles == 0) || (f2Fill != prevFill) || (f2K != prevK);
+    if (needSeed) seedFluid2();
   }
 
   if (animationName == "chiptemp") {
