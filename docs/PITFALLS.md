@@ -14,6 +14,62 @@ Entry template:
 
 ---
 
+## 2026-09-01, `min()`/`max()` with mixed argument types do not compile (they are `std::` templates here, not macros)
+**Symptom:** `error: no matching function for call to 'min(int, float&)'` on a line ported from JavaScript
+(`Math.min(Math.floor(x), n - 2)` became `min(floorf(x), nx - 2)`).
+**Cause:** `Arduino.h` on the ESP32 core says "can't define max()/min()" and does `using std::min; using std::max;`.
+Template deduction needs identical types. `constrain()` and `sq()` ARE macros and double-evaluate their arguments.
+**Fix / rule:** both arguments identically typed, every call: `min((int)floorf(x), nx - 2)`, `min(animationSpeed, (uint32_t)33)`.
+Never pass a side effect to `constrain`/`sq`. Measured on the real toolchain during the liquid2 port.
+
+## 2026-09-01, `#pragma GCC ...` scopes to the whole translation unit, and the IDE's `-w` disarms diagnostic pragmas
+**Symptom:** (a) a `#pragma GCC diagnostic error "-Wdouble-promotion"` at the top of one `.ino` failed the build with
+9 errors in OTHER files (`anim_gradient`, `calibration`, `mqtt_publisher`). (b) With the IDE default warning level
+the same pragma caught nothing at all, even against a deliberately bad line.
+**Cause:** all `.ino` files concatenate into one TU (main first, then alphabetical), so a pragma applies to every file
+that sorts after it. And `platform.txt` sets `compiler.warning_flags=-w` for "Compiler warnings: None", which silently
+defeats `#pragma GCC diagnostic`. `#pragma GCC optimize("O2")` has the same leak and was measured to produce LARGER
+and no faster code than `-Os` on the hot loop; do not use it.
+**Fix / rule:** wrap any diagnostic pragma in `push`/`pop` with the `pop` as the LAST line of the file. To exercise it,
+build once with `--warnings default`. Prove it is armed with a positive control (a known-bad line must fail).
+
+## 2026-09-01, The ESP32-S3 has no double-precision FPU; an unsuffixed literal makes the whole expression soft-float
+**Symptom:** a numerically heavy loop ran far slower than its instruction count predicted.
+**Cause:** `a * 0.5 + 2.0` compiles to four library calls (`__extendsfdf2`, `__muldf3`, `__adddf3`, `__truncdfsf2`),
+no FPU instruction at all. JavaScript ports are wall-to-wall `0.5`/`2.0`. Also: `floor()`/`sqrt()`/`fabs()` on a
+`float` resolve to the float overloads via `<cmath>`, so those are fine; only bare literals and varargs promote.
+**Fix / rule:** `f` suffix on every float literal; `(double)` cast floats explicitly when passing to `printf`.
+The `-Wdouble-promotion` pragma above catches literals and varargs, and nothing else.
+
+## 2026-09-01, ArduinoJson `doc["k"] | 5` silently ignores a fractional JSON value; `containsKey` is deprecated in v7
+**Symptom:** a caller sending `"foam": 7.5` got the default 5 with no error.
+**Cause:** the bare `5` makes `operator|` infer `int`, whose `isInteger<int>()` check is strict on the stored type;
+a JSON number written with a decimal point is stored as a float and fails it.
+**Fix / rule:** float params take float defaults (`doc["foam"] | 5.0f`). Presence checks use `!doc["k"].isNull()`;
+`containsKey()` is the v6 API and deprecated in the 7.4.x this project pins.
+
+## 2026-09-01, A coverage/splat renderer that lights any "touched" pixel floods the panel during motion
+**Symptom:** a particle fluid at 30% fill lit almost every LED while sloshing; at rest it looked right.
+**Cause:** the render lit any LED with density above `1e-4` at FULL brightness. Hundreds of particles each graze up to
+4 LEDs during motion, so nearly every pixel crosses that threshold. A Node port of the render pass reproduced it
+(46 of 64 lit vs 33 wet) and tuned the fix offline before ONE reflash.
+**Fix / rule:** brightness must be a function of how much is there (`min(density / FULL, 1)`), the empty cutoff must be
+a meaningful fraction of one particle, and both scale with sim-cells-per-LED. See the 8x8 animation-design memory.
+
+## 2026-09-01, A page's framebuffer preview poller can stutter the animation it is previewing
+**Symptom:** an animation looked choppy while its own control page was open, smooth from any other page.
+**Cause:** `setInterval(pollFramebuffer, 333)` with an `await fetch` inside: when `/api/display/framebuffer`
+responds slower than the interval (documented as slow under load), requests overlap and pile onto the single-client
+server that shares `loop()` with the animation.
+**Fix / rule:** every poller gets an in-flight guard (`if (busy) return; busy = true; ... finally { busy = false }`),
+polls at 2 fps or less, and keeps the `document.hidden` check. Ask for a "tab closed" A/B before blaming the solver.
+
+## 2026-09-01, After renaming or removing an animation, the board boots to rainbow once
+**Symptom:** Serial says `Auto-resume failed to launch (missing baked asset?); falling back to rainbow.`
+**Cause:** NVS `animbody` still carries the old `type` string, which `applyAnimationBody()` correctly refuses.
+**Fix / rule:** expected, one time. Launch anything and the stored state heals. This is also why an animation's id
+becomes a contract at merge: rename before merging, when it is only a grep.
+
 ## 2026-06-23, A distributable firmware `.bin` can carry your WiFi password (secrets.h is compiled in)
 **Symptom:** after a full `esptool erase-flash` + reflash of the merged factory image, the board
 rejoined WiFi automatically with NO captive portal, credentials seemed to "survive" a wipe.
