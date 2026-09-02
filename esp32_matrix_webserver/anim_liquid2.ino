@@ -27,7 +27,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include "esp_heap_caps.h"   // heap_caps_malloc: pick DRAM vs PSRAM explicitly (R6)
 
 // ============================================================
-// FLUID2: FLIP/PIC HYBRID PARTICLE FLUID
+// LIQUID2: FLIP/PIC HYBRID PARTICLE FLUID
 //
 // Where anim_liquid.ino fakes a fluid with one scalar threshold
 // (six floats of state, can never splash), this is the real
@@ -88,6 +88,7 @@ static const float f2PInvSpacing = 1.0f / (2.2f * f2R);   // pushApart hash cell
 // globals directly. Never #define short names: a macro would leak into the 17
 // later files (anim_sound.ino declares a float dt, weather.ino a parameter rows,
 // calibration.ino locals r, g, b).
+// Internal symbols keep the short f2 prefix, read it as "liquid2".
 
 // Parameters (defaults are the shipping look; api_handlers clamps ranges).
 static int   f2Fill         = 50;     // fill percent, 0..100
@@ -97,7 +98,7 @@ static int   f2Substeps     = 2;      // 2 = real time at 33 ms/frame, 1 = half-
 static float f2GravityScale = 1.0f;   // 0..2, 0 = zero-g blob drift
 static float f2FoamGain     = 5.0f;   // 0..10, spray whitening strength
 static float f2FlipRatio    = 0.9f;   // 0.65..1.0; viscosity maps here, lower = thicker
-static int   f2AchievedFill = 0;      // what seedFluid2() actually landed on (read by api_handlers)
+static int   f2AchievedFill = 0;      // what seedLiquid2() actually landed on (read by api_handlers)
 
 // Gravity direction, SOLVER frame (+y = UP).
 // The initial value is -1.0f (DOWN), NOT liquid's +1.0f: liquid's frame is y-DOWN
@@ -191,7 +192,7 @@ static size_t f2LayoutArena(int iw, int ih, bool assign) {
 
   // Particle capacity: the full seed lattice at 100% fill (nX*nY overstates the
   // staggered count by ceil(nY/2), which is exactly the slack we want). Must use
-  // the SAME formula as seedFluid2() so capacity always covers the seed.
+  // the SAME formula as seedLiquid2() so capacity always covers the seed.
   const float dx0 = 2.0f * f2R;
   const float dy0 = 0.8660254f * dx0;    // sqrt(3)/2 * dx: hex close-packing row pitch
   int latX = max(2, (int)roundf(((float)iw - dx0) / dx0));   // R2: int/int
@@ -256,7 +257,7 @@ static size_t f2LayoutArena(int iw, int ih, bool assign) {
   return off;
 }
 
-// ── fluid2EnsureArena ─────────────────────────────────────────
+// ── liquid2EnsureArena ─────────────────────────────────────────
 // Allocate-once. Called by api_handlers BEFORE stopAll() so a failed allocation
 // returns false (HTTP turns that into a 503, boot auto-resume into the rainbow
 // fallback) instead of leaving a dark panel. Sized at F2_K_MAX and 100% fill
@@ -266,7 +267,7 @@ static size_t f2LayoutArena(int iw, int ih, bool assign) {
 // stride f2NY floats is PSRAM's worst random-access case); PSRAM only when
 // internal will not fit. The 8BIT flag is required alongside INTERNAL: INTERNAL
 // alone does not guarantee byte addressability.
-bool fluid2EnsureArena() {
+bool liquid2EnsureArena() {
   if (f2Arena != nullptr) return true;
   size_t need = f2LayoutArena(MATRIX_W * F2_K_MAX, MATRIX_H * F2_K_MAX, false);
   f2Arena = (uint8_t*)heap_caps_malloc(need, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
@@ -275,22 +276,22 @@ bool fluid2EnsureArena() {
     f2Arena = (uint8_t*)heap_caps_malloc(need, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
   }
   if (f2Arena == nullptr) {
-    Serial.printf("fluid2: arena allocation FAILED (%u bytes); refusing to start\n",
+    Serial.printf("liquid2: arena allocation FAILED (%u bytes); refusing to start\n",
                   (unsigned)need);
     return false;
   }
-  Serial.printf("fluid2: arena %u bytes in %s\n", (unsigned)need,
+  Serial.printf("liquid2: arena %u bytes in %s\n", (unsigned)need,
                 internal ? "internal DRAM" : "PSRAM");
   return true;
 }
 
-// ── seedFluid2 ────────────────────────────────────────────────
+// ── seedLiquid2 ────────────────────────────────────────────────
 // Full reseed from the current params. Every knob change and the NaN recovery
 // path route through here. The reference's constructor is NOT ported: it computes
 // fNumX = floor(width/spacing)+1 and then silently redefines h, so asking for 16
 // cells yields a 15x15 interior (plan section 10, deviation 1). We set the
 // geometry directly.
-void seedFluid2() {
+void seedLiquid2() {
   // (1) FIRST LINE, non-negotiable: clear the rest-density measurement gate.
   // It is measured once ever (gated on == 0.0 in f2UpdateParticleDensity), and
   // its only clearing site in the reference is the constructor we deleted. A
@@ -663,7 +664,7 @@ static void f2TransferToGrid() {
 //       list numIters times per substep instead of re-scanning the whole grid
 //       and skipping non-fluid cells every pass.
 //   (b) the one-time rest density measurement (reference :348-361, gated on
-//       == 0.0f, cleared only by seedFluid2). Border cells are never FLUID, so
+//       == 0.0f, cleared only by seedLiquid2). Border cells are never FLUID, so
 //       scanning the interior only is equivalent to the reference's full scan.
 //   (c) the drift-compensation hysteresis (plan section 5): with (nearly) every
 //       interior cell FLUID the compensation term makes the all-Neumann pressure
@@ -868,13 +869,13 @@ static float f2ParticleSpray(float x, float y) {
 // FRAME DRIVER + RENDER
 // ============================================================
 
-// ── stepFluid2Frame ───────────────────────────────────────────
+// ── stepLiquid2Frame ───────────────────────────────────────────
 // One rendered frame: read the IMU once (O8), run 1-2 substeps of FIXED
 // dt = 1/60 (a variable dt into a pressure solve is how these diverge; at the
 // 33 ms frame interval, 2 substeps advance 33.3 ms of sim time per 33 ms of
 // wall clock, i.e. real time, and 1 substep is deliberate half-speed), check
 // for NaN, render, and keep the frame-time books for the O10 degrade ladder.
-void stepFluid2Frame() {
+void stepLiquid2Frame() {
   if (f2Arena == nullptr || f2FNumCells == 0) return;   // not allocated / not seeded
 
   uint32_t tFrame0 = micros();
@@ -896,9 +897,11 @@ void stepFluid2Frame() {
   // else: hold the last direction (board near flat, in-plane direction is noise)
 
   // Gravity vector handed to integrateParticles, with the user's scale knob.
-  // Magnitude is calibrated to tank HEIGHT (3.27 cells/s^2 per cell of height)
-  // so the settle feel is panel-relative; 0 = zero-g.
-  float gMag = 3.27f * (float)f2IH * f2GravityScale;
+  // Magnitude is calibrated to tank HEIGHT: base 3.27 tank-heights/s^2 matched the
+  // reference demo, a room-sized tank feel; doubled 2026-09-01 after hardware
+  // calibration, the user found 2x reads as natural handheld-tank gravity, so 1.0
+  // on the scale knob is that feel. Settle feel stays panel-relative; 0 = zero-g.
+  float gMag = 6.54f * (float)f2IH * f2GravityScale;
   float gX   = f2GXn * gMag;
   float gY   = f2GYn * gMag;
 
@@ -927,10 +930,10 @@ void stepFluid2Frame() {
   float xsum = 0.0f;
   for (int i = 0; i < f2NumParticles; i++) xsum += f2ParticlePos[2 * i];
   if (isnan(xsum)) {
-    Serial.printf("fluid2: NaN! config K=%d fill=%d iters=%d substeps=%d flip=%.2f grav=%.2f particles=%d; reseeding\n",
+    Serial.printf("liquid2: NaN! config K=%d fill=%d iters=%d substeps=%d flip=%.2f grav=%.2f particles=%d; reseeding\n",
                   f2K, f2Fill, f2Iters, f2Substeps,
                   (double)f2FlipRatio, (double)f2GravityScale, f2NumParticles);
-    seedFluid2();
+    seedLiquid2();
   }
 
   f2Render();
@@ -954,7 +957,7 @@ void stepFluid2Frame() {
     uint32_t meanUs = accumUs / frames;
     // SCAFFOLDING: remove before PR (this report print only; the O10 ladder
     // below ships and keeps the measurement above as its trigger).
-    Serial.printf("fluid2: frame mean %lu us (solver %lu us), worst %lu us over %lu frames\n",
+    Serial.printf("liquid2: frame mean %lu us (solver %lu us), worst %lu us over %lu frames\n",
                   (unsigned long)meanUs, (unsigned long)(solverUs / frames),
                   (unsigned long)worstUs, (unsigned long)frames);
 
@@ -963,13 +966,13 @@ void stepFluid2Frame() {
     if (meanUs > 33000u) {
       if (f2Iters > 5) {
         f2Iters = max(5, f2Iters / 2);     // R2: int/int
-        Serial.printf("fluid2: over budget, reducing iters to %d\n", f2Iters);
+        Serial.printf("liquid2: over budget, reducing iters to %d\n", f2Iters);
       } else if (f2K > 1) {
         f2K = 1;
-        Serial.println("fluid2: over budget, dropping K to 1 (reseeding)");
-        seedFluid2();
+        Serial.println("liquid2: over budget, dropping K to 1 (reseeding)");
+        seedLiquid2();
       } else {
-        Serial.println("fluid2: over budget at minimum config; accepting dropped frames");
+        Serial.println("liquid2: over budget at minimum config; accepting dropped frames");
       }
     }
     accumUs = 0; solverUs = 0; worstUs = 0; frames = 0;
@@ -1077,7 +1080,7 @@ static void f2Render() {
       float spray   = f2Foam[k] * inv * foamGain;
 
       // Color rides liquid's globals and path: no new color globals, no second
-      // depth lerp. (The fluid2 param block in api_handlers must set all three,
+      // depth lerp. (The liquid2 param block in api_handlers must set all three,
       // including liquidGradient, or a warm switch from liquid inherits stale
       // state; that wiring is plan step 8.)
       CRGB col;

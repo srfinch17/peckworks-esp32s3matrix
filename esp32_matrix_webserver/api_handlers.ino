@@ -133,7 +133,7 @@ static void startNtp(JsonDocument& doc) {
 // must be rejected here: it would otherwise be accepted, persisted for auto-resume,
 // match no dispatch branch, and the board would "resume" into a black screen.
 static const char* const KNOWN_ANIMS[] = {
-  "fire", "rainbow", "breathe", "wave", "solid", "liquid", "fluid2", "imu", "chiptemp",
+  "fire", "rainbow", "breathe", "wave", "solid", "liquid", "liquid2", "imu", "chiptemp",
   "weather", "weather2", "timer_fill", "timer_snow", "timer_text", "clock",
   "matrix_rain", "dancefloor", "spiral", "starfield", "fireworks", "fireworks2",
   "comet", "sun", "frostbite", "calendar", "sound", "presence", "snow",
@@ -167,13 +167,13 @@ bool applyAnimationBody(const String& body) {
                  bakedCount, bakedMs, bakedLoops)) return false;
   }
 
-  // fluid2: make sure the (one-time, never-freed) particle arena exists BEFORE
+  // liquid2: make sure the (one-time, never-freed) particle arena exists BEFORE
   // stopAll so a failed allocation leaves the board showing what it was, not a
   // black panel. On boot auto-resume this false becomes the existing
   // "falling back to rainbow" path; for an HTTP caller it becomes the 400
   // handleAnimation already sends when applyAnimationBody returns false.
-  if (reqType == "fluid2") {
-    if (!fluid2EnsureArena()) return false;
+  if (reqType == "liquid2") {
+    if (!liquid2EnsureArena()) return false;
   }
 
   stopAll();   // stop any currently running animation or text scroll
@@ -235,14 +235,14 @@ bool applyAnimationBody(const String& body) {
     liquidGX    = 0.0f;  liquidGY       = 1.0f;   // default "down" until the IMU reports
   }
 
-  if (animationName == "fluid2") {
+  if (animationName == "liquid2") {
     int prevFill = f2Fill;
     int prevK    = f2K;
 
-    // Fill / grid / solve params, mirrored 1:1 from the page (fluid2.html).
+    // Fill / grid / solve params, mirrored 1:1 from the page (liquid2.html).
     f2Fill     = constrain((int)(doc["fill"]     | 50), 0, 100);
-    f2K        = constrain((int)(doc["K"]        | 2),  1, 2);   // anim_fluid2's F2_K_MAX clamps further on large panels.
-                                                                    // On panels with F2_K_MAX=1, a POST carrying K=2 stores 2 here while seedFluid2() clamps to 1, so prevK never matches and reseeds every time (harmless on this 8x8).
+    f2K        = constrain((int)(doc["K"]        | 2),  1, 2);   // anim_liquid2's F2_K_MAX clamps further on large panels.
+                                                                    // On panels with F2_K_MAX=1, a POST carrying K=2 stores 2 here while seedLiquid2() clamps to 1, so prevK never matches and reseeds every time (harmless on this 8x8).
     f2Iters    = constrain((int)(doc["iters"]    | 30), 5, 60);
     f2Substeps = constrain((int)(doc["substeps"] | 2),  1, 2);
     f2GravityScale = constrain((float)(doc["gravity_scale"] | 1.0f), 0.0f, 2.0f);
@@ -279,7 +279,7 @@ bool applyAnimationBody(const String& body) {
     // from "liquid" never inherits stale gradient state; the palette path
     // (heatToColor) renders when it's off.
 
-    // fluid2 is a fixed-timestep sim (dt is always 1/60): "speed" doesn't make it
+    // liquid2 is a fixed-timestep sim (dt is always 1/60): "speed" doesn't make it
     // move faster, only changes how much real time each rendered frame covers.
     // Clamp so an MCP caller's speed 1-4 (rescaled to 150/100/66/40ms) can't turn
     // this into slow motion (mirrors the frostbite clamp above).
@@ -291,7 +291,7 @@ bool applyAnimationBody(const String& body) {
     // running fluid instead of resetting it. f2NumParticles == 0 covers first
     // launch and the empty-tank recovery states, which have nothing to morph.
     bool needSeed = (f2NumParticles == 0) || (f2Fill != prevFill) || (f2K != prevK);
-    if (needSeed) seedFluid2();
+    if (needSeed) seedLiquid2();
   }
 
   if (animationName == "chiptemp") {
@@ -544,10 +544,10 @@ void handleAnimation() {
   if (animationName != "presence" && !launchWasTransient) {
     resumeKind = "anim"; resumeBody = body; resumeDirty = true; resumeDirtyMs = millis();
   }
-  // fluid2's requested fill percent may not land exactly (particles are placed in
-  // whole rows): report what seedFluid2() actually achieved.
+  // liquid2's requested fill percent may not land exactly (particles are placed in
+  // whole rows): report what seedLiquid2() actually achieved.
   String animResp = "{\"status\":\"ok\",\"animation\":\"" + animationName + "\"}";
-  if (animationName == "fluid2") {
+  if (animationName == "liquid2") {
     animResp = "{\"status\":\"ok\",\"animation\":\"" + animationName + "\",\"achieved_fill\":" + String(f2AchievedFill) + "}";
   }
   sendJson(200, animResp);

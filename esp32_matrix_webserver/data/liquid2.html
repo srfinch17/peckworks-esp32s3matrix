@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fluid 2</title>
+  <title>Liquid 2</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230d0d0d'/%3E%3Ccircle cx='4' cy='4' r='1.5' fill='%2300ff88'/%3E%3Ccircle cx='12' cy='4' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='8' cy='8' r='1.5' fill='%2322ddff'/%3E%3Ccircle cx='4' cy='12' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='12' cy='12' r='1.5' fill='%2300ff88'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="app.css">
 </head>
 <body>
   <div class="wrap" style="--accent-page:#22ddff">
-  <h1>⛲ Fluid 2</h1>
+  <h1>⛲ Liquid 2</h1>
 
   <div class="panel">
     <div class="layout">
@@ -80,7 +80,7 @@
         </div>
 
         <div class="actions">
-          <button class="btn-primary"   onclick="sendFluid2()">Apply to Display</button>
+          <button class="btn-primary"   onclick="sendLiquid2()">Apply to Display</button>
           <button class="btn-secondary" onclick="clearDisplay()">Stop / Clear</button>
           <span class="live-dot">applies live</span>
         </div>
@@ -97,7 +97,7 @@
     let liveTimer = null;
     function liveApply() {
       clearTimeout(liveTimer);
-      liveTimer = setTimeout(sendFluid2, 180);
+      liveTimer = setTimeout(sendLiquid2, 180);
     }
 
     // Shared palette (S2) for the gradient: [Top, Bottom]. Defaults match the
@@ -191,10 +191,10 @@
     pollFramebuffer();
     if (window.LedSim) LedSim.onChange(paintPreview);
 
-    async function sendFluid2() {
+    async function sendLiquid2() {
       const c = pal.get();   // [top, bottom]
       const body = {
-        type: 'fluid2',
+        type: 'liquid2',
         viscosity: +document.getElementById('viscosity').value,
         fill: +document.getElementById('fill').value,
         gravity_scale: +document.getElementById('gravity').value,
@@ -215,7 +215,7 @@
           if (typeof d.achieved_fill === 'number') {
             document.getElementById('achievedFill').textContent = d.achieved_fill;
           }
-          setStatus('✓ Fluid 2 running');
+          setStatus('✓ Liquid 2 running');
         } else {
           setStatus('Error: HTTP ' + r.status, true);
         }

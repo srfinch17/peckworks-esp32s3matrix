@@ -68,5 +68,5 @@ and point it here (`--board http://<board-ip>`).
 
 ## Licenses and attribution
 
-The Fluid 2 animation is a port of the FLIP particle fluid solver from Ten Minute Physics #18
-by Matthias Muller (MIT licensed). Full attribution in the `LICENSE` file and at the top of `esp32_matrix_webserver/anim_fluid2.ino`.
+The Liquid 2 animation is a port of the FLIP particle fluid solver from Ten Minute Physics #18
+by Matthias Muller (MIT licensed). Full attribution in the `LICENSE` file and at the top of `esp32_matrix_webserver/anim_liquid2.ino`.
