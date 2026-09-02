@@ -12,8 +12,8 @@ API.
 
 ## Features
 
-- **8×8 animation engine.** Fire, matrix rain, fireworks, dance floor, comet, Fluid 1,
-  and more, each with its own web control page.
+- **8×8 animation engine.** Fire, matrix rain, fireworks, dance floor, comet, and an
+  IMU-reactive liquid, plus more, each with its own web control page.
 - **WiFi captive-portal onboarding.** Joins your network with no hardcoded credentials, and
   is reachable at `http://esp32matrix.local`.
 - **Onboard web UI.** Animation selector, brightness, weather and clock modes, settings, and
