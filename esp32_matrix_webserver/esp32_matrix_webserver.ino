@@ -33,6 +33,7 @@
 //   esp32_matrix_webserver.ino — globals, setup(), loop(), core utilities
 //   anim_fire.ino              — fire animation + spark system
 //   anim_liquid.ino            — IMU driver + liquid/imu animations
+//   anim_liquid2.ino           - FLIP/PIC particle fluid simulation
 //   anim_effects.ino           — rainbow, breathe, wave, solid
 //   scroll_text.ino            — FONT data, drawCharCol, renderScrollFrame
 //   weather.ino                — weather fetch, icon draw, chip temp
@@ -971,6 +972,7 @@ void loop() {
     else if (animationName == "wave")       runWaveFrame();
     else if (animationName == "solid")      runSolidFrame();
     else if (animationName == "liquid")     stepLiquidFrame();
+    else if (animationName == "liquid2")    stepLiquid2Frame();
     else if (animationName == "imu")        stepImuFrame();
     else if (animationName == "chiptemp")   stepChipTempFrame();
     else if (animationName == "weather")    stepWeatherFrame();

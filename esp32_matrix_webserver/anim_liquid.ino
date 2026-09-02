@@ -37,6 +37,7 @@ static uint8_t qmiRead(uint8_t reg) {
 //   0x08 = 0x01 → enable sensors (power-on)
 void initIMU() {
   Wire.begin(IMU_SDA, IMU_SCL);
+  Wire.setClock(400000);   // QMI8658C supports 400 kHz Fast Mode (default 100 kHz). Saves ~1.7 ms per frame.
   delay(20);   // give the IMU time to wake up after power-on
   uint8_t id = qmiRead(0x00);
   Serial.printf("QMI8658 WHO_AM_I = 0x%02X\n", id);
@@ -51,25 +52,34 @@ void initIMU() {
   Serial.println("IMU ready.");
 }
 
-// ── readAccel ─────────────────────────────────────────────────
-// Reads raw 16-bit accelerometer values for all three axes and
+// ── readAccelXY ───────────────────────────────────────────────
+// Reads raw 16-bit accelerometer values for X and Y axes only and
 // converts them to g-force (gravitational units, ±4g range here).
 //
-// Each axis is two bytes: low byte then high byte, addresses
-// 0x35-0x3A. They're combined into a signed 16-bit int with
-// (xL | (xH << 8)), then divided by 8192.0 to convert to g.
-// (8192 = 2^13 = half the 16-bit range / 4g full scale)
+// Each axis is two bytes: low byte then high byte. X is at
+// addresses 0x35-0x36, Y is at 0x37-0x38. They're combined into
+// a signed 16-bit int with (xL | (xH << 8)), then divided by
+// 8192.0f to convert to g. (8192 = 2^13 = half the 16-bit range
+// per 4g full scale)
 //
 // NOTE: Burst reads (requesting multiple bytes in one transaction)
-// fail on this particular chip revision — the register pointer
+// fail on this particular chip revision. The register pointer
 // doesn't auto-increment correctly. So each byte is fetched
 // with an explicit register address. Not pretty, but it works.
-void readAccel(float &ax, float &ay, float &az) {
+void readAccelXY(float &ax, float &ay) {
   uint8_t xL = qmiRead(0x35), xH = qmiRead(0x36);
   uint8_t yL = qmiRead(0x37), yH = qmiRead(0x38);
-  uint8_t zL = qmiRead(0x39), zH = qmiRead(0x3A);
   ax = (int16_t)(xL | (xH << 8)) / 8192.0f;
   ay = (int16_t)(yL | (yH << 8)) / 8192.0f;
+}
+
+// ── readAccel ─────────────────────────────────────────────────
+// Reads raw 16-bit accelerometer values for all three axes.
+// Calls readAccelXY() for X and Y, then reads Z (0x39-0x3A).
+// (Burst-read caveat: see the NOTE on readAccelXY above.)
+void readAccel(float &ax, float &ay, float &az) {
+  readAccelXY(ax, ay);
+  uint8_t zL = qmiRead(0x39), zH = qmiRead(0x3A);
   az = (int16_t)(zL | (zH << 8)) / 8192.0f;
 }
 

@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Liquid 2</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230d0d0d'/%3E%3Ccircle cx='4' cy='4' r='1.5' fill='%2300ff88'/%3E%3Ccircle cx='12' cy='4' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='8' cy='8' r='1.5' fill='%2322ddff'/%3E%3Ccircle cx='4' cy='12' r='1.5' fill='%23ffb000'/%3E%3Ccircle cx='12' cy='12' r='1.5' fill='%2300ff88'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="wrap" style="--accent-page:#22ddff">
+  <h1>⛲ Liquid 2</h1>
+
+  <div class="panel">
+    <div class="layout">
+      <div class="preview-frame">
+        <div id="f2Preview" style="display:grid;grid-template-columns:repeat(8,18px);grid-template-rows:repeat(8,18px);gap:2px;background:#000;border-radius:6px"></div>
+        <div class="preview-label">Live mirror of the board</div>
+      </div>
+
+      <div class="controls">
+
+        <div class="subcard">
+          <div class="subhead">Preset</div>
+          <div class="chips">
+            <button class="chip active" onclick="selectPreset(this,'water')">Water</button>
+            <button class="chip"        onclick="selectPreset(this,'lava')">Lava</button>
+            <button class="chip"        onclick="selectPreset(this,'mercury')">Mercury</button>
+            <button class="chip"        onclick="selectPreset(this,'slime')">Slime</button>
+            <button class="chip"        onclick="selectPreset(this,'zerog')">Zero-G</button>
+          </div>
+          <div class="hint">Sets color, viscosity and gravity together (adjust any of them after).</div>
+        </div>
+
+        <div class="subcard">
+          <div class="subhead">Color</div>
+          <div id="palSlot"></div>
+          <div class="hint">Top = surface · Bottom = deep. Darker reads as deeper.</div>
+        </div>
+
+        <div class="subcard">
+          <div class="subhead">Motion</div>
+          <div class="row"><label>Viscosity: <span id="v-vis">2</span></label></div>
+          <div class="row">
+            <input type="range" id="viscosity" min="0" max="10" value="2">
+          </div>
+          <div class="hint">0 = thin &amp; splashy &nbsp;·&nbsp; 10 = thick &amp; syrupy</div>
+
+          <div class="row" style="margin-top:12px"><label>Gravity: <span id="v-grav">1.0</span>x</label></div>
+          <div class="row">
+            <input type="range" id="gravity" min="0" max="2" step="0.1" value="1.0">
+          </div>
+          <div class="hint">0 = zero-g, the fluid floats and breaks into drifting blobs</div>
+        </div>
+
+        <div class="subcard">
+          <div class="subhead">Fill</div>
+          <div class="row"><label>Fill: <span id="v-fill">50</span>%</label></div>
+          <div class="row">
+            <input type="range" id="fill" min="0" max="100" value="50">
+          </div>
+          <div class="hint">Achieved: <span id="achievedFill">--</span>% (snaps to whole sim rows). Changing this resets the tank.</div>
+        </div>
+
+        <div class="subcard">
+          <div class="subhead">Splash</div>
+          <div class="row"><label>Splash: <span id="v-foam">5</span></label></div>
+          <div class="row">
+            <input type="range" id="foam" min="0" max="10" value="5">
+          </div>
+        </div>
+
+        <div class="subcard">
+          <div class="subhead">Detail</div>
+          <div class="chips">
+            <button class="chip"        data-k="1" onclick="selectDetail(this)">Coarse</button>
+            <button class="chip active" data-k="2" onclick="selectDetail(this)">Fine</button>
+          </div>
+          <div class="hint">Changing this resets the tank.</div>
+        </div>
+
+        <div class="actions">
+          <button class="btn-primary"   onclick="sendLiquid2()">Apply to Display</button>
+          <button class="btn-secondary" onclick="clearDisplay()">Stop / Clear</button>
+          <span class="live-dot">applies live</span>
+        </div>
+
+        <div class="status" id="status"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="ledsim.js"></script>
+  <script src="palette.js"></script>
+  <script>
+    let live = true;
+    let liveTimer = null;
+    function liveApply() {
+      clearTimeout(liveTimer);
+      liveTimer = setTimeout(sendLiquid2, 180);
+    }
+
+    // Shared palette (S2) for the gradient: [Top, Bottom]. Defaults match the
+    // Water preset below.
+    const pal = Palette.mount('#palSlot', {
+      count: 2, labels: ['Top', 'Bottom'], defaults: ['#e6faff', '#0028a0'],
+      onChange: () => { if (live) liveApply(); }
+    });
+
+    // Each preset sets its own look and feel, structurally like liquid.html's
+    // VIS_BY_THEME: bottom (deep) / top (surface) / viscosity / gravity_scale.
+    const PRESETS = {
+      water:   { bottom: '#0028A0', top: '#E6FAFF', viscosity: 2, gravity: 1.0 },
+      lava:    { bottom: '#3A0A00', top: '#FF6A00', viscosity: 8, gravity: 0.7 },
+      mercury: { bottom: '#2A2E38', top: '#EDF2F7', viscosity: 1, gravity: 1.3 },
+      slime:   { bottom: '#0B3B10', top: '#8CFF5A', viscosity: 9, gravity: 0.9 },
+      zerog:   { bottom: '#12043A', top: '#9AD8FF', viscosity: 3, gravity: 0.0 }
+    };
+
+    function selectPreset(btn, name) {
+      btn.parentElement.querySelectorAll('.chip').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const p = PRESETS[name];
+      pal.set([p.top, p.bottom]);
+      document.getElementById('viscosity').value = p.viscosity;
+      document.getElementById('v-vis').textContent = p.viscosity;
+      document.getElementById('gravity').value = p.gravity;
+      document.getElementById('v-grav').textContent = p.gravity.toFixed(1);
+      if (live) liveApply();
+    }
+
+    let K = 2;
+    function selectDetail(btn) {
+      btn.parentElement.querySelectorAll('.chip').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      K = +btn.dataset.k;
+      if (live) liveApply();
+    }
+
+    document.getElementById('viscosity').addEventListener('input', e => {
+      document.getElementById('v-vis').textContent = e.target.value;
+      if (live) liveApply();
+    });
+    document.getElementById('gravity').addEventListener('input', e => {
+      document.getElementById('v-grav').textContent = (+e.target.value).toFixed(1);
+      if (live) liveApply();
+    });
+    document.getElementById('fill').addEventListener('input', e => {
+      document.getElementById('v-fill').textContent = e.target.value;
+      if (live) liveApply();
+    });
+    document.getElementById('foam').addEventListener('input', e => {
+      document.getElementById('v-foam').textContent = e.target.value;
+      if (live) liveApply();
+    });
+
+    function setStatus(msg, isErr) {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = 'status' + (isErr ? ' err' : '');
+    }
+
+    // Board preview: poll the firmware's actual framebuffer, same pattern as
+    // calendar.html. Mirrors real leds[] so it's exact for this sim too.
+    let lastFrame = null;
+    let fbBusy = false;
+    function paintPreview() {
+      const grid = document.getElementById('f2Preview');
+      if (!grid || !lastFrame) return;
+      const bri = window.LedSim ? LedSim.bri() : 40;
+      grid.innerHTML = '';
+      for (let i = 0; i < 64; i++) {
+        const px = document.createElement('div');
+        px.style.borderRadius = '3px';
+        const hex = '#' + (lastFrame[i] || '000000');
+        px.style.background = window.LedSim ? LedSim.previewColor(hex, bri) : hex;
+        grid.appendChild(px);
+      }
+    }
+    async function pollFramebuffer() {
+      if (document.hidden) return;   // don't hammer the single-client ESP32 server for a preview nobody's viewing
+      if (fbBusy) return;
+      fbBusy = true;
+      try {
+        const r = await fetch('/api/display/framebuffer');
+        if (r.ok) { const d = await r.json(); lastFrame = d.px; paintPreview(); }
+      } catch { /* board momentarily unreachable, keep the last frame */ }
+      finally { fbBusy = false; }
+    }
+    setInterval(pollFramebuffer, 500);   // ~2 fps
+    pollFramebuffer();
+    if (window.LedSim) LedSim.onChange(paintPreview);
+
+    async function sendLiquid2() {
+      const c = pal.get();   // [top, bottom]
+      const body = {
+        type: 'liquid2',
+        viscosity: +document.getElementById('viscosity').value,
+        fill: +document.getElementById('fill').value,
+        gravity_scale: +document.getElementById('gravity').value,
+        foam: +document.getElementById('foam').value,
+        K: K,
+        gradient: true,
+        top: c[0],
+        bottom: c[1]
+      };
+      try {
+        const r = await fetch('/api/display/animation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        if (r.ok) {
+          const d = await r.json();
+          if (typeof d.achieved_fill === 'number') {
+            document.getElementById('achievedFill').textContent = d.achieved_fill;
+          }
+          setStatus('✓ Liquid 2 running');
+        } else {
+          setStatus('Error: HTTP ' + r.status, true);
+        }
+      } catch {
+        setStatus('Cannot reach board. Check WiFi connection.', true);
+      }
+    }
+
+    async function clearDisplay() {
+      try {
+        const r = await fetch('/api/display/clear', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}'
+        });
+        setStatus(r.ok ? 'Display cleared.' : 'Error: HTTP ' + r.status, !r.ok);
+      } catch {
+        setStatus('Cannot reach board.', true);
+      }
+    }
+  </script>
+  </div>
+  <script src="backnav.js" data-auto data-parent="/animations.html" data-label="Animations"></script>
+  <script src="bright.js" data-auto></script>
+  <script src="header.js" data-auto></script>
+</body>
+</html>
