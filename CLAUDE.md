@@ -31,15 +31,27 @@ selector, weather/clock, a calibration lab, and an HTTP API. It exposes that API
 
 ## How we work (the dev loop)
 
-**Claude cannot compile, flash, or see the LEDs.** Claude edits firmware (`.ino`) and
-web UI (`data/*.html`); **you** flash and report back:
+**Claude CAN compile, but cannot flash or see the LEDs.** Claude edits firmware (`.ino`)
+and web UI (`data/*.html`), **compiles every firmware change with the IDE-bundled
+`arduino-cli` before asking for an upload** (exact command in the `flash-and-verify`
+skill, section 0a; FQBN comes from `build/.../build.options.json`), then **you** flash and
+report back:
 
 1. **Sketch → Upload** (firmware), and if `data/` changed, **Tools → ESP32 LittleFS
    Data Upload** (web files). *Two separate steps.*
-2. Paste the **Serial Monitor** output and/or describe the LED behavior.
+2. Paste the **Serial Monitor** output and/or describe the LED behavior. Animations with
+   settings-dependent cost print a `<name>: frame mean ... worst ...` line every 5 s; that
+   line plus a "tab closed" A/B is how frame-rate complaints get diagnosed.
 
 End users instead flash one pre-merged binary (`install/`, produced by
 `npm run build:release`). **Never claim a change "works" until confirmed on hardware.**
+A compile gate per task gave the liquid2 build (2026-09-01) zero compile failures across 15
+commits; before that, single-TU ordering errors routinely reached the flash.
+
+> **Licensing.** The repo is MIT (`LICENSE`). Any file ported from third-party code keeps
+> the upstream notice verbatim at its top AND gets a line in `LICENSE`'s third-party section
+> (`anim_liquid2.ino` is the precedent: Ten Minute Physics #18, MIT). The LICENSE file must
+> be COMMITTED, not merely present on disk; that mistake shipped through six reviews once.
 
 ## Hardware facts (don't re-derive these)
 
@@ -81,18 +93,26 @@ built WITHOUT it** (`build-release.mjs` refuses if present; `--allow-secrets` = 
 ## Firmware layout (all `.ino` in `esp32_matrix_webserver/` compile as one unit)
 
 `esp32_matrix_webserver.ino` (globals, setup/loop, `XY`/`setPixel`, dispatch) ·
-`api_handlers.ino` (HTTP routes) · `anim_*.ino` (one animation each) · `scroll_text.ino`
-· `fonts.ino` · `weather.ino` · `clock_timer.ino` · `anim_presence.ino` (native presence
-render) · `mqtt_publisher.ino` (optional MQTT telemetry publisher, off by default) ·
-`data/*.html` + the shared web design system (`app.css`, `backnav.js`
-`header.js`, `bright.js`, `previews.js`, `palettes.js`, all `data-auto` self-injecting) ·
-`data/frames/` (the studio library packed as `library.cfrpack` + `index.json`; animated gallery at `data/gallery.html`).
+`api_handlers.ino` (HTTP routes) · `anim_*.ino` (one animation each; `anim_liquid.ino` is
+the level-set slosh + the IMU driver, `anim_liquid2.ino` is the FLIP particle fluid, MIT
+port) · `scroll_text.ino` · `fonts.ino` · `weather.ino` · `clock_timer.ino` ·
+`anim_presence.ino` (native presence render) · `mqtt_publisher.ino` (optional MQTT
+telemetry publisher, off by default) · `data/*.html` + the shared web design system
+(`app.css`, `backnav.js`, `header.js`, `bright.js` are `data-auto` self-injecting;
+`previews.js` + `palettes.js` (plural, DF palette grid) and `palette.js` (singular, the
+two-colour S2 picker, a plain `<script>`) are loaded explicitly; do not confuse the last two)
+· `data/frames/` (the studio library packed as `library.cfrpack` + `index.json`; animated
+gallery at `data/gallery.html`).
 
 ### Adding an animation (recipe)
 1. `anim_<name>.ino`, state + `run<Name>Frame()`. 2. Dispatch branch in the main `.ino`
 loop. 3. `api_handlers.ino` `handleAnimation()`, parse params + set `animationName`.
 4. `data/<name>.html` control page (clone `rainbow.html`; shared design system). 5. Card
-in `data/animations.html` (the hub, NOT index). See the `add-animation` skill.
+in `data/animations.html` (the hub, NOT index; check the emoji is not already used by
+another card). 6. Compile gate before asking for a flash. 7. Studio mirror set (enum,
+name guards, hook + its live copy, editor params) in `claude-expression-studio`. Lock the
+NAME before merge: an id becomes a contract once it is in NVS resume bodies and the MCP
+enum. Full checklist with the traps: the `add-animation` skill.
 
 ## API, settings, NVS, calibration
 
@@ -129,7 +149,9 @@ in `data/animations.html` (the hub, NOT index). See the `add-animation` skill.
 ## Versioning & discovery
 
 Canonical `VERSION` → `version.h` (`FW_VERSION`) + `data/version.json`. `GET /api/status`
-reports `fw_version`/`fw_built`/`web_version`. `npm run check` flags drift. Board address =
+reports `fw_version`/`fw_built`/`web_version`. `npm run check` flags drift by querying the
+LIVE board (so it can hang when the board is busy: run it with a timeout, and expect "repo
+ahead of board" drift before every flash). Board address =
 `ESP32_URL` env (default `http://esp32matrix.local`). (The MCP server is versioned
 separately in the `claude-expression-studio` repo.)
 

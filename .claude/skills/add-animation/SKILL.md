@@ -28,6 +28,16 @@ Claude can't launch it." Names below assume a mode called `<name>` (e.g. `comet`
   (NOT serpentine), origin top-left.
 - **Non-blocking**: no `delay()`. Use `millis()` + frame-state like the other
   `anim_*.ino`. The dispatcher rate-limits via `animationSpeed`/`lastFrameMs`.
+- **Porting someone else's code?** Reproduce their license notice verbatim at the top of the
+  `.ino` AND add a line to the repo `LICENSE`'s third-party section (`anim_liquid2.ino` is the
+  precedent). Commit the LICENSE file; "present on disk" fooled six reviews once.
+- **Lock the NAME before the PR.** Once merged, `<name>` lives in every board's NVS
+  auto-resume body, the MCP enum, two name-guard mirrors and the manifest: a contract.
+  Pre-merge a rename is a grep (fluid2 became liquid2 for free); post-merge it is a
+  cross-repo breaking change. If a display name and the id differ, make them match.
+- **Settings-dependent cost?** Ship a `micros()` mean/worst Serial line every 5 s while the
+  animation runs. It is the only profiler this board has and it settled liquid2's
+  "choppy" report in one paste (the page poller, not the solver).
 
 ## ⚠️ Three traps that have bitten this codebase repeatedly, internalize before coding
 
@@ -44,14 +54,23 @@ Claude can't launch it." Names below assume a mode called `<name>` (e.g. `comet`
      (e.g. `void reset<Name>()`), NOT a file-local static, the function is
      auto-prototyped and cross-file visible; the static is not.
    (This cost two compile-fix cycles on the settings/idle work; pre-empting it made the
-   next animation compile first try.)
+   next animation compile first try.) **Since 2026-09-01 you can COMPILE yourself:** run
+   the `arduino-cli` gate from the `flash-and-verify` skill (section 0a) before asking for
+   any upload. Also measured on this toolchain: `min`/`max` are `std::` templates (both
+   args identically typed or it will not compile), every float literal needs `f` (no double
+   FPU), pragmas leak to later files, ArduinoJson int defaults silently drop fractional
+   values. All in `docs/PITFALLS.md` under 2026-09-01.
 
 2. **`speed` is milliseconds-per-frame, NOT a 1-5 scale.** The firmware reads
    `animationSpeed = constrain(doc["speed"] | 66, 10, 10000)` (ms/frame). The MCP tool
    maps a human 1-5 to ms via `msMap = {1:150, 2:100, 3:66, 4:40, 5:20}`. **Your control
    page MUST do the same mapping before POST**, posting a raw `2` becomes 2ms→clamped
    to 10ms ≈ 100fps (a blizzard). This exact bug has shipped twice. Copy the `MS` table
-   into the page's JS and send `speed: MS[sliderValue]`.
+   into the page's JS and send `speed: MS[sliderValue]`. **If your animation is a
+   fixed-timestep simulation** (its speed is physics, not a frame delay), clamp
+   `animationSpeed = min(animationSpeed, (uint32_t)<budget>)` in your param block, have the
+   page NOT send `speed`, and say in the MCP description that it runs at a fixed rate
+   (liquid2 does all three).
 
 3. **Brightness-5 floor (only if it'll run as a wait/idle indicator).** Ambient
    indicators render at FastLED global brightness 5, which DOUBLE-scales with your
@@ -97,6 +116,14 @@ Claude can't launch it." Names below assume a mode called `<name>` (e.g. `comet`
    default-on, debounced ~180ms:** `liveApply(){clearTimeout(t);t=setTimeout(applyAnimation,180)}`.
    **Speed = fps slider → ms** (trap 2). Preview renders at FULL brightness, no `ledsim.js` for
    animation previews. Launch POSTs `{ "type":"<name>", ... }`.
+   **Two-colour pickers use `palette.js` (SINGULAR, `Palette.mount(slot, {count:2, labels})`,
+   a plain `<script>`, not `data-auto`)**, distinct from `palettes.js` (plural, the DF grid).
+   Following the wrong one ships a page with no picker. **No JS twin for the preview?** Do what
+   `calendar.html` does: poll `GET /api/display/framebuffer` at 2 fps into a div grid WITH an
+   in-flight guard and the `document.hidden` check (a mirror of the REAL pixels; 16 of 17 pages
+   have a preview, do not ship the exception). Every live-apply POST reseeds only if your param
+   block makes it so: read the params per frame and reseed only on geometry changes, or every
+   slider drag resets the animation (liquid2 shipped that bug once).
 
 7. **Hub card, in `data/animations.html`, NOT the index.** Post-revamp `animations.html` is a **pure
    `.apps` grid of `.card` link-outs** (every animation has its own page now, no more inline
@@ -109,11 +136,26 @@ Claude can't launch it." Names below assume a mode called `<name>` (e.g. `comet`
    System/config pages go in `system.html` instead. ⚠️ The new leaf's `<h1>` must NOT duplicate its
    hub's name, `backnav.js` derives the breadcrumb's current crumb from the `<h1>`, so a leaf titled
    "Animations" would read "Animations › Animations". Give it the mode's own name.
+   **Check the emoji is unused:** grep `animations.html` for your icon first. `🌊` was already
+   Wave when liquid2 tried to take it; it shipped as `⛲`. Put related animations adjacent.
 
-8. **MCP enum**, add `<name>` to the `matrix_set_animation` `type` enum array (+ a one-line
-   description) in `mcp_server/index.ts`, **which now lives in the separate
-   `claude-expression-studio` repo**. Without this, Claude can't launch it by name. This is the
-   only cross-repo step in the core 8 (steps 1-7 are all firmware, in this repo).
+8. **Studio mirror set** (all in the separate `claude-expression-studio` repo; this is the only
+   cross-repo step, and it is SIX files, not one; liquid2's integration audit found them):
+   - `mcp_server/index.ts`: `<name>` in the `matrix_set_animation` `type` **enum** (a closed
+     list; without it the tool rejects the type before any HTTP call, no firmware workaround),
+     a one-line description bullet, and **any NEW param as a schema property** (Claude only
+     sends declared properties; the handler forwards whatever arrives). Prefer reusing the
+     generic ones that already exist (`color1`/`color2`, `viscosity`, `speed`) by aliasing them
+     in your firmware param block; liquid2 needed only one new property that way.
+   - `shared/firmware-names.js` + `shared/firmware-names.test.js` (the size assertion, a drift
+     guard, must be bumped).
+   - `claude-hooks/matrix_signal.py` AND its live deployed copy at `~/.claude/hooks/` (edit
+     both or they drift).
+   - `studio/firmware-params.js` (typed editor widgets; defaults must match the FIRMWARE's
+     bare-POST defaults, not a sibling animation's).
+   - Rebuild `dist/` (`npx tsc`), bump that repo's VERSION, `npm test` + `npm run check`, then
+     the user reconnects `/mcp`.
+   Remember the MCP layer rescales `speed` 1-5 to ms (trap 2).
 
 ## Optional: wire it into the busy/idle pools (now manifest-driven, in the STUDIO repo)
 The old `wait.ts`/`idle.ts`/`wait-weights.json` are **gone**. Pools now live in
@@ -141,3 +183,6 @@ The old `wait.ts`/`idle.ts`/`wait-weights.json` are **gone**. Pools now live in
   the user's eyes. **Restore the board's prior brightness + display after testing.**
 - Do not claim it works until confirmed on hardware. If a non-obvious trap bit us, append
   to `docs/PITFALLS.md`.
+- **Compile gate first** (`flash-and-verify` 0a): never ask for a Sketch upload of code that
+  has not compiled locally. Expect one rainbow boot if you renamed or removed an animation
+  (stale NVS `animbody`; it heals on the next launch).

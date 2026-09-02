@@ -5,9 +5,33 @@ description: Runbook for getting an ESP32-S3 matrix change onto the board and co
 
 # Flash & verify runbook
 
-I (Claude) cannot compile, flash, or see the LEDs, the user does that and
-reports back. My job here is to tell them exactly which step to run and to triage
-what comes back. (See the `esp32-dev-loop` memory.)
+I (Claude) **can compile** (see 0a) but cannot flash or see the LEDs; the user does
+those and reports back. My job here is to compile first, then tell them exactly which
+upload step to run, then triage what comes back.
+
+## 0a. Compile gate: run this BEFORE asking for any Sketch upload
+Arduino IDE 2.x bundles `arduino-cli`. The board's exact FQBN (with PSRAM, partition,
+CDC options) is in `esp32_matrix_webserver/build/esp32.esp32.ws_esp32_s3_matrix/build.options.json`
+under `.fqbn`, left there by the last IDE build. From the repo root (600000 ms timeout,
+a build takes a few minutes):
+
+```
+"/c/Users/srfin/AppData/Local/Programs/Arduino IDE/resources/app/lib/backend/resources/arduino-cli.exe" \
+  compile --fqbn "$(node -e "console.log(require('./esp32_matrix_webserver/build/esp32.esp32.ws_esp32_s3_matrix/build.options.json').fqbn)")" \
+  --libraries "C:\\Users\\srfin\\OneDrive\\Documents\\Arduino\\libraries" \
+  esp32_matrix_webserver
+```
+
+Exit 0 plus the `Sketch uses N bytes (X%)` tail is the evidence; put it in the report.
+Introduced for liquid2 (2026-09-01): a compile per task gave 15 commits with zero compile
+failures on this single-TU build. Two caveats measured on this toolchain:
+- The IDE default `compiler.warning_flags=-w` **disarms `#pragma GCC diagnostic error`**.
+  To exercise such a guard, add `--warnings default` for one build.
+- Prove any compile-time guard is armed with a **positive control**: add a deliberately bad
+  line, confirm the build FAILS at it, remove it. "No errors" cannot distinguish a clean file
+  from a disarmed guard.
+The single-TU ordering traps this replaces guessing about are in `docs/PITFALLS.md`
+(2026-09-01 block plus the 2026-06 entries).
 
 ## 0. Before you ask for ANY upload, minimize & de-risk the round-trip
 Every Sketch→Upload and LittleFS upload is manual effort the USER pays. Treat
@@ -88,6 +112,15 @@ round-trips as the scarce resource:
     so all three artifacts deploy at the new version with **ZERO drift**. (v1.1.0: a chip-temp
     firmware fix turned the web-only revamp into a firmware+web release → bump-now beat
     bump-after, no extra round-trip, no drift.) Confirm with `npm run check`.
+- **Simulate a computable look bug host-side before a reflash.** For liquid2's "almost every
+  pixel lit" the render pass was ported 1:1 into a throwaway Node harness (~0.4 s/run), the
+  symptom reproduced in numbers (46/64 lit vs 33 wet), constants swept, ASCII frames printed,
+  ONE reflash fixed it. Do not commit such a harness (it is a hand copy that drifts); rebuild it
+  when needed.
+- **Ship a timing instrument inside any settings-dependent animation**: a `micros()` mean/worst
+  Serial line every 5 s while it runs. Then ask the user for ~30 s of Serial AND a "browser tab
+  closed for ten seconds" A/B. That pair separated page-poll stutter from solver cost in one
+  paste (30.4 fps steady at every tier; the page's preview poller was the stutter).
 - When done driving the panel hard (calibration runs hit 255), **restore a
   comfortable brightness** via `POST /api/brightness` (persists to NVS).
 
@@ -115,6 +148,9 @@ Upload speed 921600. (Board is 4MB, verified via esptool.)
 | Upload fails / port busy | Serial Monitor holding the port, or no boot mode | Close Serial Monitor; retry; if stuck, hold BOOT during connect |
 | Board reboots under bright patterns | power brownout (full-white ~3-4 A) | Lower brightness / better USB supply (see PITFALLS) |
 | Red/green look swapped on a new effect | code assumed GRB | This firmware is **RGB**, don't swap channels, fix the source assumption |
+| Board boots to rainbow right after flashing a RENAMED or removed animation | NVS `animbody` still holds the old type string; `applyAnimationBody` refuses it | Expected one-time fallback (Serial: "Auto-resume failed to launch"). Launch anything once and it heals |
+| An animation stutters ONLY while its own web page is open | the page's framebuffer preview polls a slow endpoint and requests pile up on the single-client server | Give the poller an in-flight guard (`if (busy) return`), poll at 2 fps or less, keep the `document.hidden` check |
+| `npm run check` hangs past 2 minutes | `version-check.js` queries the LIVE board over mDNS/HTTP | Run it with an explicit timeout, or `node scripts/check-fs.mjs` alone; pre-flash drift (repo ahead of board) is expected output |
 
 ## 4. Verify on hardware (what to ask the user for)
 - **Serial Monitor** output at boot: WiFi connect line, IP / `esp32matrix.local`
